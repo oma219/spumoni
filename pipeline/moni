@@ -1,0 +1,717 @@
+#!/usr/bin/env python3
+
+# Edited from bigbwt script file
+
+import sys
+import time
+import argparse
+import subprocess
+import os.path
+import threading
+import tempfile
+from psutil import virtual_memory
+
+Description = """
+                  __  __  ____  _   _ _____
+                |  \/  |/ __ \| \ | |_   _|
+                | \  / | |  | |  \| | | |
+                | |\/| | |  | | . ` | | |
+                | |  | | |__| | |\  |_| |_
+                |_|  |_|\____/|_| \_|_____|
+                                  ver 0.1.0
+MEM-finder with Multi-Genome references.
+
+Build the index for highly repetive files using the approach
+described in
+
+   "MONI: A Pangenomics Index for Finding MEMs"
+   by Massimiliano Rossi, Marco Oliva, Ben Langmead, 
+      Travis Gagie, and Christina Boucher
+
+The input file cannot contain the characters 0, 1 or 2 which are
+used internally by the algorithm.
+"""
+
+dirname = os.path.dirname(os.path.abspath(__file__))
+
+bigbwt_dirname = os.path.join(dirname, "_deps/bigbwt-build")
+bigrepair_dirname = os.path.join(dirname, "_deps/bigrepair-src")
+thresholds_dirname = os.path.join(
+    dirname, "_deps/pfp_thresholds-build/test/src")
+compress_dirname = os.path.join(dirname, "test/src")
+shaped_slp_dirname = os.path.join(dirname, "_deps/shaped_slp-build")
+
+parse_exe = os.path.join(bigbwt_dirname, "pscan.x")
+parse_fasta_exe = os.path.join(bigbwt_dirname, "newscan.x")
+parseNT_exe = os.path.join(bigbwt_dirname, "newscanNT.x")
+
+parsebwt_exe = os.path.join(bigbwt_dirname, "bwtparse")
+parsebwt_exe64 = os.path.join(bigbwt_dirname, "bwtparse64")
+pfbwt_exe = os.path.join(bigbwt_dirname, "pfbwt.x")
+pfbwtNT_exe = os.path.join(bigbwt_dirname, "pfbwtNT.x")
+pfbwt_exe64 = os.path.join(bigbwt_dirname, "pfbwt64.x")
+pfbwtNT_exe64 = os.path.join(bigbwt_dirname, "pfbwtNT64.x")
+
+pfp_thresholds = os.path.join(thresholds_dirname, "pfp_thresholds")
+pfp_thresholds64 = os.path.join(thresholds_dirname, "pfp_thresholds64")
+
+rlebwt_ms_exe = os.path.join(compress_dirname, "rlebwt_ms_build")
+
+compress_exe = os.path.join(compress_dirname, "compress_dictionary")
+
+repair_exe = os.path.join(bigrepair_dirname, "repair/irepair")
+largerepair_exe = os.path.join(bigrepair_dirname, "largeb_repair/irepair")
+# despair for byte symbols
+despair_exe = os.path.join(bigrepair_dirname, "repair/despair")
+# despair for int32 symbols
+integer_despair_exe = os.path.join(bigrepair_dirname, "repair/idespair")
+# preprocess dict into a sequence of int32 representing both chars and distinct EOS
+preprocess_exe = os.path.join(bigrepair_dirname, "procdic")
+integer_preprocess_exe = os.path.join(bigrepair_dirname, "iprocdic")
+# create final output file
+postprocess_exe = os.path.join(bigrepair_dirname, "postproc")
+integer_postprocess_exe = os.path.join(bigrepair_dirname, "ipostproc")
+
+shaped_slp = os.path.join(shaped_slp_dirname, "SlpEncBuild")
+
+build_spumoni_exe = os.path.join(compress_dirname, "build_spumoni")
+
+run_moni_ms_exe = os.path.join(compress_dirname, "ms")
+run_phoni_ms_exe = os.path.join(compress_dirname, "run_phoni")
+run_spumoni_exe = os.path.join(compress_dirname, "run_spumoni")
+
+
+class PFPthresholds(threading.Thread):
+    def __init__(self, name, counter, args):
+        threading.Thread.__init__(self)
+        self.threadID = counter
+        self.name = name
+        self.counter = counter
+        self.args = args
+
+    def run(self):
+      args = self.args
+      logfile = args.logfile
+      logfile_name = args.logfile_name
+      print("{} PFP started!".format(self.getName()),
+            flush=True)        # "Thread-x started!"
+
+      start = time.time()
+      parse_size = os.path.getsize(args.reference+".parse")/4
+      dictionary_size = os.path.getsize(args.reference+".dict")
+
+      if(parse_size >= (2**31-1) or dictionary_size >= (2**31-4)):
+        command = "{exe} {file} -w {wsize}".format(
+                  exe=os.path.join(args.exe_dir, pfp_thresholds64),
+                  wsize=args.wsize, file=args.reference)
+      else:
+        command = "{exe} {file} -w {wsize}".format(
+            exe=os.path.join(args.exe_dir, pfp_thresholds),
+            wsize=args.wsize, file=args.reference)
+
+      command += " -r"
+
+      print("==== Computing Thresholds. Command:", command, flush=True)
+      if(execute_command(command, logfile, logfile_name) != True):
+        return
+      print("Thresholds Elapsed time: {0:.4f}".format(
+          time.time()-start), flush=True)
+
+
+class bigrepair(threading.Thread):
+  def __init__(self, name, counter, args):
+      threading.Thread.__init__(self)
+      self.threadID = counter
+      self.name = name
+      self.counter = counter
+      self.args = args
+
+  def run(self):
+      args = self.args
+      logfile = args.logfile
+      logfile_name = args.logfile_name
+      print("{} bigrepair started!".format(self.getName()),
+            flush=True)        # "Thread-x started!"
+
+      mem = virtual_memory()
+      # total physical memory available in MB
+      repair_mem = round(mem.total / 1024 / 1024)
+      print("RePair maximum memory: {}".format(repair_mem), flush=True)
+
+      sstart = time.time()
+      # ---- compress the dictionary
+      start = time.time()
+      exe = compress_exe
+      command = "{exe} {file} -w {wsize} -p {modulus}".format(
+                exe=os.path.join(bigrepair_dirname, exe), file=args.reference, wsize=args.wsize, modulus=args.mod)
+      print("==== Compressing the dictionary.\nCommand:", command, flush=True)
+      if(execute_command(command, logfile, logfile_name) != True):
+        return
+      preprocess_time = time.time()-start
+      print("Compression time: {0:.4f}".format(preprocess_time), flush=True)
+
+      # ---- preprocess the dictionary
+      start = time.time()
+      # exe = integer_preprocess_exe if args.i else preprocess_exe
+      exe = preprocess_exe
+      command = "{exe} {file}.dicz".format(
+                exe=os.path.join(bigrepair_dirname, exe), file=args.reference)
+      print("==== Preprocessing the dictionary.\nCommand:", command, flush=True)
+      if(execute_command(command, logfile, logfile_name) != True):
+        return
+      preprocess_time = time.time()-start
+      print("Preprocess time: {0:.4f}".format(preprocess_time), flush=True)
+
+      # ---- apply repair to the modified dictionary
+      start = time.time()
+      # if args.m==0:
+      # command = "{exe} {file}.dicz.int".format(
+      #         exe = os.path.join(bigrepair_dirname,repair_exe), file=args.reference)
+      # else:
+      command = "{exe} {file}.dicz.int {mb}".format(mb=repair_mem,
+                                                    exe=os.path.join(bigrepair_dirname, largerepair_exe), file=args.reference)
+      print("==== Repair dictionary.\nCommand:", command, flush=True)
+      if(execute_command(command, logfile, logfile_name) != True):
+       return
+      repair_time = time.time()-start
+      print("repair(dict) time: {0:.4f}".format(repair_time), flush=True)
+
+      # ---- apply repair to the parse
+      start = time.time()
+      # if args.m==0:
+      # command = "{exe} {file}.parse".format(
+      #         exe = os.path.join(bigrepair_dirname,repair_exe), file=args.reference)
+      # else:
+      command = "{exe} {file}.parse {mb}".format(mb=repair_mem,
+                                                 exe=os.path.join(bigrepair_dirname, largerepair_exe), file=args.reference)
+      print("==== Repair parse.\nCommand:", command, flush=True)
+      if(execute_command(command, logfile, logfile_name) != True):
+       return
+      repair_time = time.time()-start
+      print("repair(parse) time: {0:.4f}".format(repair_time), flush=True)
+
+      # ---- postprocess
+      start = time.time()
+      exe = postprocess_exe
+      # exe = integer_postprocess_exe if args.i else postprocess_exe
+      command = "{exe} {file}".format(
+                exe=os.path.join(bigrepair_dirname, exe), file=args.reference)
+      print("==== Postprocessing the dictionary.\nCommand:", command, flush=True)
+      fp = tempfile.TemporaryFile()
+      if(execute_command(command, logfile, logfile_name, fp) != True):
+        return
+
+      postprocess_time = time.time()-start
+      print("Postprocess time: {0:.4f}".format(postprocess_time), flush=True)
+
+      total_time = time.time()-sstart
+      print("Elapsed time: {0:.4f}".format(total_time), flush=True)
+      # get the estimated compressed size
+      # fp.seek(0); estimated_compression = int(fp.read().split()[-1]); fp.close()
+
+      # if args.r:
+      #   compression_report(args.reference,ctph_time,total_time,estimated_compression)
+
+      # delete temporary parsing/dictionary files
+
+      command = "rm -f {file}.parse.C {file}.parse.R {file}.dicz.int {file}.dicz.int.C {file}.dicz.int.R".format(
+          file=args.reference)
+      if(execute_command(command, logfile, logfile_name) != True):
+        return
+      # ---- repair done
+
+      print("==== Done", flush=True)
+
+      print("==== Computing final bigrepair. Command:", command, flush=True)
+      if(execute_command(command, logfile, logfile_name) != True):
+        return
+      print("bigrepair Elapsed time: {0:.4f}".format(
+          time.time()-sstart), flush=True)
+
+
+class SLP(threading.Thread):
+  def __init__(self, name, counter, args):
+      threading.Thread.__init__(self)
+      self.threadID = counter
+      self.name = name
+      self.counter = counter
+      self.args = args
+
+  def run(self):
+      args = self.args
+      logfile = args.logfile
+      logfile_name = args.logfile_name
+      print("{} shaped_slp started!".format(self.getName()),
+            flush=True)        # "Thread-x started!"
+
+      grammars = {
+          'naive': 'Naive',
+          'ssslp': 'SelfShapedSlp_SdSd_Sd'
+      }
+
+      sstart = time.time()
+      # ---- compress the dictionary
+      start = time.time()
+      exe = shaped_slp
+      command = "{exe} -i {file} -o {file}.slp -e {grammar} -f Bigrepair".format(
+                exe=os.path.join(bigrepair_dirname, exe), file=args.reference,
+                grammar=grammars[args.grammar])
+      print("==== ShapedSLP construction.\nCommand:", command, flush=True)
+      if(execute_command(command, logfile, logfile_name) != True):
+        return
+      preprocess_time = time.time()-start
+      print("ShapedSLP construction time: {0:.4f}".format(
+          preprocess_time), flush=True)
+
+      print("==== Done", flush=True)
+
+      print("ShapedSLP Elapsed time: {0:.4f}".format(
+          time.time()-sstart), flush=True)
+
+
+class bigbwt(threading.Thread):
+  def __init__(self, name, counter, args):
+      threading.Thread.__init__(self)
+      self.threadID = counter
+      self.name = name
+      self.counter = counter
+      self.args = args
+
+  def run(self):
+      args = self.args
+      logfile = args.logfile
+      logfile_name = args.logfile_name
+      # "Thread-x started!"
+      print("{} BWT started!".format(self.getName()))
+
+      # ----------- computation of the BWT of the parsing
+      start = time.time()
+      parse_size = os.path.getsize(args.input+".parse")/4
+      if(parse_size >= (2**32-1)):
+        print("Sorry, the parse contains %d words" % parse_size)
+        print("which is more than my current limit 2^32-2")
+        print("Please re-run the program with a larger modulus (currently %d)" % args.mod)
+        sys.exit(1)
+      elif(parse_size >= (2**31-1)):
+        command = "{exe} {file}".format(
+            exe=os.path.join(args.bigbwt_dir, parsebwt_exe64), file=args.input)
+      else:
+        command = "{exe} {file}".format(
+            exe=os.path.join(args.bigbwt_dir, parsebwt_exe), file=args.input)
+      # if (args.s or args.e or args.S): command += " -s"
+      command += " -s"
+      if (args.t > 0):
+          command += " -t " + str(args.t)
+      print("==== Computing BWT of parsing. Command:", command)
+      if(execute_command(command, logfile, logfile_name) != True):
+        return
+      print("Elapsed time: {0:.4f}".format(time.time()-start))
+
+      # ----------- compute final BWT using dictionary and BWT of parse
+      start = time.time()
+      if(os.path.getsize(args.input+".dict") >= (2**31-4)):
+        # 64 bit version with and without threads
+        # if args.t>0 and args.s==False and args.e==False:
+        #   command = "{exe} -w {wsize} {file} -t {th}".format(
+        #         exe = os.path.join(args.bigbwt_dir,pfbwt_exe64),
+        #         wsize=args.wsize, file=args.input, th=args.t)
+        # else:
+        command = "{exe} -w {wsize} {file}".format(
+            exe=os.path.join(args.bigbwt_dir, pfbwtNT_exe64),
+            wsize=args.wsize, file=args.input)
+      else:  # 32 bit version
+        # if args.t>0 and args.s==False and args.e==False:
+        #   command = "{exe} -w {wsize} {file} -t {th}".format(
+        #           exe = os.path.join(args.bigbwt_dir,pfbwt_exe),
+        #           wsize=args.wsize, file=args.input, th=args.t)
+        # else:
+        command = "{exe} -w {wsize} {file}".format(
+            exe=os.path.join(args.bigbwt_dir, pfbwtNT_exe),
+            wsize=args.wsize, file=args.input)
+      command += " -s"
+      command += " -e"
+      # if args.S: command += " -S"
+
+      print("==== Computing final BWT. Command:", command)
+      if(execute_command(command, logfile, logfile_name) != True):
+        return
+
+      command = "{exe} {file}".format(
+                exe=rlbwt_exe, file=args.input + ".bwt")
+
+      print("==== Run-length encoding the BWT. Command:", command)
+      if(execute_command(command, logfile, logfile_name) != True):
+        return
+      print("BWT Elapsed time: {0:.4f}".format(time.time()-start))
+
+
+class build_moni_ms(threading.Thread):
+  def __init__(self, name, counter, args):
+      threading.Thread.__init__(self)
+      self.threadID = counter
+      self.name = name
+      self.counter = counter
+      self.args = args
+
+  def run(self):
+      args = self.args
+      logfile = args.logfile
+      logfile_name = args.logfile_name
+      # "Thread-x started!"
+      print("{} BWT started!".format(self.getName()))
+
+      # ----------- computation of the BWT of the parsing
+      print("==== Building the RLEBWT. ", flush=True)
+      start = time.time()
+      parse_size = os.path.getsize(args.reference+".parse")/4
+      dictionary_size = os.path.getsize(args.reference+".dict")
+
+      command = "{exe} {file}".format(exe=os.path.join(
+          args.exe_dir, rlebwt_ms_exe), file=args.reference)
+
+      print("==== Building the RLEBWT. Command:", command, flush=True)
+      if(execute_command(command, logfile, logfile_name) != True):
+        return
+      print("Building the RLEBWT Elapsed time: {0:.4f}".format(
+          time.time()-start), flush=True)
+
+      # This is a manual hack
+      if args.output != ".":
+
+        if not os.path.exists(args.output):
+          os.makedirs(args.output)
+
+        command = "cp {ref}.thrc.ms {out}/{name}.thrc.ms".format(
+            ref=args.reference, out=args.output, name=os.path.basename(args.reference))
+        if(execute_command(command, logfile, logfile_name) != True):
+          return
+        command = "cp {ref}.slp {out}/{name}.slp".format(
+            ref=args.reference, out=args.output, name=os.path.basename(args.reference))
+        if(execute_command(command, logfile, logfile_name) != True):
+          return
+
+
+class build_spumoni(threading.Thread):
+  def __init__(self, name, counter, args):
+      threading.Thread.__init__(self)
+      self.threadID = counter
+      self.name = name
+      self.counter = counter
+      self.args = args
+
+  def run(self):
+      args = self.args
+      logfile = args.logfile
+      logfile_name = args.logfile_name
+      # "Thread-x started!"
+      print("{} SPUMONI started!".format(self.getName()))
+
+      # ----------- computation of the BWT of the parsing
+      print("==== Building SPUMONI. ", flush=True)
+      start = time.time()
+      parse_size = os.path.getsize(args.reference+".parse")/4
+      dictionary_size = os.path.getsize(args.reference+".dict")
+
+      command = "{exe} {file}".format(exe=os.path.join(
+          args.exe_dir, build_spumoni_exe), file=args.reference)
+
+      print("==== Building SPUMONI. Command:", command, flush=True)
+      if(execute_command(command, logfile, logfile_name) != True):
+        return
+      print("Building SPUMONI Elapsed time: {0:.4f}".format(
+          time.time()-start), flush=True)
+
+
+def build(args):
+
+  if args.f and args.threads > 0 and (".fq" in args.reference or ".fastq" in args.reference or ".fnq" in args.reference):
+    print("moni does not current support FASTQ format! Exiting...", flush=True)
+    return
+
+  filename = os.path.basename(args.reference)
+
+  logfile_name = args.reference + ".moni.log"
+  # get main bigbwt directory
+  args.exe_dir = os.path.split(sys.argv[0])[0]
+  print("Sending logging messages to file:", logfile_name, flush=True)
+  with open(logfile_name, "a") as logfile:
+    args.logfile = logfile
+    args.logfile_name = logfile_name
+    # ---------- parsing of the input file
+    start0 = start = time.time()
+    if args.threads > 0:
+      if args.f:
+        command = "{exe} {file} -w {wsize} -p {modulus} -t {th} -f".format(
+            exe=os.path.join(args.exe_dir, parse_fasta_exe),
+            wsize=args.wsize, modulus=args.mod, th=args.threads, file=args.reference)
+      else:
+        command = "{exe} {file} -w {wsize} -p {modulus} -t {th}".format(
+            exe=os.path.join(args.exe_dir, parse_exe),
+            wsize=args.wsize, modulus=args.mod, th=args.threads, file=args.reference)
+    else:
+      if args.f:
+        command = "{exe} {file} -w {wsize} -p {modulus} -f".format(
+            exe=os.path.join(args.exe_dir, parseNT_exe),
+            wsize=args.wsize, modulus=args.mod, th=args.threads, file=args.reference)
+      else:
+        command = "{exe} {file} -w {wsize} -p {modulus}".format(
+            exe=os.path.join(args.exe_dir, parseNT_exe),
+            wsize=args.wsize, modulus=args.mod, file=args.reference)
+    if args.v:
+        command += " -v"
+    # if args.f: command += " -f"
+    command += " -s"
+    print("==== Parsing. Command:", command, flush=True)
+    if(execute_command(command, logfile, logfile_name) != True):
+      return
+    print("Elapsed time: {0:.4f}".format(time.time()-start), flush=True)
+    if args.parsing:
+      # delete temporary parsing files
+      # check format when -t is used
+      command = "rm -f {file}.parse_old {file}.last".format(
+          file=args.reference)
+      if(execute_command(command, logfile, logfile_name) != True):
+        return
+      print("==== Stopping after the parsing phase as requested", flush=True)
+      return
+    elif args.compress:
+      # save parsing files
+      start = time.time()
+      command = "tar -cJf {file}.parse.txz {file}.parse {file}.dicz".format(
+          file=args.reference)
+      print("==== Compressing. Command:", command, flush=True)
+      if(execute_command(command, logfile, logfile_name, env={"XZ_OPT": "-9"}) != True):
+        return
+      print("Elapsed time: {0:.4f}".format(time.time()-start), flush=True)
+      delete_temp_files(args, logfile, logfile_name)
+      print("==== Done: Parsing output xz-compressed as requested", flush=True)
+      return
+
+    # ----------- computation of the PFP data structures
+
+    if args.moni_ms or args.spumoni:
+      pf_thresholds_thread = PFPthresholds(
+          name="{}".format(args.reference), args=args, counter=1)
+      pf_thresholds_thread.start()
+      pf_thresholds_thread.join()
+
+    if args.moni_ms:
+      bigrepair_thread = bigrepair(
+          name="{}".format(args.reference), args=args, counter=2)
+      bigrepair_thread.start()
+      bigrepair_thread.join()
+
+      SLP_thread = SLP(name="{}".format(args.reference), args=args, counter=2)
+      SLP_thread.start()
+      SLP_thread.join()
+
+    # ---- Building final data structures
+    if args.moni_ms:
+      build_moni_ms_thread = build_moni_ms(
+          name="{}".format(args.reference), args=args, counter=2)
+      build_moni_ms_thread.start()
+      build_moni_ms_thread.join()
+    if args.spumoni:
+      build_spumoni_thread = build_spumoni(
+          name="{}".format(args.reference), args=args, counter=2)
+      build_spumoni_thread.start()
+      build_spumoni_thread.join()
+
+    print("Total construction time: {0:.4f}".format(
+        time.time()-start0), flush=True)
+    # ---- print elapsed time to file
+    command = "echo Total construction time: {0:.4f}".format(
+        time.time()-start0)
+    if(execute_command(command, logfile, logfile_name) != True):
+      return
+
+    # ---- delete intermediate files
+    delete_temp_files(args, logfile, logfile_name)
+
+  print("==== Done", flush=True)
+
+
+class run_helper(threading.Thread):
+  def __init__(self, name, counter, args, exe):
+      threading.Thread.__init__(self)
+      self.threadID = counter
+      self.name = name
+      self.counter = counter
+      self.args = args
+      self.exe = exe
+
+  def run(self):
+      args = self.args
+      exe = self.exe
+      exe_name = self.name
+      logfile = args.logfile
+      logfile_name = args.logfile_name
+      # "Thread-x started!"
+      print("{N} {name} started!".format(N=self.getName(), name=exe_name))
+
+      # ----------- computation of the BWT of the parsing
+      print("==== Building {name}}. ".format(name=exe_name), flush=True)
+      start = time.time()
+      parse_size = os.path.getsize(args.reference+".parse")/4
+      dictionary_size = os.path.getsize(args.reference+".dict")
+
+      command = "{exe} {file} -p {query} -t {th}".format(exe=os.path.join(
+          args.exe_dir, build_spumoni_exe), file=args.index,
+          query=args.pattern, th=args.threads)
+
+      print("==== Building {name}. Command:".format(
+          name=exe_name), command, flush=True)
+      if(execute_command(command, logfile, logfile_name) != True):
+        return
+      print("Building {name} Elapsed time: {0:.4f}".format(
+          time.time()-start, name=exe_name), flush=True)
+
+      print("Total construction time: {0:.4f}".format(
+          time.time()-start0), flush=True)
+      # ---- print elapsed time to file
+      command = "echo Total construction time: {0:.4f}".format(
+          time.time()-start0)
+      if(execute_command(command, logfile, logfile_name) != True):
+        return
+
+
+def run(args):
+  if args.which == 'ms':
+    run_moni_ms = run_helper(
+        name="MONI-MS", args=args, counter=2, exe=run_moni_ms_exe)
+    run_moni_ms.start()
+    run_moni_ms.join()
+
+
+  if args.which == 'pseudo_ms':
+    run_spumoni = run_helper(
+        name="SPUMONI", args=args, counter=2, exe=run_spumoni_exe)
+    run_spumoni.start()
+    run_spumoni.join()
+
+
+
+def main():
+  parser = argparse.ArgumentParser(
+      description=Description, formatter_class=argparse.RawTextHelpFormatter)
+  subparsers = parser.add_subparsers(
+      title='subcommands', description='valid subcommands', help='additional help')
+  build_parser = subparsers.add_parser(
+      'build', help='build the index', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+  ms_parser = subparsers.add_parser(
+      'ms', help='compute the matching statistics', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+  pseudo_ms_parser = subparsers.add_parser(
+      'pseudo-ms', help='compute the pseudo matching statistics', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+  parser.set_defaults(which='base')
+
+  build_parser.add_argument(
+      '-r', '--reference', help='reference file name', type=str, required=True)
+  # build_parser.add_argument(
+  #     '-o', '--output', help='output directory path', type=str, default='.')
+  build_parser.add_argument(
+      '-w', '--wsize', help='sliding window size', default=10, type=int)
+  build_parser.add_argument(
+      '-p', '--mod', help='hash modulus', default=100, type=int)
+  build_parser.add_argument(
+      '-t', '--threads', help='number of helper threads', default=0, type=int)
+  build_parser.add_argument(
+      '-k', help='keep temporary files', action='store_true')
+  build_parser.add_argument('-v', help='verbose', action='store_true')
+  build_parser.add_argument('-f', help='read fasta', action='store_true')
+  build_parser.add_argument(
+      '--moni-ms', help='build moni index for matching statistics only', action='store_true')
+  build_parser.add_argument(
+      '--spumoni', help='build spumoni index', action='store_true')
+  build_parser.add_argument(
+      '--parsing',  help='stop after the parsing phase (debug only)', action='store_true')
+  build_parser.add_argument(
+      '--compress',  help='compress output of the parsing phase (debug only)', action='store_true')
+  build_parser.set_defaults(which='build')
+
+  ms_parser.add_argument(
+      '-i', '--index', help='reference index base name', type=str, required=True)
+  ms_parser.add_argument(
+      '-p', '--pattern', help='the input query', type=str, required=True)
+  ms_parser.add_argument(
+      '-o', '--output', help='output directory path', type=str, default='.')
+  ms_parser.add_argument(
+      '-t', '--threads', help='number of helper threads', default=1, type=int)
+  ms_parser.set_defaults(which='ms')
+
+  pseudo_ms_parser.add_argument(
+      '-i', '--index', help='reference index base name', type=str, required=True)
+  pseudo_ms_parser.add_argument(
+      '-p', '--pattern', help='the input query', type=str, required=True)
+  pseudo_ms_parser.add_argument(
+      '-o', '--output', help='output directory path', type=str, default='.')
+  pseudo_ms_parser.add_argument(
+      '-t', '--threads', help='number of helper threads', default=1, type=int)
+  pseudo_ms_parser.set_defaults(which='pseudo_ms')
+  args = parser.parse_args()
+
+  # Set default flags for build and ms
+  if args.which == 'build':
+    args.spumoni = args.spumoni or not args.moni_ms
+
+  if args.which == 'build':
+    build(args)
+  elif args.which == 'ms' or args.which == 'pseudo_ms':
+    run(args)
+
+  return
+
+
+# delete intermediate files
+def delete_temp_files(args, logfile, logfile_name):
+    if args.k == False:
+      # no need to show the command
+      print("==== Deleting temporary files.", flush=True)
+      command = "rm -f {file}.parse_old {file}.last {file}.bwlast {file}.ilist".format(
+          file=args.reference)
+      #command = "rm -f {file}.parse {file}.parse_old {file}.last {file}.bwlast {file}.dicz {file}.ilist {file}.occ".format(file=args.reference)
+      if(execute_command(command, logfile, logfile_name) != True):
+        return
+      for i in range(args.threads):
+        command = "rm -f {file}.{i}.parse_old {file}.{i}.last".format(
+            file=args.reference, i=i)
+        if(execute_command(command, logfile, logfile_name) != True):
+          return
+
+      command = "rm -f {file}.sai {file}.bwsai".format(file=args.reference)
+      if(execute_command(command, logfile, logfile_name) != True):
+        return
+      for i in range(args.threads):
+        command = "rm -f {file}.{i}.sai".format(file=args.reference, i=i)
+        if(execute_command(command, logfile, logfile_name) != True):
+          return
+
+
+# compute hash digest for a file
+def file_digest(name, logfile):
+    try:
+      hash_command = "{exe} {infile}".format(exe=shasum_exe, infile=name)
+      hashsum = subprocess.check_output(hash_command.split(), stderr=logfile)
+      hashsum = hashsum.decode("utf-8").split()[0]
+    except:
+      hashsum = "Error!"
+    return hashsum
+
+# execute command: return True is everything OK, False otherwise
+
+
+def execute_command(command, logfile, logfile_name, outfile=None, env=None):
+  try:
+    if not outfile:
+      outfile = logfile
+    subprocess.check_call(command.split(), stdout=logfile,
+                          stderr=logfile, env=env)
+  except subprocess.CalledProcessError:
+    print("Error executing command line:", flush=True)
+    print("\t" + command, flush=True)
+    print("Check log file: " + logfile_name, flush=True)
+    return False
+  return True
+
+
+if __name__ == '__main__':
+    main()
