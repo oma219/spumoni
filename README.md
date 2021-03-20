@@ -1,5 +1,5 @@
-# SPUMONI
-```console
+# SPUMONI v0.1.0
+<!--- ```console
       _____ _____  _    _ __  __  ____  _   _ _____ 
      / ____|  __ \| |  | |  \/  |/ __ \| \ | |_   _|
     | (___ | |__) | |  | | \  / | |  | |  \| | | |  
@@ -8,6 +8,10 @@
     |_____/|_|     \____/|_|  |_|\____/|_| \_|_____|
                                             ver 0.1.0
 ```
+-->
+
+<img src="../assets/spumoni_pic.jpeg" width="500">
+
 Pan-genomic Matching Statistics for Targeted Nanopore Sequencing
 
 Based on `MONI`: A MEM-finder with Multi-Genome References.
