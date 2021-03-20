@@ -108,7 +108,8 @@ make
 ### Run on Example Data
 
 ```console
-// Builds both SPUMONI and MONI-ms indexes for both positive and null indexes (each takes about ~3 minutes)
+// Builds both SPUMONI and MONI-ms indexes for both positive and null indexes 
+// Takes about ~3 minutes for each index
 python3 moni build -r ../data/example_positive_index/mock_comm_positive.fasta -f --spumoni --moni-ms
 python3 moni build -r ../data/example_null_index/mock_comm_null.fasta -f --spumoni --moni-ms
 
