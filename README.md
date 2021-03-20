@@ -92,6 +92,7 @@ optional arguments:
   -o OUTPUT_FILE        
             name of output file. (Default: analyzed data to stdout, log to stderr)
 ```
+The script, `analyze_pml.py`, will output the analyzed data to `stdout`. To further understand the meaning of each column in the output, check out the following [README](https://github.com/oma219/spumoni/blob/main/analysis/README.md).
 
 # Example
 ### Download and Compile
