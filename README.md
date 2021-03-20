@@ -1,4 +1,4 @@
-# SPUMONI v0.1.0
+# SPUMONI
 <!--- ```console
       _____ _____  _    _ __  __  ____  _   _ _____ 
      / ____|  __ \| |  | |  \/  |/ __ \| \ | |_   _|
@@ -18,7 +18,7 @@ Based on `MONI`: A MEM-finder with Multi-Genome References.
 
 `MONI` index uses the prefix-free parsing of the text [2][3] to build the Burrows-Wheeler Transform (BWT) of the reference genomes, the suffix array (SA) samples at the beginning and at the end of each run of the BWT, and the threshold positions of [1]. 
 
-Current Version: 0.1.0
+*Current Version:* 0.1.0
 
 # Usage
 
@@ -74,7 +74,8 @@ usage: moni pseudo-ms [-h] -i INDEX -p PATTERN [-o OUTPUT] [-t THREADS]
 ### Analyzing either MSs/PMLs from MONI-ms or SPUMONI
 
 ```
-usage: python3 analyze_pml.py [-h] -p POS_DATA_FILE -n NULL_DATA_FILE [--ms] [-k KS_STAT_THRESHOLD] [-r REGION_SIZE] [-o OUTPUT_FILE]
+usage: python3 analyze_pml.py [-h] -p POS_DATA_FILE -n NULL_DATA_FILE [--ms] \
+                              [-k KS_STAT_THRESHOLD] [-r REGION_SIZE] [-o OUTPUT_FILE]
 
 optional arguments:
   -h, --help            show this help message and exit
@@ -92,28 +93,46 @@ optional arguments:
             name of output file. (Default: analyzed data to stdout, log to stderr)
 ```
 
-
-
 # Example
-### Download
+### Download and Compile
 
 ```console
 git clone https://github.com/oma219/spumoni
-```
-
-### Compile
-
-```console
-mkdir build
-cd build; cmake ..
+cd spumoni
+mkdir build && cd build
+cmake ..
 make
 ```
 
-### Run
+### Run on Example Data
 
 ```console
-./moni build -r ../data/yeast.fasta -f
-./moni pseudo-ms -i ../data/yeast.fasta -p ../data/query.fasta 
+// Builds both SPUMONI and MONI-ms indexes for both positive and null indexes
+python3 moni build -r ../data/example_positive_index/mock_comm_positive.fasta -f --spumoni --moni-ms
+python3 moni build -r ../data/example_null_index/mock_comm_null.fasta -f --spumoni --moni-ms
+
+// Computes pseudo matching lengths against both positive and null indexes
+python3 moni pseudo-ms -i ../data/example_positive_index/mock_comm_positive.fasta \
+                       -p ../data/reads_wrt_null_index/all_reads.fa
+python3 moni pseudo-ms -i ../data/example_null_index/mock_comm_null.fasta \
+                       -p ../data/reads_wrt_null_index/all_reads.fa
+
+// Computes matching statistics lengths against both positive and null indexes
+python3 moni ms -i ../data/example_positive_index/mock_comm_positive.fasta \
+                -p ../data/reads_wrt_positive_index/all_reads.fa
+python3 moni ms -i ../data/example_null_index/mock_comm_null.fasta \
+                -p ../data/reads_wrt_null_index/all_reads.fa
+
+// Analyze the pseudo matching lengths (move to analysis folder first)
+cd ../analysis
+python3 analyze_pml.py -p ../data/reads_wrt_positive_index/all_reads.fa.pseudo_lengths
+                       -n ../data/reads_wrt_null_index/all_reads.fa.pseudo_lengths \
+                        > pml_analysis.txt
+
+// Analyze the matching statistic lengths
+python3 analyze_pml.py --ms -p ../data/reads_wrt_positive_index/all_reads.fa.lengths
+                            -n ../data/reads_wrt_null_index/all_reads.fa.lengths \
+                             > pml_analysis.txt
 ```
 
 # External resources
