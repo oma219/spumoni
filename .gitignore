@@ -1,6 +1,12 @@
 # Prerequisites
 *.d
 
+.build/
+.build/*
+
+.data/example_positive_index/*.fasta.*
+
+
 # Compiled Object files
 *.slo
 *.lo
