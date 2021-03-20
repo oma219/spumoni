@@ -77,7 +77,6 @@ shaped_slp = os.path.join(shaped_slp_dirname, "SlpEncBuild")
 build_spumoni_exe = os.path.join(compress_dirname, "build_spumoni")
 
 run_moni_ms_exe = os.path.join(compress_dirname, "ms")
-run_phoni_ms_exe = os.path.join(compress_dirname, "run_phoni")
 run_spumoni_exe = os.path.join(compress_dirname, "run_spumoni")
 
 
@@ -255,7 +254,7 @@ class SLP(threading.Thread):
       exe = shaped_slp
       command = "{exe} -i {file} -o {file}.slp -e {grammar} -f Bigrepair".format(
                 exe=os.path.join(bigrepair_dirname, exe), file=args.reference,
-                grammar=grammars[args.grammar])
+                grammar=grammars['ssslp'])
       print("==== ShapedSLP construction.\nCommand:", command, flush=True)
       if(execute_command(command, logfile, logfile_name) != True):
         return
@@ -376,19 +375,19 @@ class build_moni_ms(threading.Thread):
           time.time()-start), flush=True)
 
       # This is a manual hack
-      if args.output != ".":
+      # if args.output != ".":
 
-        if not os.path.exists(args.output):
-          os.makedirs(args.output)
+      #   if not os.path.exists(args.output):
+      #     os.makedirs(args.output)
 
-        command = "cp {ref}.thrc.ms {out}/{name}.thrc.ms".format(
-            ref=args.reference, out=args.output, name=os.path.basename(args.reference))
-        if(execute_command(command, logfile, logfile_name) != True):
-          return
-        command = "cp {ref}.slp {out}/{name}.slp".format(
-            ref=args.reference, out=args.output, name=os.path.basename(args.reference))
-        if(execute_command(command, logfile, logfile_name) != True):
-          return
+      #   command = "cp {ref}.thrc.ms {out}/{name}.thrc.ms".format(
+      #       ref=args.reference, out=args.output, name=os.path.basename(args.reference))
+      #   if(execute_command(command, logfile, logfile_name) != True):
+      #     return
+      #   command = "cp {ref}.slp {out}/{name}.slp".format(
+      #       ref=args.reference, out=args.output, name=os.path.basename(args.reference))
+      #   if(execute_command(command, logfile, logfile_name) != True):
+      #     return
 
 
 class build_spumoni(threading.Thread):
@@ -546,48 +545,48 @@ class run_helper(threading.Thread):
       exe_name = self.name
       logfile = args.logfile
       logfile_name = args.logfile_name
-      # "Thread-x started!"
-      print("{N} {name} started!".format(N=self.getName(), name=exe_name))
-
       # ----------- computation of the BWT of the parsing
-      print("==== Building {name}}. ".format(name=exe_name), flush=True)
+      # print("==== Computing {name}. ".format(name=exe_name), flush=True)
       start = time.time()
-      parse_size = os.path.getsize(args.reference+".parse")/4
-      dictionary_size = os.path.getsize(args.reference+".dict")
 
       command = "{exe} {file} -p {query} -t {th}".format(exe=os.path.join(
-          args.exe_dir, build_spumoni_exe), file=args.index,
+          args.exe_dir, exe), file=args.index,
           query=args.pattern, th=args.threads)
 
-      print("==== Building {name}. Command:".format(
+      print("==== Running {name}. Command:".format(
           name=exe_name), command, flush=True)
       if(execute_command(command, logfile, logfile_name) != True):
         return
-      print("Building {name} Elapsed time: {0:.4f}".format(
+      print("==== Running {name} Elapsed time: {0:.4f}".format(
           time.time()-start, name=exe_name), flush=True)
-
-      print("Total construction time: {0:.4f}".format(
-          time.time()-start0), flush=True)
       # ---- print elapsed time to file
-      command = "echo Total construction time: {0:.4f}".format(
-          time.time()-start0)
+      command = "echo Total query time: {0:.4f}".format(
+          time.time()-start)
       if(execute_command(command, logfile, logfile_name) != True):
         return
 
 
 def run(args):
-  if args.which == 'ms':
-    run_moni_ms = run_helper(
-        name="MONI-MS", args=args, counter=2, exe=run_moni_ms_exe)
-    run_moni_ms.start()
-    run_moni_ms.join()
+  logfile_name = args.pattern + "." + args.which + ".log"
+  # get main bigbwt directory
+  args.exe_dir = os.path.split(sys.argv[0])[0]
+  print("Sending logging messages to file:", logfile_name, flush=True)
+  with open(logfile_name, "a") as logfile:
+    args.logfile = logfile
+    args.logfile_name = logfile_name
+
+    if args.which == 'ms':
+      run_moni_ms = run_helper(
+          name="MONI-MS", args=args, counter=2, exe=run_moni_ms_exe)
+      run_moni_ms.start()
+      run_moni_ms.join()
 
 
-  if args.which == 'pseudo_ms':
-    run_spumoni = run_helper(
-        name="SPUMONI", args=args, counter=2, exe=run_spumoni_exe)
-    run_spumoni.start()
-    run_spumoni.join()
+    if args.which == 'pseudo_ms':
+      run_spumoni = run_helper(
+          name="SPUMONI", args=args, counter=2, exe=run_spumoni_exe)
+      run_spumoni.start()
+      run_spumoni.join()
 
 
 
