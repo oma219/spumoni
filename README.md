@@ -126,11 +126,13 @@ python3 moni ms -i ../data/example_null_index/mock_comm_null.fasta \
 // Analyze the pseudo matching lengths (move to analysis folder first)
 cd ../analysis
 python3 analyze_pml.py -p ../data/reads_wrt_positive_index/all_reads.fa.pseudo_lengths
-                       -n ../data/reads_wrt_null_index/all_reads.fa.pseudo_lengths > pml_analysis.txt
+                       -n ../data/reads_wrt_null_index/all_reads.fa.pseudo_lengths \
+                        > pml_analysis.txt
 
 // Analyze the matching statistic lengths
 python3 analyze_pml.py --ms -p ../data/reads_wrt_positive_index/all_reads.fa.lengths
-                            -n ../data/reads_wrt_null_index/all_reads.fa.lengths > pml_analysis.txt
+                            -n ../data/reads_wrt_null_index/all_reads.fa.lengths \
+                             > pml_analysis.txt
 ```
 
 # External resources
