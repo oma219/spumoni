@@ -18,10 +18,11 @@ Based on `MONI`: A MEM-finder with Multi-Genome References.
 
 `MONI` index uses the prefix-free parsing of the text [2][3] to build the Burrows-Wheeler Transform (BWT) of the reference genomes, the suffix array (SA) samples at the beginning and at the end of each run of the BWT, and the threshold positions of [1]. 
 
+Current Version: 0.1.0
 
 # Usage
 
-### Construction of the index:
+### Construction of the Index:
 ```
 usage: moni build [-h] -r REFERENCE [-w WSIZE] [-p MOD] [-t THREADS] [-k] [-v]
                   [-f] [--moni-ms] [--spumoni]
@@ -38,12 +39,12 @@ usage: moni build [-h] -r REFERENCE [-w WSIZE] [-p MOD] [-t THREADS] [-k] [-v]
   -f                    read fasta (default: False)
   --moni-ms             build moni index for matching statistics only
                         (default: False)
-  --spumoni             build spumoni index (default: False)
+  --spumoni             build spumoni index (default: True)
 
 ```
 The default index is the `spumoni` index. If you want to build the `moni-ms` index you can use the `--moni-ms` flag. If you want to build both you can use `--moni-ms --spumoni`. Building `moni-ms` and `spumoni` together is faster than building them separately.
 
-### Computing the matching statistics with moni-ms:
+### Compute the matching statistics (MSs) with MONI-ms:
 ```
 usage: moni ms [-h] -i INDEX -p PATTERN [-o OUTPUT] [-t THREADS]
   -h, --help            show this help message and exit
@@ -57,7 +58,7 @@ usage: moni ms [-h] -i INDEX -p PATTERN [-o OUTPUT] [-t THREADS]
                         number of helper threads (default: 1)
 ```
 
-### Computing the matching statistics with spumoni:
+### Compute the pseudo matching lengths (PMLs) with SPUMONI:
 ```
 usage: moni pseudo-ms [-h] -i INDEX -p PATTERN [-o OUTPUT] [-t THREADS]
   -h, --help            show this help message and exit
@@ -70,12 +71,34 @@ usage: moni pseudo-ms [-h] -i INDEX -p PATTERN [-o OUTPUT] [-t THREADS]
   -t THREADS, --threads THREADS
                         number of helper threads (default: 1)
 ```
+### Analyzing either MSs/PMLs from MONI-ms or SPUMONI
+
+```
+usage: python3 analyze_pml.py [-h] -p POS_DATA_FILE -n NULL_DATA_FILE [--ms] [-k KS_STAT_THRESHOLD] [-r REGION_SIZE] [-o OUTPUT_FILE]
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -p POS_DATA_FILE      
+            path to PMLS or MSs generated with respect to positive index.
+  -n NULL_DATA_FILE     
+            path to PMLS or MSs generated with respect to null index.
+  --ms                  
+            use MSs instead of PMLs. (Default: Assumes input is PMLs)
+  -k KS_STAT_THRESHOLD, --ks-stat KS_STAT_THRESHOLD 
+            set the threshold for Kolmogorov-Smirnov Statistic. (Default: 0.10 for PMLs, 0.25 for MSs)
+  -r REGION_SIZE        
+            region size in bp where KS-test is performed. (Default: 90 bp)
+  -o OUTPUT_FILE        
+            name of output file. (Default: analyzed data to stdout, log to stderr)
+```
+
+
 
 # Example
 ### Download
 
 ```console
-git clone https://github.com/maxrossi91/spumoni
+git clone https://github.com/oma219/spumoni
 ```
 
 ### Compile
@@ -112,7 +135,7 @@ make
 
 Please, if you use this tool in an academic setting cite the following papers:
 
-### Moni
+### MONI
     @inproceedings{RossiOLGB21,
     author      = { Massimiliano Rossi and 
                     Marco Oliva and
@@ -129,7 +152,7 @@ Please, if you use this tool in an academic setting cite the following papers:
     year        = {2021}
     }
 
-### Spumoni
+### SPUMONI
 
     @article{AhmedRGBL21,
     author      = { Omar Ahmed and
@@ -166,9 +189,11 @@ Please, if you use this tool in an academic setting cite the following papers:
 * [Marco Oliva](https://github.com/marco-oliva) [![Generic badge](https://img.shields.io/badge/MONI--<COLOR>.svg)](https://shields.io/)
 * [Massimiliano Rossi](https://github.com/maxrossi91)
 
-# Why "MONI"?
+# Why "MONI" and "SPUMONI"?
 
-**Moni** is the Finnish word for *multi*.
+**MONI** is the Finnish word for *multi*.
+
+**SPUMONI** stands for Streaming PseUdo MONI.
 
 # References
 
