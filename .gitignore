@@ -2,7 +2,7 @@
 *.d
 
 # Build and Created Data Files
-.build/
+build/*
 .build/*
 
 .data/example_positive_index/*.fasta.*
