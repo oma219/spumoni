@@ -2,13 +2,14 @@
 *.d
 
 # Build and Created Data Files
+build/
 build/*
-.build/*
 
-.data/example_positive_index/*.fasta.*
-.data/example_null_index/*.fasta.*
-.data/example_reads/all_reads.fa.*
-.data/example_reads/all_reads.fa_*
+
+data/example_positive_index/*.fasta.*
+data/example_null_index/*.fasta.*
+data/example_reads/all_reads.fa.*
+data/example_reads/all_reads.fa_*
 
 # Compiled Object files
 *.slo
