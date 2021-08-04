@@ -164,22 +164,19 @@ public:
 
   ms_t(std::string filename)
   {
-    verbose("Loading the matching statistics index");
     std::chrono::high_resolution_clock::time_point t_insert_start = std::chrono::high_resolution_clock::now();
 
     std::string filename_ms = filename + ms.get_file_extension();
-
     ifstream fs_ms(filename_ms);
     ms.load(fs_ms);
     fs_ms.close();
-
     std::chrono::high_resolution_clock::time_point t_insert_end = std::chrono::high_resolution_clock::now();
 
-    verbose("Matching statistics index construction complete");
-    verbose("Memory peak: ", malloc_count_peak());
-    verbose("Elapsed time (s): ", std::chrono::duration<double, std::ratio<1>>(t_insert_end - t_insert_start).count());
+    verbose("Matching Statistics Index Construction Complete");
+    verbose("\tMemory peak: ", malloc_count_peak());
+    verbose("\tElapsed time (s): ", std::chrono::duration<double, std::ratio<1>>(t_insert_end - t_insert_start).count());
 
-    verbose("Loading random access");
+    verbose("Loading Random Access Data Structure.");
     t_insert_start = std::chrono::high_resolution_clock::now();
 
     std::string filename_slp = filename + ".slp";
@@ -192,9 +189,9 @@ public:
 
     t_insert_end = std::chrono::high_resolution_clock::now();
 
-    verbose("Matching statistics index loading complete");
-    verbose("Memory peak: ", malloc_count_peak());
-    verbose("Elapsed time (s): ", std::chrono::duration<double, std::ratio<1>>(t_insert_end - t_insert_start).count());
+    verbose("Random Access Data Structure Loading Complete");
+    verbose("\tMemory peak: ", malloc_count_peak());
+    verbose("\tElapsed time (s): ", std::chrono::duration<double, std::ratio<1>>(t_insert_end - t_insert_start).count());
   }
 
   // Destructor
@@ -207,15 +204,16 @@ public:
   // length l of the query. Then the following l size_t integers stores the
   // pointers of the matching statistics, and the following l size_t integers
   // stores the lengths of the mathcing statistics.
-  void matching_statistics(kseq_t *read, FILE* out)
+  void matching_statistics(const char* read, size_t read_length, FILE* out)
   {
-    auto pointers = ms.query(read->seq.s, read->seq.l);
+    //auto pointers = ms.query(read->seq.s, read->seq.l);
+    auto pointers = ms.query(read, read_length);
     std::vector<size_t> lengths(pointers.size());
     size_t l = 0;
     for (size_t i = 0; i < pointers.size(); ++i)
     {
       size_t pos = pointers[i];
-      while ((i + l) < read->seq.l && (pos + l) < n && (i < 1 || pos != (pointers[i-1] + 1) ) && read->seq.s[i + l] == ra.charAt(pos + l))
+      while ((i + l) < read_length && (pos + l) < n && (i < 1 || pos != (pointers[i-1] + 1) ) && read[i + l] == ra.charAt(pos + l))
         ++l;
 
       lengths[i] = l;
@@ -240,7 +238,7 @@ public:
     fwrite(pointers.data(), sizeof(size_t),q_length,out);
     fwrite(lengths.data(), sizeof(size_t),q_length,out);
   }
-
+  
 protected:
   ms_pointers<> ms;
   SelfShapedSlp<uint32_t, DagcSd, DagcSd, SelSd> ra;
@@ -300,7 +298,7 @@ void *mt_ms_worker(void *param)
   while ((ks_tell(seq) < p->end) && ((l = kseq_read(seq)) >= 0))
   {
 
-    p->ms->matching_statistics(seq,out_fd);
+    p->ms->matching_statistics(seq->seq.s, seq->seq.l, out_fd);
 
   }
 
@@ -358,18 +356,46 @@ size_t st_ms(ms_t *ms, std::string pattern_filename, std::string out_filename)
 
   gzFile fp = gzopen(pattern_filename.c_str(), "r");
   kseq_t* seq = kseq_init(fp);
-  while ((l = kseq_read(seq)) >= 0)
-  {
-
-    ms->matching_statistics(seq, out_fd);
-
+  while ((l = kseq_read(seq)) >= 0) {
+    ms->matching_statistics(seq->seq.s, seq->seq.l, out_fd);
   }
 
   kseq_destroy(seq);
   gzclose(fp);
   fclose(out_fd);
 
-  sleep(5);
+  return n_aligned_reads;
+}
+
+size_t st_ms_general(ms_t *ms, std::string pattern_filename, std::string out_filename)
+{
+  // Check if file is mistakenly labeled as non-fasta file
+  std::string file_ext = pattern_filename.substr(pattern_filename.find_last_of(".") + 1);
+  if (file_ext == "fa" || file_ext == "fasta") {
+    error("The file extension for the patterns suggests it is a fasta file. Please run with -f option for correct results.");
+  }
+
+  size_t n_reads = 0;
+  size_t n_aligned_reads = 0;
+  kseq_t rev;
+  int l;
+  FILE *out_fd;
+  out_filename += "_0.ms.tmp.out";
+
+  if ((out_fd = fopen(out_filename.c_str(), "w")) == nullptr)
+    error("open() file " + out_filename + " failed");
+
+  std::ifstream input_fd (pattern_filename, std::ifstream::in | std::ifstream::binary);
+  char ch = input_fd.get();
+  char* buf = new char [2]; // To just hold separator character
+  std::string read = "";
+
+  while (input_fd.good()) {
+    if (ch == '\x01') {ms->matching_statistics(read.c_str(), read.size(), out_fd); input_fd.read(buf, 2); read="";}
+    else {read += ch;}
+    ch = input_fd.get();
+  }
+  fclose(out_fd);
 
   return n_aligned_reads;
 }
@@ -382,48 +408,48 @@ int main(int argc, char *const argv[])
 {
   using SelSd = SelectSdvec<>;
   using DagcSd = DirectAccessibleGammaCode<SelSd>;
-
+  
+  // Parse arguments (struct info can be found in common.hpp)
   Args args;
   parseArgs(argc, argv, args);
-
+ 
+  // Loads the data structures needed for MSs ------------------------------------------------------------------------
   verbose("Construction of the matching statistics data structure");
   std::chrono::high_resolution_clock::time_point t_insert_start = std::chrono::high_resolution_clock::now();
-
   ms_t ms(args.filename);
-
   std::chrono::high_resolution_clock::time_point t_insert_end = std::chrono::high_resolution_clock::now();
-  verbose("Memory peak: ", malloc_count_peak());
-  verbose("Elapsed time (s): ", std::chrono::duration<double, std::ratio<1>>(t_insert_end - t_insert_start).count());
+  
+  //verbose("Memory peak: ", malloc_count_peak());
+  //verbose("Elapsed time (s): ", std::chrono::duration<double, std::ratio<1>>(t_insert_end - t_insert_start).count());
 
+  // Load patterns and generate PMLs ----------------------------------------------------------------------------------
   verbose("Processing patterns");
   t_insert_start = std::chrono::high_resolution_clock::now();
   
-
   std::string base_name = basename(args.filename.data());
   std::string out_filename = args.patterns + "_" + base_name;
 
-  if (is_gzipped(args.patterns))
-  {
-    verbose("The input is gzipped - forcing single thread matchin statistics.");
+  if (is_gzipped(args.patterns)) {
+    verbose("The input is gzipped - forcing single threaded matchin statistics.");
     args.th = 1;
   }
 
-  if(args.th == 1)
-    st_ms(&ms,args.patterns,out_filename);
-  else
-    mt_ms(&ms,args.patterns,out_filename,args.th);
-
-  // TODO: Merge the SAM files.
+  // Determine approach to parse pattern files (based on whether it is general text or fasta format)
+  if (args.is_fasta) {
+    if(args.th == 1) {st_ms(&ms, args.patterns, out_filename);}
+    else {mt_ms(&ms, args.patterns, out_filename, args.th);}
+  }
+  else {
+        if(args.th == 1) {st_ms_general(&ms,args.patterns,out_filename);}
+    else {error("Multi-threading not implemented yet for general-text querying.\n"); std::exit(1);}
+  }
 
   t_insert_end = std::chrono::high_resolution_clock::now();
 
-  verbose("Memory peak: ", malloc_count_peak());
-  verbose("Elapsed time (s): ", std::chrono::duration<double, std::ratio<1>>(t_insert_end - t_insert_start).count());
+  verbose("\tMemory peak: ", malloc_count_peak());
+  verbose("\tElapsed time (s): ", std::chrono::duration<double, std::ratio<1>>(t_insert_end - t_insert_start).count());
 
-  auto mem_peak = malloc_count_peak();
-  verbose("Memory peak: ", malloc_count_peak());
-
-
+  // Writing out the pointers and lengths ----------------------------------------------------------------------------------
   verbose("Printing plain output");
   t_insert_start = std::chrono::high_resolution_clock::now();
   
@@ -485,20 +511,17 @@ int main(int argc, char *const argv[])
 
   t_insert_end = std::chrono::high_resolution_clock::now();
 
-  verbose("Memory peak: ", malloc_count_peak());
-  verbose("Elapsed time (s): ", std::chrono::duration<double, std::ratio<1>>(t_insert_end - t_insert_start).count());
+  auto mem_peak = malloc_count_peak();
+  verbose("\tMemory peak: ", malloc_count_peak());
+  verbose("\tElapsed time (s): ", std::chrono::duration<double, std::ratio<1>>(t_insert_end - t_insert_start).count());
 
-  mem_peak = malloc_count_peak();
-  verbose("Memory peak: ", malloc_count_peak());
+  //mem_peak = malloc_count_peak();
+  //verbose("Memory peak: ", malloc_count_peak());
 
   size_t space = 0;
-  if (args.memo)
-  {
-  }
+  if (args.memo){}
 
-  if (args.store)
-  {
-  }
+  if (args.store){}
 
   if (args.csv)
     std::cerr << csv(args.filename.c_str(), time, space, mem_peak) << std::endl;

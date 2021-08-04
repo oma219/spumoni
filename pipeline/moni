@@ -552,6 +552,9 @@ class run_helper(threading.Thread):
       command = "{exe} {file} -p {query} -t {th}".format(exe=os.path.join(
           args.exe_dir, exe), file=args.index,
           query=args.pattern, th=args.threads)
+      
+      if args.fasta_status:
+        command += " -f "
 
       print("==== Running {name}. Command:".format(
           name=exe_name), command, flush=True)
@@ -635,6 +638,8 @@ def main():
       '-o', '--output', help='output directory path', type=str, default='.')
   ms_parser.add_argument(
       '-t', '--threads', help='number of helper threads', default=1, type=int)
+  ms_parser.add_argument(
+      '-f', '--fasta', help='query file is in fasta format (default: general text)', default=False, action='store_true', dest='fasta_status')
   ms_parser.set_defaults(which='ms')
 
   pseudo_ms_parser.add_argument(
@@ -645,6 +650,8 @@ def main():
       '-o', '--output', help='output directory path', type=str, default='.')
   pseudo_ms_parser.add_argument(
       '-t', '--threads', help='number of helper threads', default=1, type=int)
+  pseudo_ms_parser.add_argument(
+      '-f', '--fasta', help='query file is in fasta format (default: general text)', default=False, action='store_true', dest='fasta_status')
   pseudo_ms_parser.set_defaults(which='pseudo_ms')
   args = parser.parse_args()
 
