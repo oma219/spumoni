@@ -287,7 +287,6 @@ protected:
     template<typename string_t>
     std::vector<size_t> _query(const string_t &pattern, const size_t m)
     {
-
         std::vector<size_t> lengths(m);
 
         // Start with the empty string
