@@ -206,10 +206,10 @@ public:
   // stores the lengths of the mathcing statistics.
   void matching_statistics(const char* read, size_t read_length, FILE* out)
   {
-    //auto pointers = ms.query(read->seq.s, read->seq.l);
     auto pointers = ms.query(read, read_length);
     std::vector<size_t> lengths(pointers.size());
     size_t l = 0;
+
     for (size_t i = 0; i < pointers.size(); ++i)
     {
       size_t pos = pointers[i];
@@ -219,17 +219,22 @@ public:
       lengths[i] = l;
       l = (l == 0 ? 0 : (l - 1));
     }
-
+    
     // Original MS computation
-    // for (size_t i = 0; i < pointers.size(); ++i)
-    // {
-    //   size_t pos = pointers[i];
-    //   while ((i + l) < read->seq.l && (pos + l) < n && read->seq.s[i + l] == ra.charAt(pos + l))
-    //     ++l;
+    /*
+     for (size_t i = 0; i < pointers.size(); ++i)
+     {
+       size_t pos = pointers[i];
+    
+       while ((i + l) < read_length && (pos + l) < n && read[i + l] == ra.charAt(pos + l))
+         ++l;
+       
 
-    //   lengths[i] = l;
-    //   l = (l == 0 ? 0 : (l - 1));
-    // }
+       lengths[i] = l;
+       l = (l == 0 ? 0 : (l - 1));
+     }
+     */
+
 
     assert(lengths.size() == pointers.size());
 
@@ -330,8 +335,6 @@ void mt_ms(ms_t *ms, std::string pattern_filename, std::string out_filename, siz
     xpthread_join(t[i],NULL,__LINE__,__FILE__);
   }
 
-  sleep(5);
-
 
   return;
 }
@@ -357,7 +360,10 @@ size_t st_ms(ms_t *ms, std::string pattern_filename, std::string out_filename)
   gzFile fp = gzopen(pattern_filename.c_str(), "r");
   kseq_t* seq = kseq_init(fp);
   while ((l = kseq_read(seq)) >= 0) {
-    ms->matching_statistics(seq->seq.s, seq->seq.l, out_fd);
+    std::string curr_read = std::string(seq->seq.s);
+    transform(curr_read.begin(), curr_read.end(), curr_read.begin(), ::toupper); //Make sure all characters are upper-case
+
+    ms->matching_statistics(curr_read.c_str(), seq->seq.l, out_fd);
   }
 
   kseq_destroy(seq);
