@@ -185,7 +185,6 @@ public:
   //void matching_statistics(kseq_t *read, FILE* out) 
   void matching_statistics(const char* read, size_t read_length, FILE* out) 
   {
-
     auto lengths = ms.query(read, read_length);
 
     size_t q_length = lengths.size();
@@ -248,11 +247,11 @@ void *mt_ms_worker(void *param)
   int l;
 
   kseq_t *seq = kseq_init(fp);
-  while ((ks_tell(seq) < p->end) && ((l = kseq_read(seq)) >= 0))
-  {
+  while ((ks_tell(seq) < p->end) && ((l = kseq_read(seq)) >= 0)) {
+    std::string curr_read = std::string(seq->seq.s);
+    transform(curr_read.begin(), curr_read.end(), curr_read.begin(), ::toupper); //Make sure all characters are upper-case
 
-    p->ms->matching_statistics(seq->seq.s, seq->seq.l, out_fd);
-
+    p->ms->matching_statistics(curr_read, seq->seq.l, out_fd);
   }
 
   kseq_destroy(seq);
@@ -310,7 +309,10 @@ size_t st_ms(ms_t *ms, std::string pattern_filename, std::string out_filename)
   gzFile fp = gzopen(pattern_filename.c_str(), "r");
   kseq_t* seq = kseq_init(fp);
   while ((l = kseq_read(seq)) >= 0) {
-    ms->matching_statistics(seq->seq.s, seq->seq.l, out_fd);
+    std::string curr_read = std::string(seq->seq.s);
+    transform(curr_read.begin(), curr_read.end(), curr_read.begin(), ::toupper); //Make sure all characters are upper-case
+
+    ms->matching_statistics(curr_read, seq->seq.l, out_fd);
   }
 
   kseq_destroy(seq);

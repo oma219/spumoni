@@ -302,8 +302,10 @@ void *mt_ms_worker(void *param)
   kseq_t *seq = kseq_init(fp);
   while ((ks_tell(seq) < p->end) && ((l = kseq_read(seq)) >= 0))
   {
+    std::string curr_read = std::string(seq->seq.s);
+    transform(curr_read.begin(), curr_read.end(), curr_read.begin(), ::toupper); //Make sure all characters are upper-case
 
-    p->ms->matching_statistics(seq->seq.s, seq->seq.l, out_fd);
+    p->ms->matching_statistics(curr_read, seq->seq.l, out_fd);
 
   }
 
