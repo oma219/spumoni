@@ -219,7 +219,7 @@ private:
 // Construction from run-length encoded BWT specialization for sparse_sd_vector
 template <>
 ms_rle_string<ri::sparse_sd_vector, ri::huff_string>::ms_rle_string(std::ifstream &heads, std::ifstream &lengths, ulint B)
-{
+{ 
     heads.clear();
     heads.seekg(0);
     lengths.clear();
@@ -244,6 +244,7 @@ ms_rle_string<ri::sparse_sd_vector, ri::huff_string>::ms_rle_string(std::ifstrea
     //runs in main bitvector
     vector<size_t> runs_bv_onset;
     size_t runs_bv_i = 0;
+
     // Compute runs_bv and runs_per_letter_bv
     for (size_t i = 0; i < run_heads_s.size(); ++i)
     {

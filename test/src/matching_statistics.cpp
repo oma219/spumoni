@@ -165,12 +165,15 @@ public:
   ms_t(std::string filename)
   {
     std::chrono::high_resolution_clock::time_point t_insert_start = std::chrono::high_resolution_clock::now();
-
+    
     std::string filename_ms = filename + ms.get_file_extension();
     ifstream fs_ms(filename_ms);
+
+    verbose("hello there, ", filename_ms);
     ms.load(fs_ms);
     fs_ms.close();
     std::chrono::high_resolution_clock::time_point t_insert_end = std::chrono::high_resolution_clock::now();
+    verbose("hello there 2");
 
     verbose("Matching Statistics Index Construction Complete");
     verbose("\tMemory peak: ", malloc_count_peak());
