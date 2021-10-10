@@ -105,8 +105,8 @@ void _internal_messageError( const std::string file, const unsigned int line,
 {
   std::cerr << "[ERROR] " << NowTime() << " - "
   << "File: " << file << '\n'
-  << "Line: " << line << '\n'
-  << "Message: " << message << std::endl;
+  << "\tLine: " << line << '\n'
+  << "\tMessage: " << message << std::endl;
   assert( false );
   exit( 1 );
 }

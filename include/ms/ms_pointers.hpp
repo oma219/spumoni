@@ -328,16 +328,15 @@ public:
 protected:
     // Computes the matching statistics pointers for the given pattern
     template<typename string_t>
-    std::vector<size_t> _query(const string_t &pattern, const size_t m)
+    std::vector<size_t> _query(const string_t &pattern, const size_t m) 
     {
-
         std::vector<size_t> ms_pointers(m);
 
         // Start with the empty string
         auto pos = this->bwt_size() - 1;
         auto sample = this->get_last_run_sample();
 
-        for (size_t i = 0; i < m; ++i)
+        for (size_t i = 0; i < m; ++i) 
         {
             auto c = pattern[m - i - 1];
 
@@ -388,7 +387,7 @@ protected:
             }
 
             ms_pointers[m - i - 1] = sample;
-
+            
             // Perform one backward step
             pos = LF(pos, c);
         }
