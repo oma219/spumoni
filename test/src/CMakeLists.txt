@@ -48,3 +48,9 @@ target_include_directories(run_spumoni PUBLIC    "../../include/ms"
                                         "${bigbwt_SOURCE_DIR}"
                                         )
 target_compile_options(run_spumoni PUBLIC "-std=c++17")
+
+
+add_executable(spumoni spumoni.cpp)
+target_include_directories(spumoni PUBLIC "../../include/ms")
+target_compile_options(spumoni PUBLIC "-std=c++17")
+

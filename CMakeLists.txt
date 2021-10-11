@@ -55,4 +55,9 @@ add_subdirectory(test/src)
 add_subdirectory(utils)
 # add_subdirectory(benchmarks/src)
 
-configure_file(${PROJECT_SOURCE_DIR}/pipeline/moni ${PROJECT_BINARY_DIR}/moni)
+#configure_file(${PROJECT_SOURCE_DIR}/pipeline/moni ${PROJECT_BINARY_DIR}/moni)
+
+install(TARGETS spumoni DESTINATION ${PROJECT_BINARY_DIR})
+
+install(TARGETS newscanNT.x pscan.x newscan.x
+        DESTINATION ${PROJECT_BINARY_DIR}/bin)
