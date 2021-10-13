@@ -1,4 +1,5 @@
 /* 
+ *  spumoni.cpp
  *  Copyright (C) 2020 Omar Ahmed
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -15,8 +16,8 @@
  /*
   * File: spumoni.cpp 
   * Description: Main file for spumoni code, runs all the associated programs
-  *              for building indexes and computing MS/PML. This file is based
-  *              pipeline written by Massimiliano Rossi for initial version 
+  *              for building indexes and computing MS/PML. This file is based on
+  *              pipeline written by Massimiliano Rossi for initial version of
   *              SPUMONI.
   *
   * Author: Omar Ahmed
@@ -29,6 +30,129 @@
 #include <filesystem>
 #include <chrono>
 #include <spumoni_main.hpp>
+#include <run_spumoni.hpp>
+
+
+
+int spumoni_run_usage () {
+    /* prints out the usage information for the spumoni build sub-command */
+    std::fprintf(stderr, "spumoni run - Uses a spumoni index to compute MS/PML of patterns w.r.t. a reference.\n");
+    std::fprintf(stderr, "Usage: spumoni run [options]\n\n");
+
+    std::fprintf(stderr, "Options:\n");
+    std::fprintf(stderr, "\t%-10sprints this usage message\n", "-h");
+    std::fprintf(stderr, "\t%-10spath to reference file that has index built for it\n", "-r [FILE]");
+    std::fprintf(stderr, "\t%-10spath to patterns file that will be used.\n", "-p [FILE]");
+    std::fprintf(stderr, "\t%-10sUse index to compute MSs\n", "-M");
+    std::fprintf(stderr, "\t%-10sUse index to compute PMLs\n", "-P");
+    std::fprintf(stderr, "\t%-10spattern file is in fasta format (default: general text)\n", "-f");
+    std::fprintf(stderr, "\t%-10snumber of helper threads (default: 0)\n\n", "-t [arg]");
+    return 1;
+}
+
+int spumoni_build_usage () {
+    /* prints out the usage information for the spumoni build sub-command */
+    std::fprintf(stderr, "spumoni build - builds the ms/pml index for a specified reference file.\n");
+    std::fprintf(stderr, "Usage: spumoni build [options]\n\n");
+
+    std::fprintf(stderr, "Options:\n");
+    std::fprintf(stderr, "\t%-10sprints this usage message\n", "-h");
+    std::fprintf(stderr, "\t%-10spath to reference file to be indexed\n", "-r [FILE]");
+    std::fprintf(stderr, "\t%-10sbuild an index that can be used to compute MSs\n", "-M");
+    std::fprintf(stderr, "\t%-10sbuild an index that can be used to compute PMLs\n", "-P");
+    std::fprintf(stderr, "\t%-10ssliding window size (default: 10)\n", "-w [arg]");
+    std::fprintf(stderr, "\t%-10shash modulus value (default: 100)\n", "-p [arg]");
+    std::fprintf(stderr, "\t%-10snumber of helper threads (default: 0)\n", "-t [arg]");
+    std::fprintf(stderr, "\t%-10skeep the temporary files (default: false)\n", "-k");
+    std::fprintf(stderr, "\t%-10suse when the reference file is a fasta file (default: false)\n\n", "-f");
+    return 1;
+}
+
+void parse_build_options(int argc, char** argv, SpumoniBuildOptions* opts) {
+    /* Parses the arguments for the build sub-command and returns a struct with arguments */
+    for(int c;(c = getopt(argc, argv, "hr:MPw:p:t:kf")) >= 0;) { 
+        switch(c) {
+                    case 'h': spumoni_build_usage(); std::exit(1);
+                    case 'r': opts->ref_file.assign(optarg); break;
+                    case 'M': opts->ms_index = true; break;
+                    case 'P': opts->pml_index = true; break;
+                    case 'w': opts->wind = std::max(std::atoi(optarg), 10); break;
+                    case 'p': opts->hash_mod = std::max(std::atoi(optarg), 1); break;
+                    case 't': opts->threads = std::max(std::atoi(optarg), 0); break;
+                    case 'k': opts->keep_files = true; break;
+                    case 'f': opts->is_fasta = true; break;
+                    default: spumoni_build_usage(); std::exit(1);
+        }
+    }
+}
+
+void parse_run_options(int argc, char** argv, SpumoniRunOptions* opts) {
+    /* Parses the arguments for the build sub-command and returns a struct with arguments */
+    for(int c;(c = getopt(argc, argv, "hr:p:MPft:")) >= 0;) { 
+        switch(c) {
+                    case 'h': spumoni_run_usage(); std::exit(1);
+                    case 'r': opts->ref_file.assign(optarg); break;
+                    case 'p': opts->pattern_file.assign(optarg); break;
+                    case 'M': opts->ms_requested = true; break;
+                    case 'P': opts->pml_requested = true; break;
+                    case 'f': opts->query_fasta = true; break;
+                    case 't': opts->threads = std::max(std::atoi(optarg), 1); break;
+                    default: spumoni_run_usage(); std::exit(1);
+        }
+    }
+}
+
+int is_file(std::string path) {
+    /* Checks if the path is a valid file-path */
+    std::ifstream test_file(path.data());
+    if (test_file.fail()) {return 0;}
+    
+    test_file.close();
+    return 1;
+}
+
+size_t get_avail_phy_mem() {
+    /* Computes the available memory on UNIX machines */
+    std::size_t pages = sysconf(_SC_PHYS_PAGES);
+    std::size_t page_size = sysconf(_SC_PAGE_SIZE);
+    return pages * page_size;
+}
+
+#if defined(_WIN32) || defined(_WIN64)
+#include <windows.h>
+inline size_t get_avail_phy_mem_win() {
+    MEMORYSTATUSEX status;
+    status.dwLength = sizeof(status);
+    GlobalMemoryStatusEx(&status);
+    return status.ullTotalPhys;
+}
+#endif
+
+
+
+std::string execute_cmd(const char* cmd) {
+    std::array<char, 256> buffer{};
+    std::string output = "";
+#if defined(_WIN32) || defined(_WIN64)
+#define popen _popen
+#define pclose _pclose
+#endif
+    std::string cmd_plus_stderr = std::string(cmd) + " 2>&1";
+    FILE* pipe = popen(cmd_plus_stderr.data(), "r"); // Extract stderr as well
+    if (!pipe) {THROW_EXCEPTION(std::runtime_error("popen() failed!"));}
+
+    try {
+        std::size_t bytes;
+        while ((bytes = fread(buffer.data(), sizeof(char), sizeof(buffer), pipe))) {
+            output += std::string(buffer.data(), bytes);
+        }
+    } catch (...) {
+        pclose(pipe);
+        THROW_EXCEPTION(std::runtime_error("Error occurred while reading popen() stream."));
+    }
+    pclose(pipe);
+    return output;
+}
 
 void run_build_grammar_cmds(SpumoniBuildOptions* build_opts, SpumoniHelperPrograms* helper_bins) {
     /* Generates the command-line for compressing the PFP dictonary */
@@ -192,6 +316,17 @@ void run_build_pml_cmd(SpumoniBuildOptions* build_opts, SpumoniHelperPrograms* h
     TIME_LOG((std::chrono::system_clock::now() - start));
 }
 
+void rm_temp_build_files(SpumoniBuildOptions* build_opts, SpumoniHelperPrograms* helper_bins) {
+    /* Generates and runs commands to remove temporary files during build process */
+    std::ostringstream command_stream;
+    command_stream << "rm -f " << build_opts->ref_file << ".parse_old ";
+    command_stream << build_opts->ref_file << ".last ";
+
+    SPUMONI_LOG("Removing some additional temporary files from build process ...");
+    SPUMONI_LOG(("Executing this command: " + command_stream.str()).data());
+
+    auto log = execute_cmd(command_stream.str().c_str());
+}
 
 void run_build_thresholds_cmd(SpumoniBuildOptions* build_opts, SpumoniHelperPrograms* helper_bins){
     /* Generates and runs the command to compute the thresholds based on PFP */
@@ -228,6 +363,7 @@ int build_main(int argc, char** argv) {
     SpumoniHelperPrograms helper_bins;
     helper_bins.build_paths("./bin/"); // TODO: add option to change helper directory
     helper_bins.validate();
+    auto build_process_start = std::chrono::system_clock::now();
 
     /* Performs the parsing of the reference and builds the thresholds based on the PFP */
     run_build_parse_cmd(&build_opts, &helper_bins);
@@ -242,12 +378,29 @@ int build_main(int argc, char** argv) {
 
     /* Build the PML index if asked for as well */
     if (build_opts.pml_index) {run_build_pml_cmd(&build_opts, &helper_bins);}
+    
+    rm_temp_build_files(&build_opts, &helper_bins);
+    auto total_build_time = std::chrono::duration<double>((std::chrono::system_clock::now() - build_process_start));
+    SPUMONI_LOG("TOTAL Elapsed Time for Build Process (s): %.3f", total_build_time);
+
     return 1;
 }
 
 int run_main(int argc, char** argv) {
+    /* main method for the run sub-command */
+    if (argc == 1) return spumoni_run_usage();
 
-    NOT_IMPL("still working on this ...");
+    /* Grab the run options, and validate they are not missing/don't make sense */
+    SpumoniRunOptions run_opts;
+    parse_run_options(argc, argv, &run_opts);
+    run_opts.populate_output_type();
+    run_opts.validate();
+
+    switch (run_opts.result_type) {
+        case MS: NOT_IMPL("Still working on this ..."); break;
+        case PML: run_spumoni_main(&run_opts); break;
+        default: FATAL_WARNING("The output type (MS or PML) must be specified.");
+    }
     return 1;
 }
 

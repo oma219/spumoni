@@ -26,6 +26,7 @@
 #include <fstream>
 #include <chrono>
 
+
 /* Commonly Used MACROS */
 #define SPUMONI_VERSION "1.0"
 #define NOT_IMPL(x) do { std::fprintf(stderr, "%s is not implemented: %s\n", __func__, x); std::exit(1);} while (0)
@@ -33,8 +34,8 @@
 #define THROW_EXCEPTION(x) do { throw x;} while (0)
 #define SPUMONI_LOG(...) do{std::fprintf(stderr, "[spumoni] "); std::fprintf(stderr, __VA_ARGS__);\
                             std::fprintf(stderr, "\n");} while(0)
-#define TIME_LOG(x) do {auto ms = std::chrono::duration<double>(x); \
-                        std::fprintf(stderr, "[spumoni] Elapsed Time for Previous Command (s): %.3f\n", ms.count());} while(0)
+#define TIME_LOG(x) do {auto sec = std::chrono::duration<double>(x); \
+                        std::fprintf(stderr, "[spumoni] Elapsed Time (s): %.3f\n", sec.count());} while(0)
 #define OTHER_LOG(x) do {std::stringstream str(x); std::string str_out;\
                          while (std::getline(str, str_out, '\n')) { \
                          std::fprintf(stderr, "[helper-prog] %s\n", str_out.data());}} while (0)
@@ -53,6 +54,7 @@ int spumoni_usage ();
 int is_file(std::string path);
 std::string execute_cmd(const char* cmd);
 size_t get_avail_phy_mem();
+int spumoni_run_usage ();
 
 struct SpumoniHelperPrograms {
   /* Contains paths to run helper programs */
@@ -98,10 +100,10 @@ public:
 };
 
 struct SpumoniBuildOptions {
-  std::string ref_file = "default";
+  std::string ref_file = "";
   size_t wind = 10; // sliding window size
   size_t hash_mod = 100; // hash modulus
-  size_t threads = 0; // number of threads
+  size_t threads = 0; // number of helper threads
   bool keep_files = false; // keeps temporary files
   bool ms_index = false; // want ms index
   bool pml_index = false; // want pml index
@@ -122,101 +124,52 @@ public:
     }
 };
 
-struct SpumoniRunOptions {
+enum output_type {MS, PML, NOT_CHOSEN};
 
-      bool use_min = false;
+struct SpumoniRunOptions {
+  std::string ref_file = ""; // reference file
+  std::string pattern_file = ""; // pattern file
+  bool ms_requested = false; // user wants to compute MS
+  bool pml_requested = false; // user wants to compute PML
+  bool query_fasta = false; // query file is a fasta
+  output_type result_type = NOT_CHOSEN; // output type requested by user
+  size_t threads = 1; // number of TOTAL threads
+
+public:
+  void populate_output_type() {
+      /* Populates the output type member of the struct */
+      if (ms_requested && !pml_requested) {result_type = MS;}
+      if (!ms_requested && pml_requested) {result_type = PML;}
+  }
+  
+  void validate() const {
+      /* Checks the options for the run command, and makes sure it has everything it needs */
+      if (ref_file == "" || pattern_file == ""){FATAL_WARNING("Both a reference file (-r) and pattern file (-f) must be provided.");}
+      if (result_type == NOT_CHOSEN) {FATAL_WARNING("An output type with -M or -P must be specified, only one can be used at a time.");}
+
+      if (!is_file(ref_file)) {THROW_EXCEPTION(std::runtime_error("The following path is not valid: " + ref_file));}
+      if (!is_file(pattern_file)) {THROW_EXCEPTION(std::runtime_error("The following path is not valid: " + pattern_file));}
+      if (ms_requested && pml_requested) {FATAL_WARNING("Only MS or PMLs can be computed at one time, please re-run with only -M or -P");}
+      if (pattern_file.find(".fq") != std::string::npos || pattern_file.find(".fastq") != std::string::npos || pattern_file.find(".fnq") != std::string::npos) {
+            FATAL_WARNING("Patterns file cannot be in FASTQ format.\n");}
+      
+      switch (result_type) {
+        case MS: 
+            if (!is_file(ref_file+".thrc.ms")) 
+            {FATAL_WARNING("The index required for this computation is not available, please use spumoni build.");} break;
+        case PML:
+            if (!is_file(ref_file+".thrc.spumoni")) 
+            {FATAL_WARNING("The index required for this computation is not available, please use spumoni build.");} break;
+        default:
+            FATAL_WARNING("An output type with -M or -P must be specified, only one can be used at a time."); break;
+      }
+  }
 };
 
 /* Additional Function Declarations */
 void parse_build_options(int argc, char** argv, SpumoniBuildOptions* opts);
+void parse_run_options(int argc, char** argv, SpumoniRunOptions* opts);
 
 
-/* helper method definitions */
-
-int spumoni_build_usage () {
-    /* prints out the usage information for the spumoni build sub-command */
-    std::fprintf(stderr, "spumoni build - builds the ms/pml index for a specified reference file.\n");
-    std::fprintf(stderr, "Usage: spumoni build [options]\n\n");
-
-    std::fprintf(stderr, "Options:\n");
-    std::fprintf(stderr, "\t%-10sprints this usage message\n", "-h");
-    std::fprintf(stderr, "\t%-10spath to reference file to be indexed\n", "-r [FILE]");
-    std::fprintf(stderr, "\t%-10sbuild an index that can be used to compute MSs\n", "-M");
-    std::fprintf(stderr, "\t%-10sbuild an index that can be used to compute PMLs\n", "-P");
-    std::fprintf(stderr, "\t%-10ssliding window size (default: 10)\n", "-w [arg]");
-    std::fprintf(stderr, "\t%-10shash modulus value (default: 100)\n", "-p [arg]");
-    std::fprintf(stderr, "\t%-10snumber of threads (default: 0)\n", "-t [arg]");
-    std::fprintf(stderr, "\t%-10skeep the temporary files (default: false)\n", "-k");
-    std::fprintf(stderr, "\t%-10suse when the reference file is a fasta file (default: false)\n\n", "-f");
-    return 1;
-}
-
-void parse_build_options(int argc, char** argv, SpumoniBuildOptions* opts) {
-    /* Parses the arguments for the build sub-command and returns a struct with arguments */
-    for(int c;(c = getopt(argc, argv, "hr:MPw:p:t:kf")) >= 0;) { 
-        switch(c) {
-                    case 'h': spumoni_build_usage(); std::exit(1);
-                    case 'r': opts->ref_file.assign(optarg); break;
-                    case 'M': opts->ms_index = true; break;
-                    case 'P': opts->pml_index = true; break;
-                    case 'w': opts->wind = std::max(std::atoi(optarg), 10); break;
-                    case 'p': opts->hash_mod = std::max(std::atoi(optarg), 1); break;
-                    case 't': opts->threads = std::max(std::atoi(optarg), 0); break;
-                    case 'k': opts->keep_files = true; break;
-                    case 'f': opts->is_fasta = true; break;
-                    default: spumoni_build_usage(); std::exit(1);
-        }
-    }
-}
-
-int is_file(std::string path) {
-    /* Checks if the path is a valid file-path */
-    std::ifstream test_file(path.data());
-    if (test_file.fail()) {return 0;}
-    
-    test_file.close();
-    return 1;
-}
-
-std::string execute_cmd(const char* cmd) {
-    std::array<char, 256> buffer{};
-    std::string output = "";
-#if defined(_WIN32) || defined(_WIN64)
-#define popen _popen
-#define pclose _pclose
-#endif
-    std::string cmd_plus_stderr = std::string(cmd) + " 2>&1";
-    FILE* pipe = popen(cmd_plus_stderr.data(), "r"); // Extract stderr as well
-    if (!pipe) {THROW_EXCEPTION(std::runtime_error("popen() failed!"));}
-
-    try {
-        std::size_t bytes;
-        while ((bytes = fread(buffer.data(), sizeof(char), sizeof(buffer), pipe))) {
-            output += std::string(buffer.data(), bytes);
-        }
-    } catch (...) {
-        pclose(pipe);
-        THROW_EXCEPTION(std::runtime_error("Error occurred while reading popen() stream."));
-    }
-    pclose(pipe);
-    return output;
-}
-
-size_t get_avail_phy_mem() {
-    /* Computes the available memory on UNIX machines */
-    std::size_t pages = sysconf(_SC_PHYS_PAGES);
-    std::size_t page_size = sysconf(_SC_PAGE_SIZE);
-    return pages * page_size;
-}
-
-#if defined(_WIN32) || defined(_WIN64)
-#include <windows.h>
-size_t get_avail_phy_mem_win() {
-    MEMORYSTATUSEX status;
-    status.dwLength = sizeof(status);
-    GlobalMemoryStatusEx(&status);
-    return status.ullTotalPhys;
-}
-#endif
 
 #endif /* End of SPUMONI_MAIN_H */

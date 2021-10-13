@@ -1,58 +1,121 @@
-/* matching_statistics - Computes the matching statistics from BWT and Thresholds
-    Copyright (C) 2020 Massimiliano Rossi
-    This program is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-    You should have received a copy of the GNU General Public License
-    along with this program.  If not, see http://www.gnu.org/licenses/ .
-*/
-/*!
-   \file matching_statistics.cpp
-   \brief matching_statistics.cpp Computes the matching statistics from BWT and Thresholds.
-   \author Massimiliano Rossi
-   \date 13/07/2020
-*/
+/* 
+ *  run_spumoni.cpp
+ *  Copyright (C) 2020 Massimiliano Rossi
+ *  This program is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *  You should have received a copy of the GNU General Public License
+ *  along with this program.  If not, see http://www.gnu.org/licenses/ .
+ */
+
+ /*
+  * File: run_spumoni.cpp 
+  * Description: Main file for running SPUMONI to compute PMLs
+  *              against a reference.
+  *
+  * Authosr: Massimiliano Rossi, Omar Ahmed
+  * Start Date: July 10, 2021
+  */
 
 extern "C" {
 #include <xerrors.h>
 }
 
 #include <iostream>
-
-#define VERBOSE
-
 #include <common.hpp>
-
 #include <sdsl/io.hpp>
-
 #include <spumoni.hpp>
-
 #include <malloc_count.h>
+#include <spumoni_main.hpp>
+#include <run_spumoni.hpp>
+
+
+
+class ms_t {
+
+/* 
+ * Class for storing the PML index, and has functions
+ * that can be called for computing the PMLs.
+ */
+
+public:
+    ms_t(std::string filename){
+      SPUMONI_LOG("Loading the PML index ...");
+      auto start_time = std::chrono::system_clock::now();
+      std::string filename_ms = filename + ms.get_file_extension();
+
+      ifstream fs_ms(filename_ms);
+      ms.load(fs_ms);
+      fs_ms.close();
+
+      auto end_time = std::chrono::system_clock::now();
+      SPUMONI_LOG("Memory Peak: %d", malloc_count_peak());
+      TIME_LOG((end_time - start_time));
+    }
+
+  // Destructor
+  ~ms_t() {}
+
+  // The outfile has the following format. The first size_t integer store the
+  // length l of the query. Then the following l size_t integers stores the
+  // pointers of the matching statistics, and the following l size_t integers
+  // stores the lengths of the mathcing statistics.
+  //void matching_statistics(kseq_t *read, FILE* out) 
+  void matching_statistics(const char* read, size_t read_length, FILE* out) 
+  {
+    auto lengths = ms.query(read, read_length);
+
+    size_t q_length = lengths.size();
+    fwrite(&q_length, sizeof(size_t), 1,out);
+    fwrite(lengths.data(), sizeof(size_t),q_length,out);
+  }
+
+protected:
+  ms_pointers<> ms;
+  size_t n = 0;
+};
+
+inline char complement(char n) {
+  switch (n)  {
+      case 'A': return 'T';
+      case 'T': return 'A';
+      case 'G': return 'C';
+      case 'C': return 'G';
+      default: return n;
+  }
+}
+
+typedef struct {
+  // Parameters
+  ms_t *ms;
+  std::string pattern_filename;
+  std::string out_filename;
+  size_t start;
+  size_t end;
+  size_t wk_id;
+} mt_param;
 
 ////////////////////////////////////////////////////////////////////////////////
 /// kseq extra
 ////////////////////////////////////////////////////////////////////////////////
 
-static inline size_t ks_tell(kseq_t *seq)
-{
+static inline size_t ks_tell(kseq_t *seq) {
   return gztell(seq->f->f) - seq->f->end + seq->f->begin;
 }
 
-void copy_kstring_t(kstring_t &l, kstring_t &r)
-{
+void copy_kstring_t(kstring_t &l, kstring_t &r) {
   l.l = r.l;
   l.m = r.m;
   l.s = (char *)malloc(l.m);
   for (size_t i = 0; i < r.m; ++i)
     l.s[i] = r.s[i];
 }
-void copy_kseq_t(kseq_t *l, kseq_t *r)
-{
+void copy_kseq_t(kseq_t *l, kseq_t *r) {
   copy_kstring_t(l->name, r->name);
   copy_kstring_t(l->comment, r->comment);
   copy_kstring_t(l->seq, r->seq);
@@ -65,8 +128,7 @@ void copy_kseq_t(kseq_t *l, kseq_t *r)
 ////////////////////////////////////////////////////////////////////////////////
 
 // This should be done using buffering.
-size_t next_start_fastq(gzFile fp)
-{
+size_t next_start_fastq(gzFile fp) {
   int c;
   // Special case when we arr at the beginning of the file.
   if ((gztell(fp) == 0) && ((c = gzgetc(fp)) != EOF) && c == '@')
@@ -77,8 +139,7 @@ size_t next_start_fastq(gzFile fp)
 
   std::vector<std::pair<int, size_t>> window;
   // Find the first new line
-  for (size_t i = 0; i < 4; ++i)
-  {
+  for (size_t i = 0; i < 4; ++i) {
     while (((c = gzgetc(fp)) != EOF) && (c != (int)'\n'))
     {
     }
@@ -89,8 +150,7 @@ size_t next_start_fastq(gzFile fp)
     window.push_back(std::make_pair(c, gztell(fp) - 1));
   }
 
-  for (size_t i = 0; i < 2; ++i)
-  {
+  for (size_t i = 0; i < 2; ++i) {
     if (window[i].first == '@' && window[i + 2].first == '+')
       return window[i].second;
     if (window[i].first == '+' && window[i + 2].first == '@')
@@ -101,8 +161,7 @@ size_t next_start_fastq(gzFile fp)
 }
 
 // test if the file is gzipped
-static inline bool is_gzipped(std::string filename)
-{
+static inline bool is_gzipped(std::string filename) {
   FILE *fp = fopen(filename.c_str(), "rb");
   if(fp == NULL) error("Opening file " + filename);
   int byte1 = 0, byte2 = 0;
@@ -114,8 +173,7 @@ static inline bool is_gzipped(std::string filename)
 
 // Return the length of the file
 // Assumes that the file is not compressed
-static inline size_t get_file_size(std::string filename)
-{
+static inline size_t get_file_size(std::string filename) {
   if (is_gzipped(filename))
   {
     std::cerr << "The input is gzipped!" << std::endl;
@@ -128,8 +186,7 @@ static inline size_t get_file_size(std::string filename)
   return size;
 }
 
-std::vector<size_t> split_fastq(std::string filename, size_t n_threads)
-{
+std::vector<size_t> split_fastq(std::string filename, size_t n_threads) {
   //Precondition: the file is not gzipped
   // scan file for start positions and execute threads
   size_t size = get_file_size(filename);
@@ -151,80 +208,6 @@ std::vector<size_t> split_fastq(std::string filename, size_t n_threads)
   return starts;
 }
 
-class ms_t
-{
-public:
-
-  ms_t(std::string filename)
-  {
-    std::chrono::high_resolution_clock::time_point t_insert_start = std::chrono::high_resolution_clock::now();
-    std::string filename_ms = filename + ms.get_file_extension();
-
-    ifstream fs_ms(filename_ms);
-    ms.load(fs_ms);
-    fs_ms.close();
-
-    std::chrono::high_resolution_clock::time_point t_insert_end = std::chrono::high_resolution_clock::now();
-    verbose("Matching Statistics Index Construction Complete");
-    
-    /* Commented these out since they are printed in main() */
-    //verbose("Memory peak: ", malloc_count_peak());
-    //verbose("Elapsed time (s): ", std::chrono::duration<double, std::ratio<1>>(t_insert_end - t_insert_start).count());
-}
-
-  // Destructor
-  ~ms_t() 
-  {
-      // NtD
-  }
-
-  // The outfile has the following format. The first size_t integer store the
-  // length l of the query. Then the following l size_t integers stores the
-  // pointers of the matching statistics, and the following l size_t integers
-  // stores the lengths of the mathcing statistics.
-  //void matching_statistics(kseq_t *read, FILE* out) 
-  void matching_statistics(const char* read, size_t read_length, FILE* out) 
-  {
-    auto lengths = ms.query(read, read_length);
-
-    size_t q_length = lengths.size();
-    fwrite(&q_length, sizeof(size_t), 1,out);
-    fwrite(lengths.data(), sizeof(size_t),q_length,out);
-  }
-
-protected:
-  ms_pointers<> ms;
-  size_t n = 0;
-};
-
-
-
-char complement(char n)
-{
-  switch (n)
-  {
-  case 'A':
-    return 'T';
-  case 'T':
-    return 'A';
-  case 'G':
-    return 'C';
-  case 'C':
-    return 'G';
-  default:
-    return n;
-  }
-}
-
-typedef struct{
-  // Parameters
-  ms_t *ms;
-  std::string pattern_filename;
-  std::string out_filename;
-  size_t start;
-  size_t end;
-  size_t wk_id;
-} mt_param;
 
 void *mt_ms_worker(void *param)
 {
@@ -281,10 +264,6 @@ void mt_ms(ms_t *ms, std::string pattern_filename, std::string out_filename, siz
   {
     xpthread_join(t[i],NULL,__LINE__,__FILE__);
   }
-
-  sleep(5);
-
-
   return;
 }
 
@@ -357,62 +336,47 @@ size_t st_ms_general(ms_t *ms, std::string pattern_filename, std::string out_fil
 
 typedef std::pair<std::string, std::vector<uint8_t>> pattern_t;
 
-int main(int argc, char *const argv[]){
+int run_spumoni_main(SpumoniRunOptions* run_opts){
+  /* This method is responsible for the PML computation */
 
-  // Parse arguments (struct info can be found in common.hpp)
-  Args args;
-  parseArgs(argc, argv, args);
+  /* Loads the RLEBWT and Thresholds*/
+  ms_t ms(run_opts->ref_file);
 
+  /* Load patterns and generate PMLs */
+  std::string base_name = basename(run_opts->ref_file.data());
+  std::string out_filename = run_opts->pattern_file + "_ref_" + base_name;
 
-  // Loads the RLEBWT and Thresholds ------------------------------------------------------------------------
-  verbose("Construction of the matching statistics data structure");
-  std::chrono::high_resolution_clock::time_point t_insert_start = std::chrono::high_resolution_clock::now();
-  ms_t ms(args.filename);
-  std::chrono::high_resolution_clock::time_point t_insert_end = std::chrono::high_resolution_clock::now();
-
-  verbose("\tMemory peak: ", malloc_count_peak());
-  verbose("\tElapsed time (s): ", std::chrono::duration<double, std::ratio<1>>(t_insert_end - t_insert_start).count());
-
-
-  // Load patterns and generate PMLs -------------------------------------------------------------------------
-  verbose("Processing patterns");
-  t_insert_start = std::chrono::high_resolution_clock::now();
-  
-  std::string base_name = basename(args.filename.data());
-  std::string out_filename = args.patterns + "_" + base_name;
-
-  if (is_gzipped(args.patterns)) {
-    verbose("The input is gzipped - forcing single threaded pseudo matching lengths.");
-    args.th = 1;
+  if (is_gzipped(run_opts->pattern_file)) { 
+    SPUMONI_LOG("The input is gzipped - forcing single threaded pseudo matching lengths.");
+    run_opts->threads = 1;
   }
 
-  // Determine approach to parse pattern files (based on whether it is general text or fasta format)
-  if (args.is_fasta) {
-    if(args.th == 1) {st_ms(&ms, args.patterns, out_filename);}
-    else {mt_ms(&ms, args.patterns, out_filename, args.th);}
+  /* Determine approach to parse pattern files (based on whether it is general text or fasta format) */
+  auto start_time = std::chrono::system_clock::now();
+  SPUMONI_LOG("Starting processing the patterns ...");
+
+  if (run_opts->query_fasta) {
+    if(run_opts->threads <= 1) {st_ms(&ms, run_opts->pattern_file, out_filename);}
+    else {mt_ms(&ms, run_opts->pattern_file, out_filename, run_opts->threads);}
   }
   else {
-        if(args.th == 1) {st_ms_general(&ms,args.patterns,out_filename);}
-    else {error("Multi-threading not implemented yet for general-text querying.\n"); std::exit(1);}
+        if(run_opts->threads == 1) {st_ms_general(&ms, run_opts->pattern_file,out_filename);}
+    else {FATAL_WARNING("Multi-threading not implemented yet for general-text querying.");}
   }
 
-  t_insert_end = std::chrono::high_resolution_clock::now();
+  auto end_time = std::chrono::system_clock::now();
+  SPUMONI_LOG("Memory peak: %d", malloc_count_peak());
+  TIME_LOG((end_time - start_time));
 
-  verbose("\tMemory peak: ", malloc_count_peak());
-  verbose("\tElapsed time (s): ", std::chrono::duration<double, std::ratio<1>>(t_insert_end - t_insert_start).count());
-
-  // Writing out the PMLs -------------------------------------------------------------------------
-  verbose("Printing plain output");
-  t_insert_start = std::chrono::high_resolution_clock::now();
+  /* Writing out the PMLs */
+  SPUMONI_LOG("Writing the plain output ...");
+  start_time = std::chrono::system_clock::now();
   
   std::ofstream f_lengths(out_filename + ".pseudo_lengths");
-
-  if (!f_lengths.is_open())
-    error("open() file " + std::string(out_filename) + ".lengths failed");
+  if (!f_lengths.is_open()) {error("open() file " + std::string(out_filename) + ".lengths failed");}
 
   size_t n_seq = 0;
-  for(size_t i = 0; i < args.th; ++i)
-  {
+  for(size_t i = 0; i < run_opts->threads; ++i) {
     std::string tmp_filename = out_filename + "_" + std::to_string(i) + ".ms.tmp.out";
     FILE *in_fd;
 
@@ -424,8 +388,7 @@ int main(int argc, char *const argv[]){
     size_t *mem = (size_t*) malloc(m * sizeof(size_t));
     while(!feof(in_fd) and fread(&length,sizeof(size_t), 1,in_fd) > 0)
     {
-      if( m < length)
-      {
+      if( m < length) {
         // Resize lengths and pointers
         m = length;
         mem = (size_t*) realloc(mem, m * sizeof(size_t));
@@ -443,24 +406,25 @@ int main(int argc, char *const argv[]){
     }
     fclose(in_fd);
   }
-
   f_lengths.close();
 
-  t_insert_end = std::chrono::high_resolution_clock::now();
-  
-  auto mem_peak = malloc_count_peak();
-  verbose("\tMemory peak: ", malloc_count_peak());
-  verbose("\tElapsed time (s): ", std::chrono::duration<double, std::ratio<1>>(t_insert_end - t_insert_start).count());
-
-  //auto mem_peak = malloc_count_peak();
-  //verbose("Memory peak: ", malloc_count_peak());
-
-  size_t space = 0;
-  if (args.memo) {}
-  if (args.store) {}
-
-  if (args.csv)
-    std::cerr << csv(args.filename.c_str(), time, space, mem_peak) << std::endl;
-
+  end_time = std::chrono::system_clock::now();
+  SPUMONI_LOG("Memory peak: %d", malloc_count_peak());
+  TIME_LOG((end_time - start_time));
   return 0;
 }
+
+/*
+int main(int argc, char *const argv[]){
+  // main method for run_spumoni executable (should only be used for debugging) 
+  Args args;
+  parseArgs(argc, argv, args);
+
+  SpumoniRunOptions run_opts {args.filename, args.patterns, false, true, args.is_fasta, NOT_CHOSEN, args.th};
+  run_opts.populate_output_type();
+  run_opts.validate();
+
+  return run_spumoni_main(&run_opts);
+}
+*/
+

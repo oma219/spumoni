@@ -41,16 +41,13 @@ target_include_directories(build_spumoni PUBLIC    "../../include/ms"
                                         )
 target_compile_options(build_spumoni PUBLIC "-std=c++17")
 
-add_executable(run_spumoni run_spumoni.cpp ${bigbwt_SOURCE_DIR}/xerrors.c)
-target_link_libraries(run_spumoni common sdsl divsufsort divsufsort64 malloc_count ri pthread)
-target_include_directories(run_spumoni PUBLIC    "../../include/ms" 
-                                        "../../include/common" 
-                                        "${bigbwt_SOURCE_DIR}"
-                                        )
-target_compile_options(run_spumoni PUBLIC "-std=c++17")
+#add_executable(run_spumoni run_spumoni.cpp ${bigbwt_SOURCE_DIR}/xerrors.c)
+#target_link_libraries(run_spumoni common sdsl divsufsort divsufsort64 malloc_count ri pthread)
+#target_include_directories(run_spumoni PUBLIC    "../../include/ms" "../../include/common" "${bigbwt_SOURCE_DIR}")
+#target_compile_options(run_spumoni PUBLIC "-std=c++17")
 
-
-add_executable(spumoni spumoni.cpp)
-target_include_directories(spumoni PUBLIC "../../include/ms")
+add_executable(spumoni spumoni.cpp ${bigbwt_SOURCE_DIR}/xerrors.c run_spumoni.cpp)
+target_link_libraries(spumoni sdsl common divsufsort divsufsort64 malloc_count ri pthread)
+target_include_directories(spumoni PUBLIC "../../include/ms" "../../include/common" "${bigbwt_SOURCE_DIR}")
 target_compile_options(spumoni PUBLIC "-std=c++17")
 
