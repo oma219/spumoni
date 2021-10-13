@@ -53,11 +53,16 @@ endif()
 add_subdirectory(include)
 add_subdirectory(test/src)
 add_subdirectory(utils)
-# add_subdirectory(benchmarks/src)
 
 #configure_file(${PROJECT_SOURCE_DIR}/pipeline/moni ${PROJECT_BINARY_DIR}/moni)
 
-install(TARGETS spumoni DESTINATION ${PROJECT_BINARY_DIR})
+# Move BigRepair binaries to be used by pipeline
+configure_file(${PROJECT_BINARY_DIR}/_deps/bigrepair-src/procdic ${PROJECT_BINARY_DIR}/bin/procdic COPYONLY)
+configure_file(${PROJECT_BINARY_DIR}/_deps/bigrepair-src/postproc ${PROJECT_BINARY_DIR}/bin/postproc COPYONLY)
+configure_file(${PROJECT_BINARY_DIR}/_deps/bigrepair-src/largeb_repair/irepair ${PROJECT_BINARY_DIR}/bin/irepair COPYONLY)
 
-install(TARGETS newscanNT.x pscan.x newscan.x
+# Install pipeline executables
+install(TARGETS spumoni DESTINATION ${PROJECT_BINARY_DIR})
+install(TARGETS newscanNT.x pscan.x newscan.x pfp_thresholds64 pfp_thresholds 
+                compress_dictionary SlpEncBuild rlebwt_ms_build build_spumoni
         DESTINATION ${PROJECT_BINARY_DIR}/bin)
