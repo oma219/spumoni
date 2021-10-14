@@ -5,7 +5,11 @@
 build/
 build/*
 
+# helper binaries
+bin/
+bin/*
 
+# data folder
 data/example_positive_index/*.fasta.*
 data/example_null_index/*.fasta.*
 data/example_reads/all_reads.fa.*

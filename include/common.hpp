@@ -65,7 +65,7 @@ void _internal_messageWarning( const std::string file, const unsigned int line, 
 void _internal_messageError( const std::string file, const unsigned int line,const std::string message);
 
 
-std::string NowTime()
+inline std::string NowTime()
 {
     struct timeval tv;
     gettimeofday(&tv, 0);
@@ -86,12 +86,12 @@ template<typename T, typename... Args>
 inline std::string _internal_message(T const &first, const Args&... args) { std::stringstream ss; _internal_message_helper(ss,first,args...); return ss.str(); }
 
 
-void _internal_messageInfo(const std::string message)
+inline void _internal_messageInfo(const std::string message)
 {
   std::cout << "[INFO] " << NowTime() << " - " << "Message: " << message << std::endl;
 }
 
-void _internal_messageWarning( const std::string file, const unsigned int line,
+inline void _internal_messageWarning( const std::string file, const unsigned int line,
   const std::string message)
 {
   std::cout << "[WARNING] " << NowTime() << " - "
@@ -100,7 +100,7 @@ void _internal_messageWarning( const std::string file, const unsigned int line,
   << "Message: " << message << std::endl;
 }
 
-void _internal_messageError( const std::string file, const unsigned int line,
+inline void _internal_messageError( const std::string file, const unsigned int line,
   const std::string message)
 {
   std::cerr << "[ERROR] " << NowTime() << " - "
@@ -338,7 +338,7 @@ struct Args
   bool is_fasta = false; // read a fasta file
 };
 
-void parseArgs(int argc, char *const argv[], Args &arg)
+inline void parseArgs(int argc, char *const argv[], Args &arg)
 {
   int c;
   extern char *optarg;
