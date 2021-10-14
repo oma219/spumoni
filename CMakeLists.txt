@@ -11,15 +11,14 @@ endif()
 # About this project
 # ------------------------------------------------------------------------------
 project(moni)
-SET(VERSION_MAJOR "0")
-SET(VERSION_MINOR "1")
+SET(VERSION_MAJOR "1")
+SET(VERSION_MINOR "0")
 SET(VERSION_PATCH "0")
 SET(VERSION "${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}")
 
 # Set environment
 # ------------------------------------------------------------------------------
 set(CMAKE_INSTALL_PREFIX ${CMAKE_BINARY_DIR}/install)
-
 
 find_package(Git)
 if(GIT_FOUND)
@@ -28,14 +27,10 @@ else()
     message(WARNING "git not found. Cloning of submodules will not work.")
 endif()
 
-
-
 # Configure thirdparty
 # ------------------------------------------------------------------------------
 set(CMAKE_INSTALL_INCLUDEDIR "include") # This is an hack because include(GUIInstallDirs) doesn't work
-
 add_subdirectory(thirdparty)
-
 
 # Configure the compiler with the appropriate flags
 # ------------------------------------------------------------------------------
@@ -49,9 +44,10 @@ else ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
 	message(FATAL_ERROR "Only the compiler gcc and clang are supported")
 endif()
 
-
+# Adding different sub-directories to the CMake build
+#-------------------------------------------------------------------------------
 add_subdirectory(include)
-add_subdirectory(test/src)
+add_subdirectory(src)
 add_subdirectory(utils)
 
 #configure_file(${PROJECT_SOURCE_DIR}/pipeline/moni ${PROJECT_BINARY_DIR}/moni)
