@@ -42,7 +42,8 @@ This command uses `-P` for computing PMLs (if you want MSs, use `-M` instead) an
 Now, in order to perform classification of the reads, you will to have MSs or PMLs for each read against a "positive" database (just the regular FASTA) as well as a "null" database which is the just the reverse of the sequences. The command below shows how to use the analysis script in `analysis/` to order to get the classification result for each read. This script assumes the input are PMLs, however you can change that by using the `--ms` option.
 
 ```sh
-python3 analyze_pml.py -p <pmls_against_pos_database.lengths> -n <pmls_against_null_database.lengths>
+python3 analyze_pml.py -p <pmls_against_pos_database.lengths>  \
+                       -n <pmls_against_null_database.lengths>
 ```
 Current development is aimed toward integrating the null database generation, and analysis of the reads into the main `spumoni` executable. However for now, for a more detailed explanation of how to use SPUMONI. You can look at the [README](https://github.com/oma219/spumoni/blob/main/analysis/README.md) in the `analysis/` folder.
 
