@@ -30,9 +30,9 @@
 #include <filesystem>
 #include <chrono>
 #include <spumoni_main.hpp>
-#include <run_spumoni.hpp>
-
-
+//#include <run_spumoni.hpp>
+//#include <matching_statistics.hpp>
+#include <compute_ms_pml.hpp>
 
 int spumoni_run_usage () {
     /* prints out the usage information for the spumoni build sub-command */
@@ -127,8 +127,6 @@ inline size_t get_avail_phy_mem_win() {
     return status.ullTotalPhys;
 }
 #endif
-
-
 
 std::string execute_cmd(const char* cmd) {
     std::array<char, 256> buffer{};
@@ -254,7 +252,6 @@ void run_build_slp_cmds(SpumoniBuildOptions* build_opts, SpumoniHelperPrograms* 
     OTHER_LOG(output_log.data());
     TIME_LOG((std::chrono::system_clock::now() - start));
 }
-
 
 void run_build_parse_cmd(SpumoniBuildOptions* build_opts, SpumoniHelperPrograms* helper_bins) {
     /* Generates and runs the command-line for executing the PFP of the reference */
@@ -395,9 +392,9 @@ int run_main(int argc, char** argv) {
     parse_run_options(argc, argv, &run_opts);
     run_opts.populate_output_type();
     run_opts.validate();
-
+    
     switch (run_opts.result_type) {
-        case MS: NOT_IMPL("Still working on this ..."); break;
+        case MS: run_spumoni_ms_main(&run_opts); break;
         case PML: run_spumoni_main(&run_opts); break;
         default: FATAL_WARNING("The output type (MS or PML) must be specified.");
     }

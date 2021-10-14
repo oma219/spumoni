@@ -18,7 +18,7 @@
   * Description: Main file for running SPUMONI to compute PMLs
   *              against a reference.
   *
-  * Authosr: Massimiliano Rossi, Omar Ahmed
+  * Authors: Massimiliano Rossi, Omar Ahmed
   * Start Date: July 10, 2021
   */
 
@@ -26,17 +26,307 @@ extern "C" {
 #include <xerrors.h>
 }
 
-#include <iostream>
-#include <common.hpp>
-#include <sdsl/io.hpp>
-#include <spumoni.hpp>
-#include <malloc_count.h>
+//#include <iostream>
+//#include <common.hpp>
+//#include <sdsl/io.hpp>
+//#include <malloc_count.h>
 #include <spumoni_main.hpp>
-#include <run_spumoni.hpp>
+//#include <run_spumoni.hpp>
+
+//#include <sdsl/rmq_support.hpp>
+//#include <sdsl/int_vector.hpp>
+#include <r_index.hpp>
+//#include <ms_rle_string.hpp>
+#include <thresholds_ds.hpp>
 
 
+template <class sparse_bv_type = ri::sparse_sd_vector,
+          class rle_string_t = ms_rle_string_sd,
+          class thresholds_t = thr_compressed<rle_string_t> >
+class pml_pointers : ri::r_index<sparse_bv_type, rle_string_t> {
+  public:
+    thresholds_t thresholds;
+    typedef size_t size_type;
 
-class ms_t {
+    pml_pointers() {}
+
+    pml_pointers(std::string filename, bool rle = false) : ri::r_index<sparse_bv_type, rle_string_t>() {
+        verbose("Building the r-index from BWT");
+        std::chrono::high_resolution_clock::time_point t_insert_start = std::chrono::high_resolution_clock::now();
+        
+        std::string bwt_fname = filename + ".bwt";
+        verbose("RLE encoding BWT and computing SA samples");
+
+        if (rle) {
+            std::string bwt_heads_fname = bwt_fname + ".heads";
+            std::ifstream ifs_heads(bwt_heads_fname);
+            std::string bwt_len_fname = bwt_fname + ".len";
+            std::ifstream ifs_len(bwt_len_fname);
+            this->bwt = rle_string_t(ifs_heads, ifs_len);
+
+            ifs_heads.seekg(0);
+            ifs_len.seekg(0);
+            this->build_F_(ifs_heads, ifs_len);
+        }
+        else {
+            std::ifstream ifs(bwt_fname);
+            this->bwt = rle_string_t(ifs);
+
+            ifs.seekg(0);
+            this->build_F(ifs);
+        }
+
+        this->r = this->bwt.number_of_runs();
+        ri::ulint n = this->bwt.size();
+        int log_r = bitsize(uint64_t(this->r));
+        int log_n = bitsize(uint64_t(this->bwt.size()));
+
+        verbose("Text length: n = ", n);
+        verbose("Number of BWT equal-letter runs: r = ", this->r);
+        verbose("Rate n/r = ", double(this->bwt.size()) / this->r);
+        verbose("log2(r) = ", log2(double(this->r)));
+        verbose("log2(n/r) = ", log2(double(this->bwt.size()) / this->r));
+
+        std::chrono::high_resolution_clock::time_point t_insert_end = std::chrono::high_resolution_clock::now();
+
+        verbose("RL-BWT construction complete");
+        verbose("Memory peak: ", malloc_count_peak());
+        verbose("Elapsed time (s): ", std::chrono::duration<double, std::ratio<1>>(t_insert_end - t_insert_start).count());
+
+        verbose("Reading thresholds from file");
+
+        t_insert_start = std::chrono::high_resolution_clock::now();
+
+        thresholds = thresholds_t(filename,&this->bwt);
+
+        t_insert_end = std::chrono::high_resolution_clock::now();
+
+        verbose("Memory peak: ", malloc_count_peak());
+        verbose("Elapsed time (s): ", std::chrono::duration<double, std::ratio<1>>(t_insert_end - t_insert_start).count());
+    }
+
+    void read_samples(std::string filename, ulint r, ulint n, int_vector<> &samples) {
+        int log_n = bitsize(uint64_t(n));
+
+        struct stat filestat;
+        FILE *fd;
+
+        if ((fd = fopen(filename.c_str(), "r")) == nullptr)
+            error("open() file " + filename + " failed");
+
+        int fn = fileno(fd);
+        if (fstat(fn, &filestat) < 0)
+            error("stat() file " + filename + " failed");
+
+        if (filestat.st_size % SSABYTES != 0)
+            error("invilid file " + filename);
+
+        size_t length = filestat.st_size / (2 * SSABYTES);
+        //Check that the length of the file is 2*r elements of 5 bytes
+        assert(length == r);
+
+        // Create the vector
+        samples = int_vector<>(r, 0, log_n);
+
+        // Read the vector
+        uint64_t left = 0;
+        uint64_t right = 0;
+        size_t i = 0;
+        while (fread((char *)&left, SSABYTES, 1, fd) && fread((char *)&right, SSABYTES, 1, fd))
+        {
+            ulint val = (right ? right - 1 : n - 1);
+            assert(bitsize(uint64_t(val)) <= log_n);
+            samples[i++] = val;
+        }
+
+        fclose(fd);
+    }
+
+    vector<ulint> build_F_(std::ifstream &heads, std::ifstream &lengths)
+    {
+        heads.clear();
+        heads.seekg(0);
+        lengths.clear();
+        lengths.seekg(0);
+
+        this->F = vector<ulint>(256, 0);
+        int c;
+        ulint i = 0;
+        while ((c = heads.get()) != EOF)
+        {
+            size_t length = 0;
+            lengths.read((char *)&length, 5);
+            if (c > TERMINATOR)
+                this->F[c] += length;
+            else
+            {
+                this->F[TERMINATOR] += length;
+                this->terminator_position = i;
+            }
+            i++;
+        }
+        for (ulint i = 255; i > 0; --i)
+            this->F[i] = this->F[i - 1];
+        this->F[0] = 0;
+        for (ulint i = 1; i < 256; ++i)
+            this->F[i] += this->F[i - 1];
+        return this->F;
+    }
+
+    // Computes the matching statistics pointers for the given pattern
+    std::vector<size_t> query(const std::vector<uint8_t> &pattern)
+    {
+        size_t m = pattern.size();
+
+        return _query(pattern.data(), m);
+    }
+
+    std::vector<size_t> query(const char* pattern, const size_t m)
+    {
+        return _query(pattern, m);
+    }
+
+    void print_stats()
+    {
+        sdsl::nullstream ns;
+
+        verbose("Memory consumption (bytes).");
+        verbose("   terminator_position: ", sizeof(this->terminator_position));
+        verbose("                     F: ", my_serialize(this->F, ns));
+        verbose("                   bwt: ", this->bwt.serialize(ns));
+        verbose("            thresholds: ", thresholds.serialize(ns));
+    }
+
+    /*
+     * \param i position in the BWT
+     * \param c character
+     * \return lexicographic rank of cw in bwt
+     */
+    ulint LF(ri::ulint i, ri::uchar c)
+    {
+        // //if character does not appear in the text, return empty pair
+        // if ((c == 255 and this->F[c] == this->bwt_size()) || this->F[c] >= this->F[c + 1])
+        //     return {1, 0};
+        //number of c before the interval
+        ri::ulint c_before = this->bwt.rank(i, c);
+        // number of c inside the interval rn
+        ri::ulint l = this->F[c] + c_before;
+        return l;
+    }
+
+    /* serialize the structure to the ostream
+     * \param out     the ostream
+     */
+    size_type serialize(std::ostream &out, sdsl::structure_tree_node *v = nullptr, std::string name = "") // const
+    {
+        sdsl::structure_tree_node *child = sdsl::structure_tree::add_child(v, name, sdsl::util::class_name(*this));
+        size_type written_bytes = 0;
+
+        out.write((char *)&this->terminator_position, sizeof(this->terminator_position));
+        written_bytes += sizeof(this->terminator_position);
+        written_bytes += my_serialize(this->F, out, child, "F");
+        written_bytes += this->bwt.serialize(out);
+
+        written_bytes += thresholds.serialize(out, child, "thresholds");
+
+
+        sdsl::structure_tree::add_size(child, written_bytes);
+        return written_bytes;
+    }
+
+    std::string get_file_extension() const
+    {
+        return thresholds.get_file_extension() + ".spumoni";
+    }
+
+    /* load the structure from the istream
+     * \param in the istream
+     */
+    void load(std::istream &in)
+    {
+
+        in.read((char *)&this->terminator_position, sizeof(this->terminator_position));
+        my_load(this->F, in);
+        this->bwt.load(in);
+        this->r = this->bwt.number_of_runs();
+
+
+        thresholds.load(in,&this->bwt);
+    }
+
+
+protected:
+    // Computes the matching statistics pointers for the given pattern
+    template<typename string_t>
+    std::vector<size_t> _query(const string_t &pattern, const size_t m)
+    {
+        std::vector<size_t> lengths(m);
+
+        // Start with the empty string
+        auto pos = this->bwt_size() - 1;
+        auto length = 0;
+
+        for (size_t i = 0; i < m; ++i)
+        {
+            auto c = pattern[m - i - 1];
+
+            if (this->bwt.number_of_letter(c) == 0)
+            {
+                length = 0;
+            }
+            else if (pos < this->bwt.size() && this->bwt[pos] == c)
+            {
+                length++;
+            }
+            else
+            {
+                // Get threshold
+                ri::ulint rnk = this->bwt.rank(pos, c);
+                size_t thr = this->bwt.size() + 1;
+
+                ulint next_pos = pos;
+
+                // if (rnk < (this->F[c] - this->F[c-1]) // I can use F to compute it
+                if (rnk < this->bwt.number_of_letter(c))
+                {
+                    // j is the first position of the next run of c's
+                    ri::ulint j = this->bwt.select(rnk, c);
+                    ri::ulint run_of_j = this->bwt.run_of_position(j);
+
+                    thr = thresholds[run_of_j]; // If it is the first run thr = 0
+
+                    length = 0;
+
+                    next_pos = j;
+                }
+
+                if (pos < thr)
+                {
+
+                    rnk--;
+                    ri::ulint j = this->bwt.select(rnk, c);
+                    ri::ulint run_of_j = this->bwt.run_of_position(j);
+                    length = 0;
+
+                    next_pos = j;
+                }
+
+                pos = next_pos;
+            }
+
+            lengths[m - i - 1] = length;
+
+            // Perform one backward step
+            pos = LF(pos, c);
+        }
+
+        return lengths;
+    }
+
+};
+
+
+class pml_t {
 
 /* 
  * Class for storing the PML index, and has functions
@@ -44,7 +334,7 @@ class ms_t {
  */
 
 public:
-    ms_t(std::string filename){
+    pml_t(std::string filename){
       SPUMONI_LOG("Loading the PML index ...");
       auto start_time = std::chrono::system_clock::now();
       std::string filename_ms = filename + ms.get_file_extension();
@@ -59,7 +349,7 @@ public:
     }
 
   // Destructor
-  ~ms_t() {}
+  ~pml_t() {}
 
   // The outfile has the following format. The first size_t integer store the
   // length l of the query. Then the following l size_t integers stores the
@@ -76,7 +366,7 @@ public:
   }
 
 protected:
-  ms_pointers<> ms;
+  pml_pointers<> ms;
   size_t n = 0;
 };
 
@@ -92,7 +382,7 @@ inline char complement(char n) {
 
 typedef struct {
   // Parameters
-  ms_t *ms;
+  pml_t *ms;
   std::string pattern_filename;
   std::string out_filename;
   size_t start;
@@ -100,28 +390,41 @@ typedef struct {
   size_t wk_id;
 } mt_param;
 
+
 ////////////////////////////////////////////////////////////////////////////////
 /// kseq extra
 ////////////////////////////////////////////////////////////////////////////////
 
-static inline size_t ks_tell(kseq_t *seq) {
+static inline size_t ks_tell(kseq_t *seq)
+{
   return gztell(seq->f->f) - seq->f->end + seq->f->begin;
 }
 
-void copy_kstring_t(kstring_t &l, kstring_t &r) {
+void copy_kstring_t(kstring_t &l, kstring_t &r)
+{
   l.l = r.l;
   l.m = r.m;
   l.s = (char *)malloc(l.m);
   for (size_t i = 0; i < r.m; ++i)
     l.s[i] = r.s[i];
 }
-void copy_kseq_t(kseq_t *l, kseq_t *r) {
+void copy_kseq_t(kseq_t *l, kseq_t *r)
+{
   copy_kstring_t(l->name, r->name);
   copy_kstring_t(l->comment, r->comment);
   copy_kstring_t(l->seq, r->seq);
   copy_kstring_t(l->qual, r->qual);
   l->last_char = r->last_char;
 }
+
+
+
+
+
+
+
+
+
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Parallel computation
@@ -209,7 +512,7 @@ std::vector<size_t> split_fastq(std::string filename, size_t n_threads) {
 }
 
 
-void *mt_ms_worker(void *param)
+void *mt_pml_worker(void *param)
 {
   mt_param *p = (mt_param*) param;
   size_t n_reads = 0;
@@ -244,7 +547,7 @@ void *mt_ms_worker(void *param)
   return NULL;
 }
 
-void mt_ms(ms_t *ms, std::string pattern_filename, std::string out_filename, size_t n_threads)
+void mt_pml(pml_t *ms, std::string pattern_filename, std::string out_filename, size_t n_threads)
 {
   pthread_t t[n_threads] = {0};
   mt_param params[n_threads];
@@ -257,7 +560,7 @@ void mt_ms(ms_t *ms, std::string pattern_filename, std::string out_filename, siz
     params[i].start = starts[i];
     params[i].end = starts[i+1];
     params[i].wk_id = i;
-    xpthread_create(&t[i], NULL, &mt_ms_worker, &params[i], __LINE__, __FILE__);
+    xpthread_create(&t[i], NULL, &mt_pml_worker, &params[i], __LINE__, __FILE__);
   }
 
   for(size_t i = 0; i < n_threads; ++i)
@@ -272,7 +575,7 @@ void mt_ms(ms_t *ms, std::string pattern_filename, std::string out_filename, siz
 /// Single Thread
 ////////////////////////////////////////////////////////////////////////////////
 
-size_t st_ms(ms_t *ms, std::string pattern_filename, std::string out_filename)
+size_t st_pml(pml_t *ms, std::string pattern_filename, std::string out_filename)
 {
   size_t n_reads = 0;
   size_t n_aligned_reads = 0;
@@ -301,7 +604,7 @@ size_t st_ms(ms_t *ms, std::string pattern_filename, std::string out_filename)
   return n_aligned_reads;
 }
 
-size_t st_ms_general(ms_t *ms, std::string pattern_filename, std::string out_filename)
+size_t st_pml_general(pml_t *ms, std::string pattern_filename, std::string out_filename)
 {
   // Check if file is mistakenly labeled as non-fasta file
   std::string file_ext = pattern_filename.substr(pattern_filename.find_last_of(".") + 1);
@@ -340,7 +643,7 @@ int run_spumoni_main(SpumoniRunOptions* run_opts){
   /* This method is responsible for the PML computation */
 
   /* Loads the RLEBWT and Thresholds*/
-  ms_t ms(run_opts->ref_file);
+  pml_t ms(run_opts->ref_file);
 
   /* Load patterns and generate PMLs */
   std::string base_name = basename(run_opts->ref_file.data());
@@ -356,11 +659,11 @@ int run_spumoni_main(SpumoniRunOptions* run_opts){
   SPUMONI_LOG("Starting processing the patterns ...");
 
   if (run_opts->query_fasta) {
-    if(run_opts->threads <= 1) {st_ms(&ms, run_opts->pattern_file, out_filename);}
-    else {mt_ms(&ms, run_opts->pattern_file, out_filename, run_opts->threads);}
+    if(run_opts->threads <= 1) {st_pml(&ms, run_opts->pattern_file, out_filename);}
+    else {mt_pml(&ms, run_opts->pattern_file, out_filename, run_opts->threads);}
   }
   else {
-        if(run_opts->threads == 1) {st_ms_general(&ms, run_opts->pattern_file,out_filename);}
+        if(run_opts->threads == 1) {st_pml_general(&ms, run_opts->pattern_file,out_filename);}
     else {FATAL_WARNING("Multi-threading not implemented yet for general-text querying.");}
   }
 
@@ -414,6 +717,8 @@ int run_spumoni_main(SpumoniRunOptions* run_opts){
   return 0;
 }
 
+
+
 /*
 int main(int argc, char *const argv[]){
   // main method for run_spumoni executable (should only be used for debugging) 
@@ -427,4 +732,15 @@ int main(int argc, char *const argv[]){
   return run_spumoni_main(&run_opts);
 }
 */
+
+
+
+
+
+
+
+
+
+
+
 

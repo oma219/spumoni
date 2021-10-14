@@ -1,4 +1,5 @@
 /* 
+ *  compute_ms_pml.hpp
  *  Copyright (C) 2020 Omar Ahmed
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -11,19 +12,19 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see http://www.gnu.org/licenses/ .
  */
-
  /*
-  * File: run_spumoni.hpp 
-  * Description: Header file for run_spumoni.hpp
-  *             
-  * Author: Omar Ahmed
-  * Start Date: October 11, 2021
+  * File: compute_ms_pml.hpp
+  * Description: Header file for compute_ms_pml.cpp
+  *
+  * Authors: Omar Ahmed
+  * Start Date: October 13, 2021
   */
 
-#ifndef RUN_SPUMONI_H
-#define RUN_SPUMONI_H
+#ifndef COMPUTE_MS_PML_H
+#define COMPUTE_MS_PML_H
 
 /* Function Declarations */
+int run_spumoni_ms_main(SpumoniRunOptions* run_opts);
 int run_spumoni_main(SpumoniRunOptions* run_opts);
 
-#endif /* Closing for RUN_SPUMONI_H */
+#endif /* End of include of COMPUTE_MS_PML_H */

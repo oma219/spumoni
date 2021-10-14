@@ -25,7 +25,6 @@
 #define _MS_RLE_STRING_HH
 
 #include <common.hpp>
-
 #include <rle_string.hpp>
 
 template <
@@ -35,6 +34,8 @@ template <
 class ms_rle_string : public ri::rle_string<sparse_bitvector_t, string_t>
 {
 public:
+    static const u_char TERMINATOR = 1;
+    
     ms_rle_string() : ri::rle_string<sparse_bitvector_t, string_t>()
     {
         //NtD

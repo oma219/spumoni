@@ -11,17 +11,17 @@ set(FOLCA_SOURCE_DIR ${shaped_slp_SOURCE_DIR}/folca)
 set(SUX_SOURCE_DIR ${shaped_slp_SOURCE_DIR}/external/sux/sux)
 
 
-add_executable(ms matching_statistics.cpp ${bigbwt_SOURCE_DIR}/xerrors.c)
-target_link_libraries(ms common sdsl divsufsort divsufsort64 malloc_count ri pthread)
-target_include_directories(ms PUBLIC    "../../include/ms" 
-                                        "../../include/common" 
-                                        "${shaped_slp_SOURCE_DIR}" 
-                                        "${FOLCA_SOURCE_DIR}" 
-                                        "${SUX_SOURCE_DIR}/function" 
-                                        "${SUX_SOURCE_DIR}/support"
-                                        "${bigbwt_SOURCE_DIR}"
-                                        )
-target_compile_options(ms PUBLIC "-std=c++17")
+#add_executable(ms matching_statistics.cpp ${bigbwt_SOURCE_DIR}/xerrors.c)
+#target_link_libraries(ms common sdsl divsufsort divsufsort64 malloc_count ri pthread)
+#target_include_directories(ms PUBLIC    "../../include/ms" "../../include/common" 
+#                                        "${shaped_slp_SOURCE_DIR}" 
+#                                        "${FOLCA_SOURCE_DIR}" 
+#                                        "${SUX_SOURCE_DIR}/function" 
+#                                        "${SUX_SOURCE_DIR}/support"
+#                                        "${bigbwt_SOURCE_DIR}"
+#                                        )
+#target_compile_options(ms PUBLIC "-std=c++17")
+
 
 add_executable(rlebwt_ms_build rlebwt_ms_build.cpp)
 target_link_libraries(rlebwt_ms_build common sdsl divsufsort divsufsort64 malloc_count ri)
@@ -43,11 +43,13 @@ target_compile_options(build_spumoni PUBLIC "-std=c++17")
 
 #add_executable(run_spumoni run_spumoni.cpp ${bigbwt_SOURCE_DIR}/xerrors.c)
 #target_link_libraries(run_spumoni common sdsl divsufsort divsufsort64 malloc_count ri pthread)
-#target_include_directories(run_spumoni PUBLIC    "../../include/ms" "../../include/common" "${bigbwt_SOURCE_DIR}")
+#target_include_directories(run_spumoni PUBLIC    "../../include/ms" "../../include/common" "${bigbwt_SOURCE_DIR}" "${klib_SOURCE_DIR}")
 #target_compile_options(run_spumoni PUBLIC "-std=c++17")
 
-add_executable(spumoni spumoni.cpp ${bigbwt_SOURCE_DIR}/xerrors.c run_spumoni.cpp)
-target_link_libraries(spumoni sdsl common divsufsort divsufsort64 malloc_count ri pthread)
-target_include_directories(spumoni PUBLIC "../../include/ms" "../../include/common" "${bigbwt_SOURCE_DIR}")
+add_executable(spumoni spumoni.cpp ${bigbwt_SOURCE_DIR}/xerrors.c compute_ms_pml.cpp)
+target_link_libraries(spumoni sdsl common divsufsort divsufsort64 malloc_count ri pthread )
+target_include_directories(spumoni PUBLIC "../../include/ms" "../../include/common" "${bigbwt_SOURCE_DIR}"
+                            "${shaped_slp_SOURCE_DIR}" "${FOLCA_SOURCE_DIR}" "${SUX_SOURCE_DIR}/function" 
+                            "${SUX_SOURCE_DIR}/support" "${bigbwt_SOURCE_DIR}")
 target_compile_options(spumoni PUBLIC "-std=c++17")
 
