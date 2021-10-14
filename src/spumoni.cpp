@@ -30,8 +30,6 @@
 #include <filesystem>
 #include <chrono>
 #include <spumoni_main.hpp>
-//#include <run_spumoni.hpp>
-//#include <matching_statistics.hpp>
 #include <compute_ms_pml.hpp>
 
 int spumoni_run_usage () {
