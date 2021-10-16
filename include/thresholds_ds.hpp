@@ -366,4 +366,167 @@ public:
     }
 };
 
+template <class rle_string_t = ms_rle_string_sd>
+class thr_bv
+{
+public:
+    std::vector<ri::sparse_sd_vector> thresholds_per_letter;
+    rle_string_t *bwt;
+
+    typedef size_t size_type;
+
+    thr_bv()
+    {
+        bwt=nullptr;
+    }
+
+    thr_bv(std::string filename, rle_string_t* bwt_):bwt(bwt_)
+    {
+        int log_n = bitsize(uint64_t(bwt->size()));
+        size_t n = uint64_t(bwt->size());
+
+        verbose("Reading thresholds from file");
+
+        std::chrono::high_resolution_clock::time_point t_insert_start = std::chrono::high_resolution_clock::now();
+
+        std::string tmp_filename = filename + std::string(".thr_pos");
+
+        struct stat filestat;
+        FILE *fd;
+
+        if ((fd = fopen(tmp_filename.c_str(), "r")) == nullptr)
+            error("open() file " + tmp_filename + " failed");
+
+        int fn = fileno(fd);
+        if (fstat(fn, &filestat) < 0)
+            error("stat() file " + tmp_filename + " failed");
+
+        if (filestat.st_size % THRBYTES != 0)
+            error("invilid file " + tmp_filename);
+
+        size_t length = filestat.st_size / THRBYTES;
+
+        auto thrs_per_letter_bv = vector<vector<size_t>>(256);
+        auto thrs_per_letter_bv_i = vector<size_t>(256, 0);
+
+        for (size_t i = 0; i < length; ++i)
+        {
+            size_t threshold = 0;
+            if ((fread(&threshold, THRBYTES, 1, fd)) != 1)
+                error("fread() file " + tmp_filename + " failed");
+
+            long long off = 0;
+
+            uint8_t c = bwt->head_of(i);
+            if (threshold > 0)
+                thrs_per_letter_bv[c].push_back(threshold);
+            thrs_per_letter_bv_i[c] = n;
+
+        }
+
+        thresholds_per_letter = vector<ri::sparse_sd_vector>(256);
+        for (ulint i = 0; i < 256; ++i)
+            thresholds_per_letter[i] = ri::sparse_sd_vector(thrs_per_letter_bv[i], thrs_per_letter_bv_i[i]);
+
+        fclose(fd);
+
+
+
+        std::chrono::high_resolution_clock::time_point t_insert_end = std::chrono::high_resolution_clock::now();
+
+        verbose("Memory peak: ", malloc_count_peak());
+        verbose("Elapsed time (s): ", std::chrono::duration<double, std::ratio<1>>(t_insert_end - t_insert_start).count());
+    }
+
+    // Destructor
+    ~thr_bv()
+    {
+        // NtD
+    }
+
+    // Copy constructor
+    thr_bv(const thr_bv &other)
+        : thresholds_per_letter(other.thresholds_per_letter),
+          bwt(other.bwt)
+    {
+    }
+
+    friend void swap(thr_bv &first, thr_bv &second) // nothrow
+    {
+        using std::swap;
+
+        swap(first.thresholds_per_letter, second.thresholds_per_letter);
+        swap(first.bwt, second.bwt);
+    }
+
+    // Copy assignment
+    thr_bv &operator=(thr_bv other)
+    {
+        swap(*this, other);
+
+        return *this;
+    }
+
+    // Move constructor
+    thr_bv(thr_bv &&other) noexcept 
+        : thr_bv()
+    {
+        swap(*this, other);
+    }
+
+    size_t operator[] (size_t& i)
+    {
+        assert(i < bwt->number_of_runs());
+
+        // get mid_interval
+        uint8_t c = bwt->head_of(i);
+        size_t rank = bwt->head_rank(i, c);
+        if(rank == 0)
+            return 0;
+
+        size_t thr_i = thresholds_per_letter[c].select(rank-1);
+
+        return thr_i;
+    }
+
+    // number of thresholds for the character c before position i 
+    size_t rank(const size_t i, const uint8_t c)
+    {
+        return thresholds_per_letter[c].rank(i); // j-1 because the select is 0 based
+    }
+
+    /* serialize the structure to the ostream
+     * \param out     the ostream
+     */
+    size_type serialize(std::ostream &out, sdsl::structure_tree_node *v = nullptr, std::string name = "") // const
+    {
+        sdsl::structure_tree_node *child = sdsl::structure_tree::add_child(v, name, sdsl::util::class_name(*this));
+        size_type written_bytes = 0;
+
+        for (ulint i = 0; i < 256; ++i)
+            written_bytes += thresholds_per_letter[i].serialize(out);
+
+        sdsl::structure_tree::add_size(child, written_bytes);
+        return written_bytes;
+    }
+
+    /* load the structure from the istream
+     * \param in the istream
+     */
+    void load(std::istream &in, rle_string_t *bwt_)
+    {
+        thresholds_per_letter = vector<ri::sparse_sd_vector>(256);
+        for (ulint i = 0; i < 256; ++i)
+            thresholds_per_letter[i].load(in);
+        bwt = bwt_;
+    }
+
+    std::string get_file_extension() const
+    {
+        return ".thrbv";
+    }
+};
+
+
+
 #endif /* end of include guard: _MS_THRESHOLDS_DS_HH */

@@ -155,10 +155,10 @@ public:
       
       switch (result_type) {
         case MS: 
-            if (!is_file(ref_file+".thrc.ms")) 
+            if (!is_file(ref_file+".thrbv.ms")) 
             {FATAL_WARNING("The index required for this computation is not available, please use spumoni build.");} break;
         case PML:
-            if (!is_file(ref_file+".thrc.spumoni")) 
+            if (!is_file(ref_file+".thrbv.spumoni")) 
             {FATAL_WARNING("The index required for this computation is not available, please use spumoni build.");} break;
         default:
             FATAL_WARNING("An output type with -M or -P must be specified, only one can be used at a time."); break;
