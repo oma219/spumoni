@@ -92,7 +92,7 @@ class pml_pointers : ri::r_index<sparse_bv_type, rle_string_t> {
         std::chrono::high_resolution_clock::time_point t_insert_end = std::chrono::high_resolution_clock::now();
 
         verbose("RL-BWT construction complete");
-        verbose("Memory peak: ", malloc_count_peak());
+        //verbose("Memory peak: ", malloc_count_peak());
         verbose("Elapsed time (s): ", std::chrono::duration<double, std::ratio<1>>(t_insert_end - t_insert_start).count());
         verbose("Reading thresholds from file");
 
@@ -100,7 +100,7 @@ class pml_pointers : ri::r_index<sparse_bv_type, rle_string_t> {
         thresholds = thresholds_t(filename,&this->bwt);
         t_insert_end = std::chrono::high_resolution_clock::now();
 
-        verbose("Memory peak: ", malloc_count_peak());
+        //verbose("Memory peak: ", malloc_count_peak());
         verbose("Elapsed time (s): ", std::chrono::duration<double, std::ratio<1>>(t_insert_end - t_insert_start).count());
     }
 
@@ -380,7 +380,7 @@ public:
         std::chrono::high_resolution_clock::time_point t_insert_end = std::chrono::high_resolution_clock::now();
 
         verbose("R-index construction complete");
-        verbose("Memory peak: ", malloc_count_peak());
+        //verbose("Memory peak: ", malloc_count_peak());
         verbose("Elapsed time (s): ", std::chrono::duration<double, std::ratio<1>>(t_insert_end - t_insert_start).count());
 
         verbose("Reading thresholds from file");
@@ -415,7 +415,7 @@ public:
 
         t_insert_end = std::chrono::high_resolution_clock::now();
 
-        verbose("Memory peak: ", malloc_count_peak());
+        //verbose("Memory peak: ", malloc_count_peak());
         verbose("Elapsed time (s): ", std::chrono::duration<double, std::ratio<1>>(t_insert_end - t_insert_start).count());
     }
 
@@ -711,7 +711,7 @@ public:
       fs_ms.close();
 
       auto end_time = std::chrono::system_clock::now();
-      SPUMONI_LOG("Memory Peak: %d", malloc_count_peak());
+      //SPUMONI_LOG("Memory Peak: %d", malloc_count_peak());
       TIME_LOG((end_time - start_time));
     }
 
@@ -755,7 +755,7 @@ public:
     fs_ms.close();
 
     auto end_time = std::chrono::system_clock::now();
-    SPUMONI_LOG("Memory Peak: %d", malloc_count_peak());
+    //SPUMONI_LOG("Memory Peak: %d", malloc_count_peak());
     TIME_LOG((end_time - start_time));
 
     SPUMONI_LOG("Loading the Random Access Data Structure ...");
@@ -768,7 +768,7 @@ public:
 
     n = ra.getLen();
     end_time = std::chrono::system_clock::now();
-    SPUMONI_LOG("Memory Peak: %d", malloc_count_peak());
+    //SPUMONI_LOG("Memory Peak: %d", malloc_count_peak());
     TIME_LOG((end_time - start_time));
   }
 
@@ -1242,7 +1242,7 @@ int run_spumoni_main(SpumoniRunOptions* run_opts){
   }
 
   auto end_time = std::chrono::system_clock::now();
-  SPUMONI_LOG("Memory peak: %d", malloc_count_peak());
+  //SPUMONI_LOG("Memory peak: %d", malloc_count_peak());
   TIME_LOG((end_time - start_time));
 
   /* Writing out the PMLs */
@@ -1286,7 +1286,7 @@ int run_spumoni_main(SpumoniRunOptions* run_opts){
   f_lengths.close();
 
   end_time = std::chrono::system_clock::now();
-  SPUMONI_LOG("Memory peak: %d", malloc_count_peak());
+  //SPUMONI_LOG("Memory peak: %d", malloc_count_peak());
   TIME_LOG((end_time - start_time));
   return 0;
 }
@@ -1323,7 +1323,7 @@ int run_spumoni_ms_main(SpumoniRunOptions* run_opts) {
   }
 
   auto end_time = std::chrono::system_clock::now();
-  SPUMONI_LOG("Memory peak: %d", malloc_count_peak());
+  //SPUMONI_LOG("Memory peak: %d", malloc_count_peak());
   TIME_LOG((end_time - start_time));
 
   /* Writing out the MSs and pointers */
@@ -1387,7 +1387,7 @@ int run_spumoni_ms_main(SpumoniRunOptions* run_opts) {
   f_lengths.close();
 
   end_time = std::chrono::system_clock::now();
-  SPUMONI_LOG("Memory peak: %d", malloc_count_peak());
+  //SPUMONI_LOG("Memory peak: %d", malloc_count_peak());
   TIME_LOG((end_time - start_time));
   return 0;
 }

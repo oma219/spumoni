@@ -17,7 +17,7 @@ set(SUX_SOURCE_DIR ${shaped_slp_SOURCE_DIR}/external/sux/sux)
 # Builds the two executables for index building
 #---------------------------------------------------------------------------------------
 add_executable(rlebwt_ms_build rlebwt_ms_build.cpp)
-target_link_libraries(rlebwt_ms_build common_h sdsl divsufsort divsufsort64 malloc_count ri)
+target_link_libraries(rlebwt_ms_build common_h sdsl divsufsort divsufsort64 ri)
 target_include_directories(rlebwt_ms_build PUBLIC    "../include" 
                                         "${shaped_slp_SOURCE_DIR}" 
                                         "${FOLCA_SOURCE_DIR}" 
@@ -51,7 +51,7 @@ target_compile_options(build_spumoni PUBLIC "-std=c++17")
 # Builds the final executable 
 #--------------------------------------------------------------------------------------
 add_executable(spumoni spumoni.cpp ${bigbwt_SOURCE_DIR}/xerrors.c compute_ms_pml.cpp)
-target_link_libraries(spumoni sdsl common_h divsufsort divsufsort64 malloc_count ri pthread )
+target_link_libraries(spumoni sdsl common_h divsufsort divsufsort64 ri pthread )
 target_include_directories(spumoni PUBLIC "../include"  "${bigbwt_SOURCE_DIR}"
                             "${shaped_slp_SOURCE_DIR}" "${FOLCA_SOURCE_DIR}" "${SUX_SOURCE_DIR}/function" 
                             "${SUX_SOURCE_DIR}/support" "${bigbwt_SOURCE_DIR}")

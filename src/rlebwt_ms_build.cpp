@@ -28,7 +28,7 @@
 
 #include <ms_pointers.hpp>
 
-#include <malloc_count.h>
+//#include <malloc_count.h>
 
 #include <SelfShapedSlp.hpp>
 #include <DirectAccessibleGammaCode.hpp>
@@ -52,7 +52,7 @@ int main(int argc, char *const argv[])
   std::chrono::high_resolution_clock::time_point t_insert_end = std::chrono::high_resolution_clock::now();
 
   verbose("Matching statistics index construction complete");
-  verbose("Memory peak: ", malloc_count_peak());
+  //verbose("Memory peak: ", malloc_count_peak());
   verbose("Elapsed time (s): ", std::chrono::duration<double, std::ratio<1>>(t_insert_end - t_insert_start).count());
 
 
@@ -65,13 +65,14 @@ int main(int argc, char *const argv[])
 
   t_insert_end = std::chrono::high_resolution_clock::now();
 
-  verbose("Memory peak: ", malloc_count_peak());
+  //verbose("Memory peak: ", malloc_count_peak());
   verbose("Elapsed time (s): ", std::chrono::duration<double, std::ratio<1>>(t_insert_end - t_insert_start).count());
 
-  auto mem_peak = malloc_count_peak();
-  verbose("Memory peak: ", malloc_count_peak());
+  //auto mem_peak = malloc_count_peak();
+  //verbose("Memory peak: ", malloc_count_peak());
 
   size_t space = 0;
+  /*
   if (args.memo)
   {
     sdsl::nullstream ns;
@@ -86,6 +87,6 @@ int main(int argc, char *const argv[])
 
   if (args.csv)
     std::cerr << csv(args.filename.c_str(), time, space, mem_peak) << std::endl;
-
+  */
   return 0;
 }

@@ -26,7 +26,7 @@
 
 #include <common.hpp>
 
-#include <malloc_count.h>
+//#include <malloc_count.h>
 
 #include <sdsl/rmq_support.hpp>
 #include <sdsl/int_vector.hpp>
@@ -122,7 +122,7 @@ public:
         std::chrono::high_resolution_clock::time_point t_insert_end = std::chrono::high_resolution_clock::now();
 
         verbose("R-index construction complete");
-        verbose("Memory peak: ", malloc_count_peak());
+        //verbose("Memory peak: ", malloc_count_peak());
         verbose("Elapsed time (s): ", std::chrono::duration<double, std::ratio<1>>(t_insert_end - t_insert_start).count());
 
         verbose("Reading thresholds from file");
@@ -157,7 +157,7 @@ public:
 
         t_insert_end = std::chrono::high_resolution_clock::now();
 
-        verbose("Memory peak: ", malloc_count_peak());
+        //verbose("Memory peak: ", malloc_count_peak());
         verbose("Elapsed time (s): ", std::chrono::duration<double, std::ratio<1>>(t_insert_end - t_insert_start).count());
     }
 
