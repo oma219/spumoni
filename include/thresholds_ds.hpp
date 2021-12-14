@@ -366,6 +366,7 @@ public:
     }
 };
 
+
 template <class rle_string_t = ms_rle_string_sd>
 class thr_bv
 {
@@ -480,7 +481,7 @@ public:
 
         // get mid_interval
         uint8_t c = bwt->head_of(i);
-        size_t rank = bwt->head_rank(i, c);
+        size_t rank = bwt->run_head_rank(i, c);
         if(rank == 0)
             return 0;
 

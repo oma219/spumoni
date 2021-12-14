@@ -19,17 +19,11 @@
 */
 
 #include <iostream>
-
 #define VERBOSE
-
 #include <common.hpp>
-
 #include <sdsl/io.hpp>
-
 #include <spumoni.hpp>
-
 //#include <malloc_count.h>
-
 
 int main(int argc, char *const argv[])
 {
@@ -37,12 +31,9 @@ int main(int argc, char *const argv[])
   parseArgs(argc, argv, args);
 
   // Building the r-index
-
   verbose("Building the SPUMONI index");
   std::chrono::high_resolution_clock::time_point t_insert_start = std::chrono::high_resolution_clock::now();
-
   ms_pointers<> ms(args.filename, true);
-
   std::chrono::high_resolution_clock::time_point t_insert_end = std::chrono::high_resolution_clock::now();
 
   verbose("Matching statistics index construction complete");

@@ -142,6 +142,42 @@ public:
         assert(j<=i);
         return this->runs_per_letter[c].select(j-1) + 1; // j-1 because the select is 0 based
     }
+
+    // Start of addition -----------------------------------------------------
+
+    // number of runs of character c in in position i
+    size_t run_head_rank(const size_t i, const uint8_t c)
+    {
+        assert(i < this->R);
+        size_t j = this->run_heads.rank(i, c);
+        return j;
+    }
+
+    inline std::pair<size_t,size_t> run_and_head_rank(const size_t i, const uint8_t c)
+    {
+        assert(i < this->R);
+        const size_t j = this->run_heads.rank(i, c);
+        if( j < 1)
+            return make_pair(j,j);
+        const size_t k = this->runs_per_letter[c].select(j - 1) + 1; // j-1 because the select is 0 based
+        return make_pair(j, k);
+    }
+
+    // Select the i-th run of c
+    size_t run_head_select(const size_t i, const uint8_t c)
+    {
+        assert(i < this->R and i > 0);
+        return this->run_heads.select(i - 1, c);
+    }
+    // End of addition -------------------------
+
+
+
+
+
+
+
+
     /* serialize the structure to the ostream
      * \param out     the ostream
      */
