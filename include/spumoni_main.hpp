@@ -26,7 +26,6 @@
 #include <fstream>
 #include <chrono>
 
-
 /* Commonly Used MACROS */
 #define SPUMONI_VERSION "1.0"
 #define NOT_IMPL(x) do { std::fprintf(stderr, "%s is not implemented: %s\n", __func__, x); std::exit(1);} while (0)

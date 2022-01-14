@@ -42,6 +42,8 @@
  * to either compute MS or PMLs.
  */
 
+size_t case_0 = 0, case_1 = 0, case_2 = 0, case_2a = 0, case_2b = 0;
+double case_1_time = 0.0, case_2_time = 0.0;
 
 template <class sparse_bv_type = ri::sparse_sd_vector,
           class rle_string_t = ms_rle_string_sd,
@@ -588,16 +590,21 @@ protected:
         for (size_t i = 0; i < m; ++i) 
         {
             auto c = pattern[m - i - 1];
+            auto start = std::chrono::high_resolution_clock::now();
+            bool case_1_status = false, case_2_status = false;
 
-            if (this->bwt.number_of_letter(c) == 0){sample = 0;}
-            else if (pos < this->bwt.size() && this->bwt[pos] == c){sample--;}
+            if (this->bwt.number_of_letter(c) == 0){sample = 0; case_0++;}
+            else if (pos < this->bwt.size() && this->bwt[pos] == c){sample--; case_1++; case_1_status = true;}
             else {
                 // Get threshold
                 ri::ulint rnk = this->bwt.rank(pos, c);
                 size_t thr = this->bwt.size() + 1;
 
                 ulint next_pos = pos;
+                case_2++;
+                case_2_status = true;
 
+                
                 // if (rnk < (this->F[c] - this->F[c-1]) // I can use F to compute it
                 if (rnk < this->bwt.number_of_letter(c)) {
 
@@ -612,8 +619,9 @@ protected:
                     sample = samples_start[run_of_j];
 
                     next_pos = j;
+                    case_2a++;
                 }
-
+                
                 if (pos < thr) {
                     rnk--;
                     ri::ulint j = this->bwt.select(rnk, c);
@@ -621,17 +629,47 @@ protected:
 
                     sample = this->samples_last[run_of_j];
                     next_pos = j;
+                    case_2b++;
                 }
 
+                /*
+                if (rnk == 0) {
+                    //ri::ulint j = this->bwt.select(rnk, c);
+                    ri::ulint j = rand() % this->bwt_size();
+                    ri::ulint run_of_j = this->bwt.run_of_position(j);
+
+                    thr = thresholds[run_of_j]; // If it is the first run thr = 0
+                    sample = samples_start[run_of_j];
+
+                    next_pos = j;
+                    case_2a++;
+                } else {
+                    rnk--;
+                    //ri::ulint j = this->bwt.select(rnk, c);
+                    ri::ulint j = rand() % this->bwt_size();
+                    ri::ulint run_of_j = this->bwt.run_of_position(j);
+
+                    sample = this->samples_last[run_of_j];
+                    next_pos = j;
+                    case_2b++;
+                }
+                */
+                
                 pos = next_pos;
             }
 
             ms_pointers[m - i - 1] = sample;
-            
+
+            auto finish = std::chrono::high_resolution_clock::now();
+            size_t case_time = std::chrono::duration_cast<std::chrono::nanoseconds>(finish-start).count();
+
+            if (case_1_status) {case_1_time += case_time;}
+            else if (case_2_status) {case_2_time += case_time;}
+        
             // Perform one backward step
             pos = LF(pos, c);
         }
-
+        
         return ms_pointers;
     }
     // // From r-index
@@ -768,7 +806,6 @@ public:
 
     n = ra.getLen();
     end_time = std::chrono::system_clock::now();
-    //SPUMONI_LOG("Memory Peak: %d", malloc_count_peak());
     TIME_LOG((end_time - start_time));
   }
 
@@ -803,6 +840,10 @@ public:
     fwrite(&q_length, sizeof(size_t), 1,out);
     fwrite(pointers.data(), sizeof(size_t),q_length,out);
     fwrite(lengths.data(), sizeof(size_t),q_length,out);
+
+    //std::fprintf(stderr, "Case_0 = %d, Case_1 = %d, Case_2 = %d, Case_2a = %d, Case_2b = %d\n", 
+     //                       case_0, case_1, case_2, case_2a, case_2b);
+
   }
   
 protected:
@@ -1163,6 +1204,14 @@ size_t st_ms(ms_t *ms, std::string pattern_filename, std::string out_filename) {
 
         ms->matching_statistics(curr_read.c_str(), seq->seq.l, out_fd);
     }
+
+    std::fprintf(stderr, "Case_0 = %d, Case_1 = %d, Case_2 = %d, Case_2a = %d, Case_2b = %d\n", 
+                         case_0, case_1, case_2, case_2a, case_2b);
+    
+    double avg_case1_time = case_1_time/case_1;
+    double avg_case2_time = case_2_time/case_2;
+
+    std::fprintf(stderr, "avg_case_1 = %.4f, avg_case_2 = %.4f\n", avg_case1_time, avg_case2_time);
 
     kseq_destroy(seq);
     gzclose(fp);
