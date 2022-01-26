@@ -38,10 +38,9 @@
 
 /*
  * This first section of the code contains classes that define pml_pointers
- * and ms_pointers which are objects that contain multiple data-structures
- * to either compute MS or PMLs.
+ * and ms_pointers which are objects that basically the r-index plus the thresholds
+ * it allows you to compute MS or PMLs.
  */
-
 
 template <class sparse_bv_type = ri::sparse_sd_vector,
           class rle_string_t = ms_rle_string_sd,
@@ -188,6 +187,10 @@ class pml_pointers : ri::r_index<sparse_bv_type, rle_string_t> {
         verbose("            thresholds: ", thresholds.serialize(ns));
     }
 
+    std::pair<ulint, ulint> get_bwt_stats() {
+        return std::make_pair(this->bwt_size() , this->bwt.number_of_runs());
+    }
+
     /*
      * \param i position in the BWT
      * \param c character
@@ -325,8 +328,7 @@ public:
 
     ms_pointers() {}
 
-    ms_pointers(std::string filename, bool rle = false) : ri::r_index<sparse_bv_type, rle_string_t>()
-    {
+    ms_pointers(std::string filename, bool rle = false) : ri::r_index<sparse_bv_type, rle_string_t>() {
         verbose("Building the r-index from BWT");
         std::chrono::high_resolution_clock::time_point t_insert_start = std::chrono::high_resolution_clock::now();
 
@@ -362,6 +364,7 @@ public:
 
         this->r = this->bwt.number_of_runs();
         ri::ulint n = this->bwt.size();
+
         int log_r = bitsize(uint64_t(this->r));
         int log_n = bitsize(uint64_t(this->bwt.size()));
 
@@ -496,6 +499,14 @@ public:
         return _query(pattern, m);
     }
 
+    std::pair<ulint, ulint> get_bwt_stats() {
+        /*
+        for (int i = 0; i < length; i++){
+            std::cout << "BWT[i] = " << this->bwt[i] << std::endl;
+        } */
+        return std::make_pair(this->bwt_size() , this->bwt.number_of_runs());
+    }
+
     void print_stats() {
         sdsl::nullstream ns;
 
@@ -585,9 +596,15 @@ protected:
         auto pos = this->bwt_size() - 1;
         auto sample = this->get_last_run_sample();
 
+        std::cout << "pos:" << pos << " bwt_char :" << this->bwt[pos] << std::endl;
+
         for (size_t i = 0; i < m; ++i) 
         {
             auto c = pattern[m - i - 1];
+
+            int pos_int = pos;
+            std::cout << "pos:" << pos << " bwt_char :" << this->bwt[pos] << std::endl;
+            std::cout << "pos_int:" << pos_int << " bwt_char :" << this->bwt[pos] << std::endl;
 
             if (this->bwt.number_of_letter(c) == 0){sample = 0;}
             else if (pos < this->bwt.size() && this->bwt[pos] == c){sample--;}
@@ -692,14 +709,15 @@ protected:
     // }
 };
 
+
 /*
  * The next section contains another set of classes that are instantiated 
  * when loading the MS or PML index for computation, and they are called
- * ms_t and pml_t.
+ * ms_t and pml_t. One of its attributes the ms_pointers and pml_pointers as
+ * previously defined.
  */
 
 class pml_t {
-
 public:
     pml_t(std::string filename){
       SPUMONI_LOG("Loading the PML index ...");
@@ -732,13 +750,16 @@ public:
     fwrite(lengths.data(), sizeof(size_t),q_length,out);
   }
 
+  std::pair<ulint, ulint> get_bwt_stats() {
+      return ms.get_bwt_stats();
+  }
+
 protected:
   pml_pointers<> ms;
   size_t n = 0;
 };
 
 class ms_t {
-
 public:
   using SelSd = SelectSdvec<>;
   using DagcSd = DirectAccessibleGammaCode<SelSd>;
@@ -804,13 +825,16 @@ public:
     fwrite(pointers.data(), sizeof(size_t),q_length,out);
     fwrite(lengths.data(), sizeof(size_t),q_length,out);
   }
+
+  std::pair<ulint, ulint> get_bwt_stats() {
+      return ms.get_bwt_stats();
+  }
   
 protected:
   ms_pointers<> ms;
   SelfShapedSlp<uint32_t, DagcSd, DagcSd, SelSd> ra;
   size_t n = 0;
 };
-
 
 /*
  * This section of the code contains some helper methods, struct defintions, and
@@ -1176,7 +1200,8 @@ size_t st_ms_general(ms_t *ms, std::string pattern_filename, std::string out_fil
     // Check if file is mistakenly labeled as non-fasta file
     std::string file_ext = pattern_filename.substr(pattern_filename.find_last_of(".") + 1);
     if (file_ext == "fa" || file_ext == "fasta") {
-        error("The file extension for the patterns suggests it is a fasta file. Please run with -f option for correct results.");
+        FATAL_WARNING("The file extension for the patterns suggests it is a fasta file.\n 
+                      Please run with -f option for correct results.");
     }
 
     size_t n_reads = 0;
@@ -1291,31 +1316,31 @@ int run_spumoni_main(SpumoniRunOptions* run_opts){
   return 0;
 }
 
-
 int run_spumoni_ms_main(SpumoniRunOptions* run_opts) {
   /* This method is responsible for the MS computation */
   using SelSd = SelectSdvec<>;
   using DagcSd = DirectAccessibleGammaCode<SelSd>;
   
-  /* Loads the MS index containing the RLEBWT, Thresholds, and RA structure */
+  // Loads the MS index containing the RLEBWT, Thresholds, and RA structure
   ms_t ms(run_opts->ref_file);
 
-  /* Load patterns and generate MSs */
+  // Load patterns and generate MSs
   std::string base_name = basename(run_opts->ref_file.data());
   std::string out_filename = run_opts->pattern_file + "_ref_" + base_name;
 
   if (is_gzipped(run_opts->pattern_file)) {
-    verbose("The input is gzipped - forcing single threaded matchin statistics.");
+    SPUMONI_LOG("The input is gzipped - forcing single threaded matching statistics.");
     run_opts->threads = 1;
   }
 
-  /* Determine approach to parse pattern files (based on whether it is general text or fasta format) */
+  // Determine approach to parse pattern files
   auto start_time = std::chrono::system_clock::now();
   SPUMONI_LOG("Starting processing the patterns ...");
 
   if (run_opts->query_fasta) {
     if(run_opts->threads == 1) {st_ms(&ms, run_opts->pattern_file, out_filename);}
-    else {mt_ms(&ms, run_opts->pattern_file, out_filename, run_opts->threads);}
+    else {FATAL_WARNING("Multi-threading not implemented yet for FASTA querying.");
+          mt_ms(&ms, run_opts->pattern_file, out_filename, run_opts->threads);}
   }
   else {
         if(run_opts->threads == 1) {st_ms_general(&ms,run_opts->pattern_file,out_filename);}
@@ -1323,7 +1348,6 @@ int run_spumoni_ms_main(SpumoniRunOptions* run_opts) {
   }
 
   auto end_time = std::chrono::system_clock::now();
-  //SPUMONI_LOG("Memory peak: %d", malloc_count_peak());
   TIME_LOG((end_time - start_time));
 
   /* Writing out the MSs and pointers */
@@ -1333,11 +1357,10 @@ int run_spumoni_ms_main(SpumoniRunOptions* run_opts) {
   std::ofstream f_pointers(out_filename + ".pointers");
   std::ofstream f_lengths(out_filename + ".lengths");
 
-  if (!f_pointers.is_open())
-    error("open() file " + std::string(out_filename) + ".pointers failed");
+  if (!f_pointers.is_open() || !f_lengths.is_open())
+    error("Opening the .pointers or .lengths file failed");
 
-  if (!f_lengths.is_open())
-    error("open() file " + std::string(out_filename) + ".lengths failed");
+
 
   size_t n_seq = 0;
   for(size_t i = 0; i < run_opts->threads; ++i)
@@ -1390,4 +1413,18 @@ int run_spumoni_ms_main(SpumoniRunOptions* run_opts) {
   //SPUMONI_LOG("Memory peak: %d", malloc_count_peak());
   TIME_LOG((end_time - start_time));
   return 0;
+}
+
+std::pair<ulint, ulint> get_bwt_stats(std::string ref_file, size_t type) {
+    /* Returns the length and number of runs in a text */
+    ulint length = 0, num_runs = 0;
+    if (type == 1) {
+        ms_t ms_data_structure(ref_file);
+        std::tie(length, num_runs) = ms_data_structure.get_bwt_stats();
+        return std::make_pair(length, num_runs);
+    } else {
+        pml_t pml_data_structure(ref_file);
+        std::tie(length, num_runs) = pml_data_structure.get_bwt_stats();
+        return std::make_pair(length, num_runs);
+    }
 }

@@ -50,10 +50,13 @@ target_compile_options(build_spumoni PUBLIC "-std=c++17")
 
 # Builds the final executable 
 #--------------------------------------------------------------------------------------
-add_executable(spumoni spumoni.cpp ${bigbwt_SOURCE_DIR}/xerrors.c compute_ms_pml.cpp)
+add_executable(spumoni spumoni.cpp ${bigbwt_SOURCE_DIR}/xerrors.c compute_ms_pml.cpp doc_array.cpp)
 target_link_libraries(spumoni sdsl common_h divsufsort divsufsort64 ri pthread )
 target_include_directories(spumoni PUBLIC "../include"  "${bigbwt_SOURCE_DIR}"
                             "${shaped_slp_SOURCE_DIR}" "${FOLCA_SOURCE_DIR}" "${SUX_SOURCE_DIR}/function" 
                             "${SUX_SOURCE_DIR}/support" "${bigbwt_SOURCE_DIR}")
 target_compile_options(spumoni PUBLIC "-std=c++17")
+
+add_executable(bst bst.cpp)
+target_include_directories(bst PUBLIC "../include")
 

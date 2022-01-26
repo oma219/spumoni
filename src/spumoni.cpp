@@ -31,6 +31,7 @@
 #include <chrono>
 #include <spumoni_main.hpp>
 #include <compute_ms_pml.hpp>
+#include <doc_array.hpp>
 
 int spumoni_run_usage () {
     /* prints out the usage information for the spumoni build sub-command */
@@ -62,13 +63,14 @@ int spumoni_build_usage () {
     std::fprintf(stderr, "\t%-10shash modulus value (default: 100)\n", "-p [arg]");
     std::fprintf(stderr, "\t%-10snumber of helper threads (default: 0)\n", "-t [arg]");
     std::fprintf(stderr, "\t%-10skeep the temporary files (default: false)\n", "-k");
-    std::fprintf(stderr, "\t%-10suse when the reference file is a fasta file (default: false)\n\n", "-f");
+    std::fprintf(stderr, "\t%-10suse when the reference file is a fasta file (default: false)\n", "-f");
+    std::fprintf(stderr, "\t%-10sbuild the document array (default: false)\n\n", "-d");
     return 1;
 }
 
 void parse_build_options(int argc, char** argv, SpumoniBuildOptions* opts) {
     /* Parses the arguments for the build sub-command and returns a struct with arguments */
-    for(int c;(c = getopt(argc, argv, "hr:MPw:p:t:kf")) >= 0;) { 
+    for(int c;(c = getopt(argc, argv, "hr:MPw:p:t:kfd")) >= 0;) { 
         switch(c) {
                     case 'h': spumoni_build_usage(); std::exit(1);
                     case 'r': opts->ref_file.assign(optarg); break;
@@ -79,6 +81,7 @@ void parse_build_options(int argc, char** argv, SpumoniBuildOptions* opts) {
                     case 't': opts->threads = std::max(std::atoi(optarg), 0); break;
                     case 'k': opts->keep_files = true; break;
                     case 'f': opts->is_fasta = true; break;
+                    case 'd': opts->build_doc = true; break;
                     default: spumoni_build_usage(); std::exit(1);
         }
     }
@@ -107,6 +110,19 @@ int is_file(std::string path) {
     
     test_file.close();
     return 1;
+}
+
+std::vector<std::string> split(std::string input, char delim) {
+    /* Takes in a string, and splits it based on delimiters */
+    std::vector<std::string> word_list;
+    std::string curr_word = "";
+
+    for (char ch: input) {
+        if (ch == delim && curr_word.length()) {word_list.push_back(curr_word); curr_word = "";}
+        else if (ch != delim) {curr_word += ch;}
+    }
+    if (curr_word.length()) {word_list.push_back(curr_word);}
+    return word_list;
 }
 
 size_t get_avail_phy_mem() {
@@ -373,6 +389,28 @@ int build_main(int argc, char** argv) {
 
     /* Build the PML index if asked for as well */
     if (build_opts.pml_index) {run_build_pml_cmd(&build_opts, &helper_bins);}
+
+    // Build the document array if asked for as well
+    if (build_opts.build_doc) {
+        ulint length = 0, num_runs = 0;
+        size_t type = (build_opts.ms_index) ? 1 : 2;
+        std::tie(length, num_runs) = get_bwt_stats(build_opts.ref_file, type);
+
+        std::cout << "BWT Length = " << length << std::endl;
+        std::cout << "Number of Runs = " << num_runs << std::endl;
+
+        DocumentArray doc_arr(build_opts.ref_file, length, num_runs);
+        std::ofstream out_stream(build_opts.ref_file + ".doc");
+        doc_arr.serialize(out_stream);
+        out_stream.close();
+
+        //DocumentArray doc_arr2;
+        //std::ifstream doc_file(build_opts.ref_file + ".doc");
+        //doc_arr2.load(doc_file);
+        //doc_arr2.print_statistics();
+        //doc_file.close();
+
+    }
     
     rm_temp_build_files(&build_opts, &helper_bins);
     auto total_build_time = std::chrono::duration<double>((std::chrono::system_clock::now() - build_process_start));

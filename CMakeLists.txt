@@ -58,7 +58,7 @@ configure_file(${PROJECT_BINARY_DIR}/_deps/bigrepair-src/postproc ${PROJECT_BINA
 configure_file(${PROJECT_BINARY_DIR}/_deps/bigrepair-src/largeb_repair/irepair ${PROJECT_BINARY_DIR}/bin/irepair COPYONLY)
 
 # Install pipeline executables
-install(TARGETS spumoni DESTINATION ${PROJECT_BINARY_DIR})
+install(TARGETS spumoni bst DESTINATION ${PROJECT_BINARY_DIR})
 install(TARGETS newscanNT.x pscan.x newscan.x pfp_thresholds64 pfp_thresholds 
                 compress_dictionary SlpEncBuild rlebwt_ms_build build_spumoni 
         DESTINATION ${PROJECT_BINARY_DIR}/bin)

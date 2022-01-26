@@ -26,5 +26,6 @@
 /* Function Declarations */
 int run_spumoni_ms_main(SpumoniRunOptions* run_opts);
 int run_spumoni_main(SpumoniRunOptions* run_opts);
+std::pair<ulint, ulint> get_bwt_stats(std::string ref_file, size_t type);
 
 #endif /* End of include of COMPUTE_MS_PML_H */

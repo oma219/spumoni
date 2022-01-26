@@ -25,15 +25,18 @@
 #include <unistd.h>
 #include <fstream>
 #include <chrono>
-
+#include <vector>
 
 /* Commonly Used MACROS */
 #define SPUMONI_VERSION "1.0"
 #define NOT_IMPL(x) do { std::fprintf(stderr, "%s is not implemented: %s\n", __func__, x); std::exit(1);} while (0)
 #define FATAL_WARNING(x) do {std::fprintf(stderr, "Warning: %s\n", x); std::exit(1);} while (0)
 #define THROW_EXCEPTION(x) do { throw x;} while (0)
+#define FATAL_ERROR(x) do {std::fprintf(stderr, "Error: %s\n", x); std::exit(1);} while(0)
 #define SPUMONI_LOG(...) do{std::fprintf(stderr, "[spumoni] "); std::fprintf(stderr, __VA_ARGS__);\
                             std::fprintf(stderr, "\n");} while(0)
+#define ASSERT(condition, msg) do {if (!condition){std::fprintf(stderr, "Assertion Failed: %s\n", msg); \
+                                                  std::exit(1);}} while(0)
 #define TIME_LOG(x) do {auto sec = std::chrono::duration<double>(x); \
                         std::fprintf(stderr, "[spumoni] Elapsed Time (s): %.3f\n", sec.count());} while(0)
 #define OTHER_LOG(x) do {std::stringstream str(x); std::string str_out;\
@@ -46,12 +49,20 @@
 #define DBG_ONLY(...)  do { if (DEBUG) {std::fprintf(stderr, "[DEBUG] "); \
                             std::fprintf(stderr, __VA_ARGS__);}} while (0)
 
+/* Type Definitions */
+typedef uint64_t ulint;
+
+/* Value Definitions */
+#define THRBYTES 5 
+#define SSABYTES 5 
+
 /* Function Declarations */
 int spumoni_build_usage();
 int build_main(int argc, char** argv);
 int run_main(int argc, char** argv);
 int spumoni_usage ();
 int is_file(std::string path);
+std::vector<std::string> split(std::string input, char delim);
 std::string execute_cmd(const char* cmd);
 size_t get_avail_phy_mem();
 int spumoni_run_usage ();
@@ -110,6 +121,7 @@ struct SpumoniBuildOptions {
   bool stop_after_parse = false; // stop build after build parse
   bool compress_parse = false; // compress parse
   bool is_fasta = false; // reference is fasta
+  bool build_doc = false; // build the document array
 
 public:
   void validate() const {
@@ -120,7 +132,8 @@ public:
         if (ref_file.find(".fq") != std::string::npos || ref_file.find(".fastq") != std::string::npos || ref_file.find(".fnq") != std::string::npos) {
             FATAL_WARNING("Reference file cannot be in FASTQ format.\n");
         }
-        if (!is_file(ref_file)) {THROW_EXCEPTION(std::runtime_error("The following path is not valid: " + ref_file));}
+        if (!is_file(ref_file)) {FATAL_ERROR("The following path is not valid: " + ref_file);}
+        if (!is_file(ref_file + ".fai")){FATAL_ERROR("The FASTA index (*.fai) is not found, please create it.");}
     }
 };
 
