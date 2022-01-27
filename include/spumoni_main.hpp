@@ -28,7 +28,7 @@
 #include <vector>
 
 /* Commonly Used MACROS */
-#define SPUMONI_VERSION "1.0"
+#define SPUMONI_VERSION "1.0.1"
 #define NOT_IMPL(x) do { std::fprintf(stderr, "%s is not implemented: %s\n", __func__, x); std::exit(1);} while (0)
 #define FATAL_WARNING(x) do {std::fprintf(stderr, "Warning: %s\n", x); std::exit(1);} while (0)
 #define THROW_EXCEPTION(x) do { throw x;} while (0)
@@ -147,6 +147,7 @@ struct SpumoniRunOptions {
   bool query_fasta = false; // query file is a fasta
   output_type result_type = NOT_CHOSEN; // output type requested by user
   size_t threads = 1; // number of TOTAL threads
+  bool use_doc = false; // build the document array
 
 public:
   void populate_output_type() {
@@ -165,6 +166,7 @@ public:
       if (ms_requested && pml_requested) {FATAL_WARNING("Only MS or PMLs can be computed at one time, please re-run with only -M or -P");}
       if (pattern_file.find(".fq") != std::string::npos || pattern_file.find(".fastq") != std::string::npos || pattern_file.find(".fnq") != std::string::npos) {
             FATAL_WARNING("Patterns file cannot be in FASTQ format.\n");}
+      if (!is_file(ref_file + ".doc")) {FATAL_WARNING("*.doc file is not present, so it cannot be used");}
       
       switch (result_type) {
         case MS: 

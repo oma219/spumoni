@@ -101,6 +101,7 @@ size_t DocumentArray::grab_file_size(std::string file_path) {
 }
 
 void DocumentArray::print_statistics() {
+    /* Prints out attributes and document array */
     std::cout << this->num_entries << std::endl;
     for (size_t i = 0; i < this->num_entries; i++) {
         std::cout << start_runs_doc[i] << " " << end_runs_doc[i] << std::endl;

@@ -45,6 +45,7 @@ int spumoni_run_usage () {
     std::fprintf(stderr, "\t%-10sUse index to compute MSs\n", "-M");
     std::fprintf(stderr, "\t%-10sUse index to compute PMLs\n", "-P");
     std::fprintf(stderr, "\t%-10spattern file is in fasta format (default: general text)\n", "-f");
+    std::fprintf(stderr, "\t%-10suse document array to get assignments\n", "-d");
     std::fprintf(stderr, "\t%-10snumber of helper threads (default: 0)\n\n", "-t [arg]");
     return 1;
 }
@@ -89,7 +90,7 @@ void parse_build_options(int argc, char** argv, SpumoniBuildOptions* opts) {
 
 void parse_run_options(int argc, char** argv, SpumoniRunOptions* opts) {
     /* Parses the arguments for the build sub-command and returns a struct with arguments */
-    for(int c;(c = getopt(argc, argv, "hr:p:MPft:")) >= 0;) { 
+    for(int c;(c = getopt(argc, argv, "hr:p:MPft:d")) >= 0;) { 
         switch(c) {
                     case 'h': spumoni_run_usage(); std::exit(1);
                     case 'r': opts->ref_file.assign(optarg); break;
@@ -98,6 +99,7 @@ void parse_run_options(int argc, char** argv, SpumoniRunOptions* opts) {
                     case 'P': opts->pml_requested = true; break;
                     case 'f': opts->query_fasta = true; break;
                     case 't': opts->threads = std::max(std::atoi(optarg), 1); break;
+                    case 'd': opts->use_doc = true; break;
                     default: spumoni_run_usage(); std::exit(1);
         }
     }
@@ -366,7 +368,7 @@ int build_main(int argc, char** argv) {
     /* main method for the build sub-command */
     if (argc == 1) return spumoni_build_usage();
     
-    /* Grab the build options, and validate they are not missing/don't make sense */
+    // Grab the build options, and validate them
     SpumoniBuildOptions build_opts;
     parse_build_options(argc, argv, &build_opts);
     build_opts.validate();
@@ -376,18 +378,18 @@ int build_main(int argc, char** argv) {
     helper_bins.validate();
     auto build_process_start = std::chrono::system_clock::now();
 
-    /* Performs the parsing of the reference and builds the thresholds based on the PFP */
+    // Performs the parsing of the reference and builds the thresholds based on the PFP
     run_build_parse_cmd(&build_opts, &helper_bins);
     run_build_thresholds_cmd(&build_opts, &helper_bins);
 
-    /* Generate grammar over reference if you would like to compute MS, along with the final data-structure */
+    // Generate grammar over reference if you would like to compute MS
     if (build_opts.ms_index) {
         run_build_grammar_cmds(&build_opts, &helper_bins);
         run_build_slp_cmds(&build_opts, &helper_bins);
         run_build_ms_cmd(&build_opts, &helper_bins);
     }
 
-    /* Build the PML index if asked for as well */
+    // Build the PML index if asked for as well 
     if (build_opts.pml_index) {run_build_pml_cmd(&build_opts, &helper_bins);}
 
     // Build the document array if asked for as well
@@ -395,9 +397,6 @@ int build_main(int argc, char** argv) {
         ulint length = 0, num_runs = 0;
         size_t type = (build_opts.ms_index) ? 1 : 2;
         std::tie(length, num_runs) = get_bwt_stats(build_opts.ref_file, type);
-
-        std::cout << "BWT Length = " << length << std::endl;
-        std::cout << "Number of Runs = " << num_runs << std::endl;
 
         DocumentArray doc_arr(build_opts.ref_file, length, num_runs);
         std::ofstream out_stream(build_opts.ref_file + ".doc");
@@ -409,7 +408,6 @@ int build_main(int argc, char** argv) {
         //doc_arr2.load(doc_file);
         //doc_arr2.print_statistics();
         //doc_file.close();
-
     }
     
     rm_temp_build_files(&build_opts, &helper_bins);
@@ -423,7 +421,7 @@ int run_main(int argc, char** argv) {
     /* main method for the run sub-command */
     if (argc == 1) return spumoni_run_usage();
 
-    /* Grab the run options, and validate they are not missing/don't make sense */
+    // Grab the run options, and validate they are not missing/don't make sense 
     SpumoniRunOptions run_opts;
     parse_run_options(argc, argv, &run_opts);
     run_opts.populate_output_type();
