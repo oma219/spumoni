@@ -392,12 +392,6 @@ int build_main(int argc, char** argv) {
         std::ofstream out_stream(build_opts.ref_file + ".doc");
         doc_arr.serialize(out_stream);
         out_stream.close();
-
-        //DocumentArray doc_arr2;
-        //std::ifstream doc_file(build_opts.ref_file + ".doc");
-        //doc_arr2.load(doc_file);
-        //doc_arr2.print_statistics();
-        //doc_file.close();
     }
     
     rm_temp_build_files(&build_opts, &helper_bins);

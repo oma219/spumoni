@@ -720,7 +720,6 @@ public:
             std::ifstream doc_file(filename + ".doc");
 
             doc_arr.load(doc_file);
-            doc_arr.print_statistics();
             doc_file.close();
             TIME_LOG((std::chrono::system_clock::now() - start_time));
         }
@@ -777,6 +776,7 @@ public:
         ifstream fs(filename_slp);
         ra.load(fs);
         fs.close();
+        n = ra.getLen();
         TIME_LOG((std::chrono::system_clock::now() - start_time));
 
         if (use_doc) {
@@ -785,7 +785,6 @@ public:
             std::ifstream doc_file(filename + ".doc");
 
             doc_arr.load(doc_file);
-            doc_arr.print_statistics();
             doc_file.close();
             TIME_LOG((std::chrono::system_clock::now() - start_time));
         }
@@ -821,7 +820,6 @@ public:
         ms.query(read, read_length, pointers, doc_nums, doc_arr);
         lengths.resize(read_length);
         size_t l = 0;
-
         for (size_t i = 0; i < pointers.size(); ++i) {
             size_t pos = pointers[i];
             while ((i + l) < read_length && (pos + l) < n && (i < 1 || pos != (pointers[i-1] + 1) ) && read[i + l] == ra.charAt(pos + l))
@@ -1123,9 +1121,7 @@ size_t st_pml(pml_t *ms, std::string pattern_filename, std::string out_filename,
     std::ofstream doc_file;
     std::ostream_iterator<size_t> doc_iter (doc_file, " ");
 
-    if (use_doc) {
-        doc_file.open(out_filename + ".doc_numbers");
-    }
+    if (use_doc) {doc_file.open(out_filename + ".doc_numbers");}
 
     // Use kseq to parse out sequences from FASTA file
     gzFile fp = gzopen(pattern_filename.c_str(), "r");
@@ -1139,18 +1135,18 @@ size_t st_pml(pml_t *ms, std::string pattern_filename, std::string out_filename,
 
         // Grab MS and write to output file
         std::vector<size_t> lengths, doc_nums;
-        if (use_doc){ms->matching_statistics(curr_read.c_str(), seq->seq.l, lengths, doc_nums);}
-        else {ms->matching_statistics(curr_read.c_str(), seq->seq.l, lengths);}
-
-        lengths_file << '>' << seq->name.s << '\n';
-        std::copy(lengths.begin(), lengths.end(), lengths_iter);
-        lengths_file << '\n';
-
-        if (use_doc) {
+        if (use_doc){
+            ms->matching_statistics(curr_read.c_str(), seq->seq.l, lengths, doc_nums);
             doc_file << '>' << seq->name.s << '\n';
             std::copy(doc_nums.begin(), doc_nums.end(), doc_iter);
             doc_file << '\n';
         }
+        else {ms->matching_statistics(curr_read.c_str(), seq->seq.l, lengths);}
+        
+        lengths_file << '>' << seq->name.s << '\n';
+        std::copy(lengths.begin(), lengths.end(), lengths_iter);
+        lengths_file << '\n';
+        
         num_reads++;
     }
     kseq_destroy(seq);
@@ -1161,7 +1157,7 @@ size_t st_pml(pml_t *ms, std::string pattern_filename, std::string out_filename,
     return num_reads;
 }
 
-size_t st_pml_general(pml_t *ms, std::string pattern_filename, std::string out_filename) {
+size_t st_pml_general(pml_t *ms, std::string pattern_filename, std::string out_filename, bool use_doc) {
     // Check if file is mistakenly labeled as non-fasta file
     std::string file_ext = pattern_filename.substr(pattern_filename.find_last_of(".") + 1);
     if (file_ext == "fa" || file_ext == "fasta") {
@@ -1171,11 +1167,15 @@ size_t st_pml_general(pml_t *ms, std::string pattern_filename, std::string out_f
 
     // Declare output files, and output iterators
     std::ofstream lengths_file (out_filename + ".pseudo_lengths");
+    std::ofstream doc_file;
+
     std::ostream_iterator<size_t> length_iter (lengths_file, " ");
+    std::ostream_iterator<size_t> doc_iter (doc_file, " ");
+    if (use_doc){doc_file.open(out_filename + ".doc_numbers");}
 
     // Open pattern file to start reading reads
     std::ifstream input_fd (pattern_filename, std::ifstream::in | std::ifstream::binary);
-    std::vector<size_t> lengths;
+    std::vector<size_t> lengths, doc_nums;
     std::string read = "";
     size_t num_reads = 0;
 
@@ -1185,9 +1185,15 @@ size_t st_pml_general(pml_t *ms, std::string pattern_filename, std::string out_f
     while (input_fd.good()) {
         // Finds a separating character
         if (ch == '\x01') { 
-            ms->matching_statistics(read.c_str(), read.size(), lengths);
+            if (use_doc){
+                ms->matching_statistics(read.c_str(), read.size(), lengths, doc_nums);
+                doc_file << ">read_" << num_reads << "\n";
+                std::copy(doc_nums.begin(), doc_nums.end(), doc_iter);
+                doc_file << "\n"; 
+            }
+            else {ms->matching_statistics(read.c_str(), read.size(), lengths);}
+
             lengths_file << ">read_" << num_reads << "\n";
-  
             std::copy(lengths.begin(), lengths.end(), length_iter);
             lengths_file << "\n";
 
@@ -1199,6 +1205,7 @@ size_t st_pml_general(pml_t *ms, std::string pattern_filename, std::string out_f
         ch = input_fd.get();
     }
     lengths_file.close();
+    if (use_doc) {doc_file.close();}
     return num_reads;
 }
 
@@ -1212,9 +1219,7 @@ size_t st_ms(ms_t *ms, std::string pattern_filename, std::string out_filename, b
     std::ostream_iterator<size_t> pointers_iter (pointers_file, " ");
     std::ostream_iterator<size_t> doc_iter (doc_file, " ");
 
-    if (use_doc) {
-        doc_file.open(out_filename + ".doc_numbers", std::ofstream::out);
-    }
+    if (use_doc) {doc_file.open(out_filename + ".doc_numbers", std::ofstream::out);}
 
     // Use kseq to parse out sequences from FASTA file
     gzFile fp = gzopen(pattern_filename.c_str(), "r");
@@ -1226,23 +1231,23 @@ size_t st_ms(ms_t *ms, std::string pattern_filename, std::string out_filename, b
         std::string curr_read = std::string(seq->seq.s);
         transform(curr_read.begin(), curr_read.end(), curr_read.begin(), ::toupper); 
 
-        lengths_file << '>' << seq->name.s << '\n';
-        pointers_file << '>' << seq->name.s << '\n';
-
         // Grab MS and write to output file
         std::vector<size_t> lengths, pointers, doc_nums;
-        if (use_doc){ms->matching_statistics(curr_read.c_str(), seq->seq.l, lengths, pointers, doc_nums);}
+        if (use_doc){
+            ms->matching_statistics(curr_read.c_str(), seq->seq.l, lengths, pointers, doc_nums);
+            doc_file << '>' << seq->name.s << '\n';
+            std::copy(doc_nums.begin(), doc_nums.end(), doc_iter);
+            doc_file << '\n';
+        }
         else {ms->matching_statistics(curr_read.c_str(), seq->seq.l, lengths, pointers);}
+
+        lengths_file << '>' << seq->name.s << '\n';
+        pointers_file << '>' << seq->name.s << '\n';
 
         std::copy(lengths.begin(), lengths.end(), length_iter);
         std::copy(pointers.begin(), pointers.end(), pointers_iter);
         lengths_file << '\n'; pointers_file << '\n';
 
-        if (use_doc) {
-            doc_file << '>' << seq->name.s << '\n';
-            std::copy(doc_nums.begin(), doc_nums.end(), doc_iter);
-            doc_file << '\n';
-        }
         num_reads++;
     }
     kseq_destroy(seq);
@@ -1254,8 +1259,7 @@ size_t st_ms(ms_t *ms, std::string pattern_filename, std::string out_filename, b
     return num_reads;
 }
 
-size_t st_ms_general(ms_t *ms, std::string pattern_filename, std::string out_filename, bool use_doc)
-{
+size_t st_ms_general(ms_t *ms, std::string pattern_filename, std::string out_filename, bool use_doc){
     // Check if file is mistakenly labeled as non-fasta file
     std::string file_ext = pattern_filename.substr(pattern_filename.find_last_of(".") + 1);
     if (file_ext == "fa" || file_ext == "fasta") {
@@ -1272,9 +1276,7 @@ size_t st_ms_general(ms_t *ms, std::string pattern_filename, std::string out_fil
     std::ostream_iterator<size_t> pointers_iter (pointers_file, " ");
     std::ostream_iterator<size_t> doc_iter (doc_file, " ");
 
-    if (use_doc) {
-        doc_file.open(out_filename + ".doc_numbers");
-    }
+    if (use_doc) {doc_file.open(out_filename + ".doc_numbers");}
 
     // Open pattern file to start reading reads
     std::ifstream input_fd (pattern_filename, std::ifstream::in | std::ifstream::binary);
@@ -1288,7 +1290,12 @@ size_t st_ms_general(ms_t *ms, std::string pattern_filename, std::string out_fil
     while (input_fd.good()) {
         // Finds a separating character
         if (ch == '\x01') { 
-            if (use_doc){ms->matching_statistics(read.c_str(), read.size(), lengths, pointers, doc_nums);}
+            if (use_doc){
+                ms->matching_statistics(read.c_str(), read.size(), lengths, pointers, doc_nums);
+                doc_file << ">read_" << num_reads << "\n";
+                std::copy(doc_nums.begin(), doc_nums.end(), doc_iter);
+                doc_file << '\n';
+            }
             else {ms->matching_statistics(read.c_str(), read.size(), lengths, pointers);}
 
             lengths_file << ">read_" << num_reads << "\n";
@@ -1297,12 +1304,6 @@ size_t st_ms_general(ms_t *ms, std::string pattern_filename, std::string out_fil
             std::copy(lengths.begin(), lengths.end(), length_iter);
             std::copy(pointers.begin(), pointers.end(), pointers_iter);
             lengths_file << "\n"; pointers_file << "\n";
-
-            if (use_doc) {
-                doc_file << ">read_" << num_reads << "\n";
-                std::copy(doc_nums.begin(), doc_nums.end(), doc_iter);
-                doc_file << '\n';
-            }
 
             input_fd.read(buf, 2); 
             num_reads++;
@@ -1344,11 +1345,15 @@ int run_spumoni_main(SpumoniRunOptions* run_opts){
 
     size_t num_reads = 0;
     if (run_opts->query_fasta) {
-        if(run_opts->threads <= 1) {num_reads=st_pml(&ms, run_opts->pattern_file, out_filename, run_opts->use_doc);}
+        if(run_opts->threads <= 1) {
+            num_reads=st_pml(&ms, run_opts->pattern_file, out_filename, run_opts->use_doc);
+        }
         else {FATAL_WARNING("Multi-threading not implemented yet for FASTA querying.");}
     }
     else {
-        if(run_opts->threads == 1) {num_reads=st_pml_general(&ms, run_opts->pattern_file,out_filename);}
+        if(run_opts->threads == 1) {
+            num_reads=st_pml_general(&ms, run_opts->pattern_file,out_filename, run_opts->use_doc);
+        }
         else {FATAL_WARNING("Multi-threading not implemented yet for general-text querying.");}
     }
 

@@ -1,4 +1,3 @@
-
 /*
  * File: doc_array.cpp
  * Description: Implementation of an document array ...
