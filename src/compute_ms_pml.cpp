@@ -154,8 +154,17 @@ public:
         return this->F;
     }
 
-    std::vector<size_t> query(const char* pattern, const size_t m, std::vector<size_t>& lengths) {
-        return _query(pattern, m, lengths);
+    /*
+     * Overloaded functions - based on wheter you want to report the
+     * document numbers or not.
+     */
+    void query(const char* pattern, const size_t m, std::vector<size_t>& lengths) {
+        _query(pattern, m, lengths);
+    }
+
+    void query(const char* pattern, const size_t m, std::vector<size_t>& lengths,
+                              std::vector<size_t>& doc_nums, DocumentArray& doc_arr) {
+        _query(pattern, m, lengths, doc_nums, doc_arr);
     }
 
     void print_stats(){
@@ -221,8 +230,12 @@ public:
 
 
 protected:
+    /*
+     * Overloaded functions - based on whether you want to report the
+     * document numbers or not.
+     */
     template<typename string_t>
-    std::vector<size_t> _query(const string_t &pattern, const size_t m, std::vector<size_t>& lengths) {
+    void _query(const string_t &pattern, const size_t m, std::vector<size_t>& lengths) {
         // Actual PML computation method
         lengths.resize(m);
 
@@ -270,7 +283,60 @@ protected:
             // Perform one backward step
             pos = LF(pos, c);
         }
-        return lengths;
+    }
+
+    template<typename string_t>
+    void _query(const string_t &pattern, const size_t m, std::vector<size_t>& lengths,
+                std::vector<size_t>& doc_nums, DocumentArray& doc_arr) {
+        // Actual PML computation method
+        lengths.resize(m);
+        doc_nums.resize(m);
+
+        // Start with the empty string
+        auto pos = this->bwt_size() - 1;
+        auto length = 0;
+        size_t curr_doc_id = doc_arr.end_runs_doc[this->bwt.number_of_runs()-1];
+        
+        for (size_t i = 0; i < m; ++i) {
+            auto c = pattern[m - i - 1];
+
+            if (this->bwt.number_of_letter(c) == 0){length = 0;}
+            else if (pos < this->bwt.size() && this->bwt[pos] == c) {length++;}
+            else {
+                // Get threshold
+                ri::ulint rnk = this->bwt.rank(pos, c);
+                size_t thr = this->bwt.size() + 1;
+                ulint next_pos = pos;
+
+                if (rnk < this->bwt.number_of_letter(c)) {
+                    // j is the first position of the next run of c's
+                    ri::ulint j = this->bwt.select(rnk, c);
+                    ri::ulint run_of_j = this->bwt.run_of_position(j);
+
+                    thr = thresholds[run_of_j]; // If it is the first run thr = 0
+                    curr_doc_id = doc_arr.start_runs_doc[run_of_j];
+
+                    length = 0;
+                    next_pos = j;
+                }
+
+                if (pos < thr) {
+                    rnk--;
+                    ri::ulint j = this->bwt.select(rnk, c);
+                    ri::ulint run_of_j = this->bwt.run_of_position(j);
+                    curr_doc_id = doc_arr.end_runs_doc[run_of_j];
+
+                    length = 0;
+                    next_pos = j;
+                }
+                pos = next_pos;
+            }
+
+            lengths[m-i-1] = length;
+            doc_nums[m-i-1] = curr_doc_id;
+            // Perform one backward step
+            pos = LF(pos, c);
+        }
     }
 }; /* End of pml_pointers class */
 
@@ -415,9 +481,18 @@ public:
         return this->F;
     }
 
+    /*
+     * Overloaded functions - based on whether you want to report the document 
+     * numbers as well or not.
+     */
     void query(const char* pattern, const size_t m, std::vector<size_t>& pointers) {
         _query(pattern, m, pointers);
     }
+
+    void query(const char* pattern, const size_t m, std::vector<size_t>& pointers, std::vector<size_t>& doc_nums,
+               DocumentArray& doc_array){
+        _query(pattern, m, pointers, doc_nums, doc_array);
+    } 
 
     std::pair<ulint, ulint> get_bwt_stats() {
         return std::make_pair(this->bwt_size() , this->bwt.number_of_runs());
@@ -494,9 +569,12 @@ public:
 
 
 protected:
+    /*
+     * Overloaded functions - based on whether you want to get the document 
+     * numbers or not.
+     */
     template<typename string_t>
-    void _query(const string_t &pattern, const size_t m, std::vector<size_t>& ms_pointers) 
-    {
+    void _query(const string_t &pattern, const size_t m, std::vector<size_t>& ms_pointers) {
         // Actual MS Computation
         ms_pointers.resize(m);
         auto pos = this->bwt_size() - 1;
@@ -548,9 +626,67 @@ protected:
             // Perform one backward step
             pos = LF(pos, c);
         }
-
-        //ms_pointers;
     }
+
+    template<typename string_t>
+    void _query(const string_t &pattern, const size_t m, std::vector<size_t>& ms_pointers,
+                std::vector<size_t>& doc_nums, DocumentArray& doc_arr) {
+        // Actual MS Computation
+        ms_pointers.resize(m);
+        doc_nums.resize(m);
+
+        auto pos = this->bwt_size() - 1;
+        auto sample = this->get_last_run_sample();
+        size_t curr_doc_id = doc_arr.end_runs_doc[this->bwt.number_of_runs()-1];
+
+        for (size_t i = 0; i < m; ++i) 
+        {
+            auto c = pattern[m - i - 1];
+            if (this->bwt.number_of_letter(c) == 0){
+                sample = 0;
+                ri::ulint run_of_j = this->bwt.run_of_position(sample);
+                curr_doc_id = doc_arr.start_runs_doc[run_of_j];
+            }
+            else if (pos < this->bwt.size() && this->bwt[pos] == c){sample--;}
+            else {
+                // Get threshold
+                ri::ulint rnk = this->bwt.rank(pos, c);
+                size_t thr = this->bwt.size() + 1;
+                ulint next_pos = pos;
+
+                if (rnk < this->bwt.number_of_letter(c)) {
+                    // j is the first position of the next run of c's
+                    ri::ulint j = this->bwt.select(rnk, c);
+                    ri::ulint run_of_j = this->bwt.run_of_position(j);
+
+                    thr = thresholds[run_of_j]; // If it is the first run thr = 0
+                    sample = samples_start[run_of_j];
+                    curr_doc_id = doc_arr.start_runs_doc[run_of_j];
+
+                    next_pos = j;
+                }
+
+                if (pos < thr) {
+                    rnk--;
+                    ri::ulint j = this->bwt.select(rnk, c);
+                    ri::ulint run_of_j = this->bwt.run_of_position(j);
+
+                    sample = this->samples_last[run_of_j];
+                    curr_doc_id = doc_arr.end_runs_doc[run_of_j];
+                    next_pos = j;
+                }
+
+                pos = next_pos;
+            }
+
+            ms_pointers[m-i-1] = sample;
+            doc_nums[m-i-1] = curr_doc_id;
+            
+            // Perform one backward step
+            pos = LF(pos, c);
+        }
+    }
+
 }; /* End of ms_pointers */
 
 
@@ -563,27 +699,49 @@ protected:
 
 class pml_t {
 public:
+    using DocArray = DocumentArray;
+    DocArray doc_arr; 
+
     // Constructor
-    pml_t(std::string filename){
-      SPUMONI_LOG("Loading the PML index ...");
-      auto start_time = std::chrono::system_clock::now();
-      std::string filename_ms = filename + ms.get_file_extension();
+    pml_t(std::string filename, bool use_doc){
+        SPUMONI_LOG("Loading the PML index ...");
+        auto start_time = std::chrono::system_clock::now();
+        std::string filename_ms = filename + ms.get_file_extension();
 
-      ifstream fs_ms(filename_ms);
-      ms.load(fs_ms);
-      fs_ms.close();
+        std::ifstream fs_ms(filename_ms);
+        ms.load(fs_ms);
+        fs_ms.close();
 
-      auto end_time = std::chrono::system_clock::now();
-      TIME_LOG((end_time - start_time));
+        auto end_time = std::chrono::system_clock::now();
+        TIME_LOG((end_time - start_time));
+        if (use_doc) {
+            SPUMONI_LOG("Loading the Document Array");
+            start_time = std::chrono::system_clock::now();
+            std::ifstream doc_file(filename + ".doc");
+
+            doc_arr.load(doc_file);
+            doc_arr.print_statistics();
+            doc_file.close();
+            TIME_LOG((std::chrono::system_clock::now() - start_time));
+        }
     }
 
     //Destructor
     ~pml_t() {}
 
+    /*
+     * Overloaded functions - based on whether you want to report the
+     * document numbers or not.
+     */
     void matching_statistics(const char* read, size_t read_length, std::vector<size_t>& lengths) {
         ms.query(read, read_length, lengths);
     }
 
+    void matching_statistics(const char* read, size_t read_length, std::vector<size_t>& lengths, 
+                             std::vector<size_t>& doc_nums) {
+        ms.query(read, read_length, lengths, doc_nums, doc_arr);
+    }
+    
     std::pair<ulint, ulint> get_bwt_stats() {
         return ms.get_bwt_stats();
     }
@@ -597,9 +755,11 @@ class ms_t {
 public:
     using SelSd = SelectSdvec<>;
     using DagcSd = DirectAccessibleGammaCode<SelSd>;
+    using DocArray = DocumentArray;
+    DocArray doc_arr;
 
-    ms_t(std::string filename) {
-        SPUMONI_LOG("Loading the MS index ...");
+    ms_t(std::string filename, bool use_doc) {
+        SPUMONI_LOG("Loading the MS index");
         auto start_time = std::chrono::system_clock::now();    
         std::string filename_ms = filename + ms.get_file_extension();
 
@@ -610,26 +770,55 @@ public:
         auto end_time = std::chrono::system_clock::now();
         TIME_LOG((end_time - start_time));
 
-        SPUMONI_LOG("Loading the Random Access Data Structure ...");
+        SPUMONI_LOG("Loading the Random Access Data Structure");
         start_time = std::chrono::system_clock::now();   
         std::string filename_slp = filename + ".slp";
 
         ifstream fs(filename_slp);
         ra.load(fs);
         fs.close();
+        TIME_LOG((std::chrono::system_clock::now() - start_time));
 
-        n = ra.getLen();
-        end_time = std::chrono::system_clock::now();
-        TIME_LOG((end_time - start_time));
+        if (use_doc) {
+            SPUMONI_LOG("Loading the Document Array");
+            start_time = std::chrono::system_clock::now();
+            std::ifstream doc_file(filename + ".doc");
+
+            doc_arr.load(doc_file);
+            doc_arr.print_statistics();
+            doc_file.close();
+            TIME_LOG((std::chrono::system_clock::now() - start_time));
+        }
     } 
 
     // Destructor
     ~ms_t() {}
 
+    /*
+     * Overloaded functions - used to compute the MS depending on 
+     * whether you want to extract document numbers or not.
+     */
     void matching_statistics(const char* read, size_t read_length, std::vector<size_t>& lengths, 
                             std::vector<size_t>& pointers) {  
         // Takes a read, and generates the MS with respect to this ms_t object
         ms.query(read, read_length, pointers);
+        lengths.resize(read_length);
+        size_t l = 0;
+
+        for (size_t i = 0; i < pointers.size(); ++i) {
+            size_t pos = pointers[i];
+            while ((i + l) < read_length && (pos + l) < n && (i < 1 || pos != (pointers[i-1] + 1) ) && read[i + l] == ra.charAt(pos + l))
+                ++l;
+            lengths[i] = l;
+            l = (l == 0 ? 0 : (l - 1));
+        }
+        assert(lengths.size() == pointers.size());
+    }
+
+    void matching_statistics(const char* read, size_t read_length, std::vector<size_t>& lengths, 
+                            std::vector<size_t>& pointers, std::vector<size_t>& doc_nums) {  
+        // Takes a read, and generates the MS with respect to this ms_t object
+        ms.query(read, read_length, pointers, doc_nums, doc_arr);
         lengths.resize(read_length);
         size_t l = 0;
 
@@ -926,10 +1115,17 @@ void mt_ms(ms_t *ms, std::string pattern_filename, std::string out_filename, siz
  *       code.
  */
 
-size_t st_pml(pml_t *ms, std::string pattern_filename, std::string out_filename) {
+size_t st_pml(pml_t *ms, std::string pattern_filename, std::string out_filename, bool use_doc) {
     // Declare output file and iterator
     std::ofstream lengths_file (out_filename + ".pseudo_lengths");
     std::ostream_iterator<size_t> lengths_iter (lengths_file, " ");
+
+    std::ofstream doc_file;
+    std::ostream_iterator<size_t> doc_iter (doc_file, " ");
+
+    if (use_doc) {
+        doc_file.open(out_filename + ".doc_numbers");
+    }
 
     // Use kseq to parse out sequences from FASTA file
     gzFile fp = gzopen(pattern_filename.c_str(), "r");
@@ -940,20 +1136,28 @@ size_t st_pml(pml_t *ms, std::string pattern_filename, std::string out_filename)
         //Make sure all characters are upper-case
         std::string curr_read = std::string(seq->seq.s);
         transform(curr_read.begin(), curr_read.end(), curr_read.begin(), ::toupper); 
-        lengths_file << '>' << seq->name.s << '\n';
 
         // Grab MS and write to output file
-        std::vector<size_t> lengths;
-        ms->matching_statistics(curr_read.c_str(), seq->seq.l, lengths);
+        std::vector<size_t> lengths, doc_nums;
+        if (use_doc){ms->matching_statistics(curr_read.c_str(), seq->seq.l, lengths, doc_nums);}
+        else {ms->matching_statistics(curr_read.c_str(), seq->seq.l, lengths);}
 
+        lengths_file << '>' << seq->name.s << '\n';
         std::copy(lengths.begin(), lengths.end(), lengths_iter);
         lengths_file << '\n';
+
+        if (use_doc) {
+            doc_file << '>' << seq->name.s << '\n';
+            std::copy(doc_nums.begin(), doc_nums.end(), doc_iter);
+            doc_file << '\n';
+        }
         num_reads++;
     }
-
     kseq_destroy(seq);
     gzclose(fp);
+
     lengths_file.close();
+    if (use_doc) {doc_file.close();}
     return num_reads;
 }
 
@@ -998,13 +1202,19 @@ size_t st_pml_general(pml_t *ms, std::string pattern_filename, std::string out_f
     return num_reads;
 }
 
-size_t st_ms(ms_t *ms, std::string pattern_filename, std::string out_filename) {
+size_t st_ms(ms_t *ms, std::string pattern_filename, std::string out_filename, bool use_doc) {
     // Declare output files, and output iterators
     std::ofstream lengths_file (out_filename + ".lengths");
     std::ofstream pointers_file (out_filename + ".pointers");
+    std::ofstream doc_file;
 
     std::ostream_iterator<size_t> length_iter (lengths_file, " ");
     std::ostream_iterator<size_t> pointers_iter (pointers_file, " ");
+    std::ostream_iterator<size_t> doc_iter (doc_file, " ");
+
+    if (use_doc) {
+        doc_file.open(out_filename + ".doc_numbers", std::ofstream::out);
+    }
 
     // Use kseq to parse out sequences from FASTA file
     gzFile fp = gzopen(pattern_filename.c_str(), "r");
@@ -1020,24 +1230,31 @@ size_t st_ms(ms_t *ms, std::string pattern_filename, std::string out_filename) {
         pointers_file << '>' << seq->name.s << '\n';
 
         // Grab MS and write to output file
-        std::vector<size_t> lengths, pointers;
-        ms->matching_statistics(curr_read.c_str(), seq->seq.l, lengths, pointers);
+        std::vector<size_t> lengths, pointers, doc_nums;
+        if (use_doc){ms->matching_statistics(curr_read.c_str(), seq->seq.l, lengths, pointers, doc_nums);}
+        else {ms->matching_statistics(curr_read.c_str(), seq->seq.l, lengths, pointers);}
 
         std::copy(lengths.begin(), lengths.end(), length_iter);
         std::copy(pointers.begin(), pointers.end(), pointers_iter);
-        
         lengths_file << '\n'; pointers_file << '\n';
+
+        if (use_doc) {
+            doc_file << '>' << seq->name.s << '\n';
+            std::copy(doc_nums.begin(), doc_nums.end(), doc_iter);
+            doc_file << '\n';
+        }
         num_reads++;
     }
-
     kseq_destroy(seq);
     gzclose(fp);
+
     lengths_file.close();
     pointers_file.close();
+    if (use_doc) {doc_file.close();}
     return num_reads;
 }
 
-size_t st_ms_general(ms_t *ms, std::string pattern_filename, std::string out_filename)
+size_t st_ms_general(ms_t *ms, std::string pattern_filename, std::string out_filename, bool use_doc)
 {
     // Check if file is mistakenly labeled as non-fasta file
     std::string file_ext = pattern_filename.substr(pattern_filename.find_last_of(".") + 1);
@@ -1049,13 +1266,19 @@ size_t st_ms_general(ms_t *ms, std::string pattern_filename, std::string out_fil
     // Declare output files, and output iterators
     std::ofstream lengths_file (out_filename + ".lengths");
     std::ofstream pointers_file (out_filename + ".pointers");
+    std::ofstream doc_file;
 
     std::ostream_iterator<size_t> length_iter (lengths_file, " ");
     std::ostream_iterator<size_t> pointers_iter (pointers_file, " ");
+    std::ostream_iterator<size_t> doc_iter (doc_file, " ");
+
+    if (use_doc) {
+        doc_file.open(out_filename + ".doc_numbers");
+    }
 
     // Open pattern file to start reading reads
     std::ifstream input_fd (pattern_filename, std::ifstream::in | std::ifstream::binary);
-    std::vector<size_t> lengths, pointers;
+    std::vector<size_t> lengths, pointers, doc_nums;
     std::string read = "";
     size_t num_reads = 0;
 
@@ -1065,13 +1288,21 @@ size_t st_ms_general(ms_t *ms, std::string pattern_filename, std::string out_fil
     while (input_fd.good()) {
         // Finds a separating character
         if (ch == '\x01') { 
-            ms->matching_statistics(read.c_str(), read.size(), lengths, pointers);
+            if (use_doc){ms->matching_statistics(read.c_str(), read.size(), lengths, pointers, doc_nums);}
+            else {ms->matching_statistics(read.c_str(), read.size(), lengths, pointers);}
+
             lengths_file << ">read_" << num_reads << "\n";
             pointers_file << ">read_" << num_reads << "\n";
 
             std::copy(lengths.begin(), lengths.end(), length_iter);
             std::copy(pointers.begin(), pointers.end(), pointers_iter);
             lengths_file << "\n"; pointers_file << "\n";
+
+            if (use_doc) {
+                doc_file << ">read_" << num_reads << "\n";
+                std::copy(doc_nums.begin(), doc_nums.end(), doc_iter);
+                doc_file << '\n';
+            }
 
             input_fd.read(buf, 2); 
             num_reads++;
@@ -1082,6 +1313,7 @@ size_t st_ms_general(ms_t *ms, std::string pattern_filename, std::string out_fil
     }
     lengths_file.close();
     pointers_file.close();
+    if (use_doc) {doc_file.close();}
     return num_reads;
 }
 
@@ -1098,7 +1330,7 @@ int run_spumoni_main(SpumoniRunOptions* run_opts){
     /* This method is responsible for the PML computation */
 
     // Loads the RLEBWT and Thresholds
-    pml_t ms(run_opts->ref_file);
+    pml_t ms(run_opts->ref_file, run_opts->use_doc);
     std::string out_filename = run_opts->pattern_file;
 
     if (is_gzipped(run_opts->pattern_file)) { 
@@ -1108,11 +1340,11 @@ int run_spumoni_main(SpumoniRunOptions* run_opts){
 
     // Determine approach to parse pattern files
     auto start_time = std::chrono::system_clock::now();
-    SPUMONI_LOG("Processing the patterns ...");
+    SPUMONI_LOG("Processing the patterns");
 
     size_t num_reads = 0;
     if (run_opts->query_fasta) {
-        if(run_opts->threads <= 1) {num_reads=st_pml(&ms, run_opts->pattern_file, out_filename);}
+        if(run_opts->threads <= 1) {num_reads=st_pml(&ms, run_opts->pattern_file, out_filename, run_opts->use_doc);}
         else {FATAL_WARNING("Multi-threading not implemented yet for FASTA querying.");}
     }
     else {
@@ -1133,7 +1365,7 @@ int run_spumoni_ms_main(SpumoniRunOptions* run_opts) {
     using DagcSd = DirectAccessibleGammaCode<SelSd>;
   
     // Loads the MS index containing the RLEBWT, Thresholds, and RA structure
-    ms_t ms(run_opts->ref_file);
+    ms_t ms(run_opts->ref_file, run_opts->use_doc);
     std::string out_filename = run_opts->pattern_file;
 
     if (is_gzipped(run_opts->pattern_file)) {
@@ -1143,15 +1375,15 @@ int run_spumoni_ms_main(SpumoniRunOptions* run_opts) {
 
     // Determine approach to parse pattern files
     auto start_time = std::chrono::system_clock::now();
-    SPUMONI_LOG("Processing the patterns ...");
+    SPUMONI_LOG("Processing the patterns");
 
     size_t num_reads = 0;
     if (run_opts->query_fasta) {
-        if(run_opts->threads == 1) {num_reads=st_ms(&ms, run_opts->pattern_file, out_filename);}
+        if(run_opts->threads == 1) {num_reads=st_ms(&ms, run_opts->pattern_file, out_filename, run_opts->use_doc);}
         else {FATAL_WARNING("Multi-threading not implemented yet for FASTA querying.");}
     }
     else {
-        if(run_opts->threads == 1) {num_reads=st_ms_general(&ms,run_opts->pattern_file,out_filename);}
+        if(run_opts->threads == 1) {num_reads=st_ms_general(&ms,run_opts->pattern_file,out_filename, run_opts->use_doc);}
         else {FATAL_WARNING("Multi-threading not implemented yet for general-text querying.");}
     }
  
@@ -1180,16 +1412,15 @@ void build_spumoni_main(std::string ref_file) {
     pml.serialize(out);
 }
 
-
 std::pair<ulint, ulint> get_bwt_stats(std::string ref_file, size_t type) {
     /* Returns the length and number of runs in a text */
     ulint length = 0, num_runs = 0;
     if (type == 1) {
-        ms_t ms_data_structure(ref_file);
+        ms_t ms_data_structure(ref_file, false);
         std::tie(length, num_runs) = ms_data_structure.get_bwt_stats();
         return std::make_pair(length, num_runs);
     } else {
-        pml_t pml_data_structure(ref_file);
+        pml_t pml_data_structure(ref_file, false);
         std::tie(length, num_runs) = pml_data_structure.get_bwt_stats();
         return std::make_pair(length, num_runs);
     }

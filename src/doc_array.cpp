@@ -26,9 +26,9 @@ DocumentArray::DocumentArray(std::string ref_path, size_t length, size_t num_run
     this->num_entries = (start_samples_size)/ (2 * SSABYTES);
     
     // Read through the samples ...
-    std::vector<size_t> start_samples = read_samples(ref_path + ".ssa");
-    std::vector<size_t> end_samples = read_samples(ref_path + ".esa");
-    
+    std::vector<size_t> start_samples_orig = read_samples(ref_path + ".ssa");
+    std::vector<size_t> end_samples_orig = read_samples(ref_path + ".esa");
+
     // Determine the ending positions for each interval
     std::vector<size_t> end_pos;
     load_seq_boundaries(); // loads the seq_lengths vector
@@ -39,9 +39,24 @@ DocumentArray::DocumentArray(std::string ref_path, size_t length, size_t num_run
                   [&](size_t size) {if (i == 0){sum = seq_lengths[0]; i++; return sum;} 
                                     else {sum += seq_lengths[i];
                                           i++; return sum;}});
-    
+
     size_t last_pos = end_pos.back();
     end_pos.back() = last_pos + 1; // add 1 for dollar sign
+
+    // Convert suffix samples to the positions of BWT characters
+    auto convert_to_bwt_pos = [&] (size_t sample) {
+        if (sample > 0) {return (sample-1);}
+        else {return (end_pos.back()-1);}
+    };
+
+    std::vector<size_t> start_samples, end_samples;
+    start_samples.resize(start_samples_orig.size());
+    end_samples.resize(end_samples_orig.size());
+
+    std::transform(start_samples_orig.begin(), start_samples_orig.end(), 
+                   start_samples.begin(), convert_to_bwt_pos);
+    std::transform(end_samples_orig.begin(), end_samples_orig.end(), 
+                   end_samples.begin(), convert_to_bwt_pos);
 
     // Perform a binary search for each value
     std::vector<size_t> start_genome_ids, end_genome_ids;
