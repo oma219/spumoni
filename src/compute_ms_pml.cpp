@@ -22,6 +22,7 @@
 #include <tuple>
 #include <fstream>
 #include <iterator>
+#include <doc_array.hpp>
 
 /*
  * This first section of the code contains classes that define pml_pointers
@@ -276,7 +277,7 @@ protected:
 
 template <class sparse_bv_type = ri::sparse_sd_vector,
           class rle_string_t = ms_rle_string_sd,
-          class thresholds_t = thr_bv<rle_string_t> >
+          class thresholds_t = thr_bv<rle_string_t>>
 class ms_pointers : ri::r_index<sparse_bv_type, rle_string_t>
 {
 public:
@@ -1160,6 +1161,25 @@ int run_spumoni_ms_main(SpumoniRunOptions* run_opts) {
     SPUMONI_LOG("Finished processing %d reads", num_reads);
     return 0;
 }
+
+void build_spumoni_ms_main(std::string ref_file) {
+    // Builds the ms_pointers objects and stores it
+    ms_pointers<> ms(ref_file, true);
+    
+    std::string outfile = ref_file + ms.get_file_extension();
+    std::ofstream out(outfile);
+    ms.serialize(out);
+}
+
+void build_spumoni_main(std::string ref_file) {
+    // Builds the pml_pointers objects and stores it
+    pml_pointers<> pml(ref_file, true);
+    
+    std::string outfile = ref_file + pml.get_file_extension();
+    std::ofstream out(outfile);
+    pml.serialize(out);
+}
+
 
 std::pair<ulint, ulint> get_bwt_stats(std::string ref_file, size_t type) {
     /* Returns the length and number of runs in a text */

@@ -302,30 +302,20 @@ void run_build_parse_cmd(SpumoniBuildOptions* build_opts, SpumoniHelperPrograms*
 }
 
 void run_build_ms_cmd(SpumoniBuildOptions* build_opts, SpumoniHelperPrograms* helper_bins) {
-    /* Generates and runs the command-line for generating the final index for computing MS */
-    std::ostringstream command_stream;
-    command_stream << helper_bins->ms_build << " " << build_opts->ref_file;
-
+    /* Runs the constructor for generating the final index for computing MS */
     SPUMONI_LOG("Building the index for computing MS ...");
-    SPUMONI_LOG(("Executing this command: " + command_stream.str()).data());
+    build_spumoni_ms_main(build_opts->ref_file);
 
     auto start = std::chrono::system_clock::now();
-    auto parse_log = execute_cmd(command_stream.str().c_str());
-    OTHER_LOG(parse_log.data());
     TIME_LOG((std::chrono::system_clock::now() - start));
 }
 
 void run_build_pml_cmd(SpumoniBuildOptions* build_opts, SpumoniHelperPrograms* helper_bins) {
-    /* Generates and runs the command-line for generating the final index for computing PML */
-    std::ostringstream command_stream;
-    command_stream << helper_bins->pml_build << " " << build_opts->ref_file;
-
+    /* Runs the constructor for generating the final index for computing PML */
     SPUMONI_LOG("Building the index for computing PML ...");
-    SPUMONI_LOG(("Executing this command: " + command_stream.str()).data());
+    build_spumoni_main(build_opts->ref_file);
 
     auto start = std::chrono::system_clock::now();
-    auto parse_log = execute_cmd(command_stream.str().c_str());
-    OTHER_LOG(parse_log.data());
     TIME_LOG((std::chrono::system_clock::now() - start));
 }
 

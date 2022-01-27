@@ -16,14 +16,13 @@
 
 class DocumentArray {
 
-private:
+public:
     std::string ref_file; // path to input data
     std::vector<size_t> seq_lengths; // sequence lengths in FASTA file
     size_t num_entries; // number of document array entries (i.e number of BWT runs)
     sdsl::int_vector<> start_runs_doc; // represents the start of runs document array
     sdsl::int_vector<> end_runs_doc; // represents the end of runs document array
 
-public:
     DocumentArray(){} // Constructor used to load an existing document array
     DocumentArray(std::string file_path, size_t length, size_t num_runs); // Main constructor
     
