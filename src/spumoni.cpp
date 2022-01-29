@@ -388,10 +388,14 @@ int build_main(int argc, char** argv) {
         size_t type = (build_opts.ms_index) ? 1 : 2;
         std::tie(length, num_runs) = get_bwt_stats(build_opts.ref_file, type);
 
+        SPUMONI_LOG("Building the Document Array");
+        auto start = std::chrono::system_clock::now();
         DocumentArray doc_arr(build_opts.ref_file, length, num_runs);
+
         std::ofstream out_stream(build_opts.ref_file + ".doc");
         doc_arr.serialize(out_stream);
         out_stream.close();
+        TIME_LOG((std::chrono::system_clock::now() - start));
     }
     
     rm_temp_build_files(&build_opts, &helper_bins);
