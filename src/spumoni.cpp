@@ -29,6 +29,7 @@
 #include <cmath>
 #include <filesystem>
 #include <chrono>
+#include <stdlib.h>
 #include <spumoni_main.hpp>
 #include <compute_ms_pml.hpp>
 #include <doc_array.hpp>
@@ -58,6 +59,7 @@ int spumoni_build_usage () {
     std::fprintf(stderr, "Options:\n");
     std::fprintf(stderr, "\t%-10sprints this usage message\n", "-h");
     std::fprintf(stderr, "\t%-10spath to reference file to be indexed\n", "-r [FILE]");
+    std::fprintf(stderr, "\t%-10sbuild directory for spumoni (if spumoni is not in current directory)\n", "-b [DIR]");
     std::fprintf(stderr, "\t%-10sbuild an index that can be used to compute MSs\n", "-M");
     std::fprintf(stderr, "\t%-10sbuild an index that can be used to compute PMLs\n", "-P");
     std::fprintf(stderr, "\t%-10ssliding window size (default: 10)\n", "-w [arg]");
@@ -112,6 +114,11 @@ int is_file(std::string path) {
     
     test_file.close();
     return 1;
+}
+
+int is_dir(std::string path) {
+    /* Checks if the directory is a valid path */
+    return std::filesystem::exists(path);
 }
 
 std::vector<std::string> split(std::string input, char delim) {
@@ -304,18 +311,18 @@ void run_build_parse_cmd(SpumoniBuildOptions* build_opts, SpumoniHelperPrograms*
 void run_build_ms_cmd(SpumoniBuildOptions* build_opts, SpumoniHelperPrograms* helper_bins) {
     /* Runs the constructor for generating the final index for computing MS */
     SPUMONI_LOG("Building the index for computing MS ...");
+    auto start = std::chrono::system_clock::now();
     build_spumoni_ms_main(build_opts->ref_file);
 
-    auto start = std::chrono::system_clock::now();
     TIME_LOG((std::chrono::system_clock::now() - start));
 }
 
 void run_build_pml_cmd(SpumoniBuildOptions* build_opts, SpumoniHelperPrograms* helper_bins) {
     /* Runs the constructor for generating the final index for computing PML */
     SPUMONI_LOG("Building the index for computing PML ...");
+    auto start = std::chrono::system_clock::now();
     build_spumoni_main(build_opts->ref_file);
 
-    auto start = std::chrono::system_clock::now();
     TIME_LOG((std::chrono::system_clock::now() - start));
 }
 
@@ -364,7 +371,7 @@ int build_main(int argc, char** argv) {
     build_opts.validate();
 
     SpumoniHelperPrograms helper_bins;
-    helper_bins.build_paths("./bin/"); // TODO: add option to change helper directory
+    helper_bins.build_paths((std::string(std::getenv("SPUMONI_BUILD_DIR")) + "/bin/").data());
     helper_bins.validate();
     auto build_process_start = std::chrono::system_clock::now();
 
@@ -402,7 +409,7 @@ int build_main(int argc, char** argv) {
     auto total_build_time = std::chrono::duration<double>((std::chrono::system_clock::now() - build_process_start));
     SPUMONI_LOG("TOTAL Elapsed Time for Build Process (s): %.3f", total_build_time);
 
-    return 1;
+    return 0;
 }
 
 int run_main(int argc, char** argv) {
@@ -420,7 +427,7 @@ int run_main(int argc, char** argv) {
         case PML: run_spumoni_main(&run_opts); break;
         default: FATAL_WARNING("The output type (MS or PML) must be specified.");
     }
-    return 1;
+    return 0;
 }
 
 int spumoni_usage () {

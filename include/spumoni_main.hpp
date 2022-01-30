@@ -62,6 +62,7 @@ int build_main(int argc, char** argv);
 int run_main(int argc, char** argv);
 int spumoni_usage ();
 int is_file(std::string path);
+int is_dir(std::string path);
 std::vector<std::string> split(std::string input, char delim);
 std::string execute_cmd(const char* cmd);
 size_t get_avail_phy_mem();
@@ -132,8 +133,10 @@ public:
         if (ref_file.find(".fq") != std::string::npos || ref_file.find(".fastq") != std::string::npos || ref_file.find(".fnq") != std::string::npos) {
             FATAL_WARNING("Reference file cannot be in FASTQ format.\n");
         }
-        if (!is_file(ref_file)) {FATAL_ERROR("The following path is not valid: " + ref_file);}
-        if (!is_file(ref_file + ".fai")){FATAL_ERROR("The FASTA index (*.fai) is not found, please create it.");}
+        if (!is_file(ref_file)) {
+          FATAL_ERROR("The following path is not valid: " + ref_file);}
+        if (build_doc && !is_file(ref_file + ".fai")){
+          FATAL_ERROR("The FASTA index (*.fai) is not found, please create it.");}
     }
 };
 
