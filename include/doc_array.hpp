@@ -24,7 +24,7 @@ public:
     sdsl::int_vector<> end_runs_doc; // represents the end of runs document array
 
     DocumentArray(){} // Constructor used to load an existing document array
-    DocumentArray(std::string file_path, size_t length, size_t num_runs); // Main constructor
+    DocumentArray(std::string file_path, size_t num_runs); // Main constructor
     
     void load_seq_boundaries();
     void print_statistics();

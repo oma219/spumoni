@@ -14,7 +14,7 @@
 #include <fstream>
 #include <sdsl/vectors.hpp>
 
-DocumentArray::DocumentArray(std::string ref_path, size_t length, size_t num_runs): ref_file(ref_path) {
+DocumentArray::DocumentArray(std::string ref_path, size_t num_runs): ref_file(ref_path) {
     /* Constructs a document array - maps suffix array positions to genomes they occur in */
 
     // Verifies the file sizes are expected, and determine num of entries
@@ -68,7 +68,6 @@ DocumentArray::DocumentArray(std::string ref_path, size_t length, size_t num_run
                    end_genome_ids.begin(), [&](size_t pos) {return binary_search_for_pos(end_pos, pos);});             
 
     // Write the document array to int vectors
-    uint32_t bwt_length = length; // I am just forcing it to 32 bits, to avoid some issues with ulint
     uint32_t max_width = std::log2(this->seq_lengths.size());
 
     this->start_runs_doc = sdsl::int_vector<> (num_runs, 0, max_width);

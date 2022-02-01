@@ -308,22 +308,28 @@ void run_build_parse_cmd(SpumoniBuildOptions* build_opts, SpumoniHelperPrograms*
     TIME_LOG((std::chrono::system_clock::now() - start));
 }
 
-void run_build_ms_cmd(SpumoniBuildOptions* build_opts, SpumoniHelperPrograms* helper_bins) {
+size_t run_build_ms_cmd(SpumoniBuildOptions* build_opts, SpumoniHelperPrograms* helper_bins) {
     /* Runs the constructor for generating the final index for computing MS */
     SPUMONI_LOG("Building the index for computing MS ...");
+    
+    size_t num_runs = 0;
     auto start = std::chrono::system_clock::now();
-    build_spumoni_ms_main(build_opts->ref_file);
+    num_runs = build_spumoni_ms_main(build_opts->ref_file);
 
     TIME_LOG((std::chrono::system_clock::now() - start));
+    return num_runs;
 }
 
-void run_build_pml_cmd(SpumoniBuildOptions* build_opts, SpumoniHelperPrograms* helper_bins) {
+size_t run_build_pml_cmd(SpumoniBuildOptions* build_opts, SpumoniHelperPrograms* helper_bins) {
     /* Runs the constructor for generating the final index for computing PML */
     SPUMONI_LOG("Building the index for computing PML ...");
+
+    size_t num_runs = 0;
     auto start = std::chrono::system_clock::now();
-    build_spumoni_main(build_opts->ref_file);
+    num_runs = build_spumoni_main(build_opts->ref_file);
 
     TIME_LOG((std::chrono::system_clock::now() - start));
+    return num_runs;
 }
 
 void rm_temp_build_files(SpumoniBuildOptions* build_opts, SpumoniHelperPrograms* helper_bins) {
@@ -380,24 +386,21 @@ int build_main(int argc, char** argv) {
     run_build_thresholds_cmd(&build_opts, &helper_bins);
 
     // Generate grammar over reference if you would like to compute MS
+    size_t num_runs = 0;
     if (build_opts.ms_index) {
         run_build_grammar_cmds(&build_opts, &helper_bins);
         run_build_slp_cmds(&build_opts, &helper_bins);
-        run_build_ms_cmd(&build_opts, &helper_bins);
+        num_runs = run_build_ms_cmd(&build_opts, &helper_bins);
     }
 
     // Build the PML index if asked for as well 
-    if (build_opts.pml_index) {run_build_pml_cmd(&build_opts, &helper_bins);}
+    if (build_opts.pml_index) {num_runs = run_build_pml_cmd(&build_opts, &helper_bins);}
 
     // Build the document array if asked for as well
     if (build_opts.build_doc) {
-        ulint length = 0, num_runs = 0;
-        size_t type = (build_opts.ms_index) ? 1 : 2;
-        std::tie(length, num_runs) = get_bwt_stats(build_opts.ref_file, type);
-
         SPUMONI_LOG("Building the Document Array");
         auto start = std::chrono::system_clock::now();
-        DocumentArray doc_arr(build_opts.ref_file, length, num_runs);
+        DocumentArray doc_arr(build_opts.ref_file, num_runs);
 
         std::ofstream out_stream(build_opts.ref_file + ".doc");
         doc_arr.serialize(out_stream);

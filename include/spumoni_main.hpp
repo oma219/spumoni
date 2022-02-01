@@ -169,7 +169,7 @@ public:
       if (ms_requested && pml_requested) {FATAL_WARNING("Only MS or PMLs can be computed at one time, please re-run with only -M or -P");}
       if (pattern_file.find(".fq") != std::string::npos || pattern_file.find(".fastq") != std::string::npos || pattern_file.find(".fnq") != std::string::npos) {
             FATAL_WARNING("Patterns file cannot be in FASTQ format.\n");}
-      if (!is_file(ref_file + ".doc")) {FATAL_WARNING("*.doc file is not present, so it cannot be used");}
+      if (use_doc && !is_file(ref_file + ".doc")) {FATAL_WARNING("*.doc file is not present, so it cannot be used");}
       
       switch (result_type) {
         case MS: 

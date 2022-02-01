@@ -37,14 +37,11 @@ class pml_pointers : ri::r_index<sparse_bv_type, rle_string_t> {
 public:
     thresholds_t thresholds;
     typedef size_t size_type;
+    size_t num_runs;
 
     pml_pointers() {}
-    pml_pointers(std::string filename, bool rle = false) : ri::r_index<sparse_bv_type, rle_string_t>() {
-        verbose("Building the r-index from BWT");
-        std::chrono::high_resolution_clock::time_point t_insert_start = std::chrono::high_resolution_clock::now();
-        
+    pml_pointers(std::string filename, bool rle = false) : ri::r_index<sparse_bv_type, rle_string_t>() {    
         std::string bwt_fname = filename + ".bwt";
-        verbose("RLE encoding BWT and computing SA samples");
 
         if (rle) {
             std::string bwt_heads_fname = bwt_fname + ".heads";
@@ -56,8 +53,7 @@ public:
             ifs_heads.seekg(0);
             ifs_len.seekg(0);
             this->build_F_(ifs_heads, ifs_len);
-        }
-        else {
+        } else {
             std::ifstream ifs(bwt_fname);
             this->bwt = rle_string_t(ifs);
 
@@ -66,27 +62,18 @@ public:
         }
 
         this->r = this->bwt.number_of_runs();
+        this->num_runs = this->bwt.number_of_runs();
         ri::ulint n = this->bwt.size();
         int log_r = bitsize(uint64_t(this->r));
         int log_n = bitsize(uint64_t(this->bwt.size()));
 
-        verbose("Text length: n = ", n);
-        verbose("Number of BWT equal-letter runs: r = ", this->r);
-        verbose("Rate n/r = ", double(this->bwt.size()) / this->r);
-        verbose("log2(r) = ", log2(double(this->r)));
-        verbose("log2(n/r) = ", log2(double(this->bwt.size()) / this->r));
+        SPUMONI_LOG("Text length: n = %d", n);
+        SPUMONI_LOG("Number of BWT equal-letter runs: r = %d", this->r);
+        SPUMONI_LOG("Rate n/r = %.4f", double(this->bwt.size()) / this->r);
+        SPUMONI_LOG("log2(r) = %.4f", log2(double(this->r)));
+        SPUMONI_LOG("log2(n/r) = %.4f", log2(double(this->bwt.size()) / this->r));
 
-        std::chrono::high_resolution_clock::time_point t_insert_end = std::chrono::high_resolution_clock::now();
-
-        verbose("RL-BWT construction complete");
-        verbose("Elapsed time (s): ", std::chrono::duration<double, std::ratio<1>>(t_insert_end - t_insert_start).count());
-        verbose("Reading thresholds from file");
-
-        t_insert_start = std::chrono::high_resolution_clock::now();
         thresholds = thresholds_t(filename,&this->bwt);
-        t_insert_end = std::chrono::high_resolution_clock::now();
-
-        verbose("Elapsed time (s): ", std::chrono::duration<double, std::ratio<1>>(t_insert_end - t_insert_start).count());
     }
 
     void read_samples(std::string filename, ulint r, ulint n, int_vector<> &samples) {
@@ -177,7 +164,7 @@ public:
     }
 
     std::pair<ulint, ulint> get_bwt_stats() {
-        return std::make_pair(this->bwt_size() , this->bwt.number_of_runs());
+        return std::make_pair(this->bwt_size(), this->bwt.number_of_runs());
     }
 
     /*
@@ -296,7 +283,7 @@ protected:
         auto pos = this->bwt_size() - 1;
         auto length = 0;
         size_t curr_doc_id = doc_arr.end_runs_doc[this->bwt.number_of_runs()-1];
-        
+
         for (size_t i = 0; i < m; ++i) {
             auto c = pattern[m - i - 1];
 
@@ -350,30 +337,25 @@ public:
     thresholds_t thresholds;
     int_vector<> samples_start;
     typedef size_t size_type;
+    size_t num_runs;
 
     ms_pointers() {}
 
     ms_pointers(std::string filename, bool rle = false) : ri::r_index<sparse_bv_type, rle_string_t>() {
-        verbose("Building the r-index from BWT");
-        std::chrono::high_resolution_clock::time_point t_insert_start = std::chrono::high_resolution_clock::now();
-
         std::string bwt_fname = filename + ".bwt";
-        verbose("RLE encoding BWT and computing SA samples");
 
-        if (rle)
-        {
+        if (rle){
             std::string bwt_heads_fname = bwt_fname + ".heads";
             std::ifstream ifs_heads(bwt_heads_fname);
             std::string bwt_len_fname = bwt_fname + ".len";
             std::ifstream ifs_len(bwt_len_fname);
+
             this->bwt = rle_string_t(ifs_heads, ifs_len);
 
             ifs_heads.seekg(0);
             ifs_len.seekg(0);
             this->build_F_(ifs_heads, ifs_len);
-        }
-        else
-        {
+        } else {
             std::ifstream ifs(bwt_fname);
             this->bwt = rle_string_t(ifs);
 
@@ -382,15 +364,15 @@ public:
         }
 
         this->r = this->bwt.number_of_runs();
+        this->num_runs = this->bwt.number_of_runs();
         ri::ulint n = this->bwt.size();
-
         int log_r = bitsize(uint64_t(this->r));
         int log_n = bitsize(uint64_t(this->bwt.size()));
 
-        verbose("Number of BWT equal-letter runs: r = ", this->r);
-        verbose("Rate n/r = ", double(this->bwt.size()) / this->r);
-        verbose("log2(r) = ", log2(double(this->r)));
-        verbose("log2(n/r) = ", log2(double(this->bwt.size()) / this->r));
+        SPUMONI_LOG("Number of BWT equal-letter runs: r = %d", this->r);
+        SPUMONI_LOG("Rate n/r = %.4f", double(this->bwt.size()) / this->r);
+        SPUMONI_LOG("log2(r) = %.4f", log2(double(this->r)));
+        SPUMONI_LOG("log2(n/r) = %.4f", log2(double(this->bwt.size()) / this->r));
 
         // this->build_F(istring);
         // istring.clear();
@@ -399,19 +381,8 @@ public:
         read_samples(filename + ".ssa", this->r, n, samples_start);
         read_samples(filename + ".esa", this->r, n, this->samples_last);
 
-        std::chrono::high_resolution_clock::time_point t_insert_end = std::chrono::high_resolution_clock::now();
-
-        verbose("R-index construction complete");
-        //verbose("Memory peak: ", malloc_count_peak());
-        verbose("Elapsed time (s): ", std::chrono::duration<double, std::ratio<1>>(t_insert_end - t_insert_start).count());
-
-        verbose("Reading thresholds from file");
-
-        t_insert_start = std::chrono::high_resolution_clock::now();
+        // Reading in the thresholds
         thresholds = thresholds_t(filename,&this->bwt);
-        t_insert_end = std::chrono::high_resolution_clock::now();
-
-        verbose("Elapsed time (s): ", std::chrono::duration<double, std::ratio<1>>(t_insert_end - t_insert_start).count());
     }
 
     void read_samples(std::string filename, ulint r, ulint n, int_vector<> &samples) {
@@ -714,6 +685,7 @@ public:
 
         auto end_time = std::chrono::system_clock::now();
         TIME_LOG((end_time - start_time));
+
         if (use_doc) {
             SPUMONI_LOG("Loading the Document Array");
             start_time = std::chrono::system_clock::now();
@@ -1399,22 +1371,32 @@ int run_spumoni_ms_main(SpumoniRunOptions* run_opts) {
     return 0;
 }
 
-void build_spumoni_ms_main(std::string ref_file) {
+size_t build_spumoni_ms_main(std::string ref_file) {
     // Builds the ms_pointers objects and stores it
+    size_t length = 0, num_runs = 0;
     ms_pointers<> ms(ref_file, true);
-    
+    num_runs = ms.num_runs;
+
     std::string outfile = ref_file + ms.get_file_extension();
     std::ofstream out(outfile);
     ms.serialize(out);
+    out.close();
+
+    return num_runs;
 }
 
-void build_spumoni_main(std::string ref_file) {
+size_t build_spumoni_main(std::string ref_file) {
     // Builds the pml_pointers objects and stores it
+    size_t length = 0, num_runs = 0;
     pml_pointers<> pml(ref_file, true);
-    
+    num_runs = pml.num_runs;
+
     std::string outfile = ref_file + pml.get_file_extension();
     std::ofstream out(outfile);
     pml.serialize(out);
+    out.close();
+
+    return num_runs;
 }
 
 std::pair<ulint, ulint> get_bwt_stats(std::string ref_file, size_t type) {
