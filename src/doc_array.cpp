@@ -12,6 +12,7 @@
 #include <iostream>
 #include <algorithm>
 #include <fstream>
+#include <math.h> 
 #include <sdsl/vectors.hpp>
 
 DocumentArray::DocumentArray(std::string ref_path, size_t num_runs): ref_file(ref_path) {
@@ -68,7 +69,7 @@ DocumentArray::DocumentArray(std::string ref_path, size_t num_runs): ref_file(re
                    end_genome_ids.begin(), [&](size_t pos) {return binary_search_for_pos(end_pos, pos);});             
 
     // Write the document array to int vectors
-    uint32_t max_width = std::log2(this->seq_lengths.size());
+    uint32_t max_width = std::ceil(std::log2((this->seq_lengths.size() + 0.0)));
 
     this->start_runs_doc = sdsl::int_vector<> (num_runs, 0, max_width);
     this->end_runs_doc = sdsl::int_vector<> (num_runs, 0, max_width);
