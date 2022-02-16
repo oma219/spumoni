@@ -1,17 +1,3 @@
-/* 
- *  Copyright (C) 2020 Omar Ahmed
- *  This program is free software: you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation, either version 3 of the License, or
- *  (at your option) any later version.
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *  You should have received a copy of the GNU General Public License
- *  along with this program.  If not, see http://www.gnu.org/licenses/ .
- */
-
  /*
   * File: spumoni.cpp 
   * Description: Header file for main execution file for SPUMONI.
@@ -32,7 +18,8 @@
 #define NOT_IMPL(x) do { std::fprintf(stderr, "%s is not implemented: %s\n", __func__, x); std::exit(1);} while (0)
 #define FATAL_WARNING(x) do {std::fprintf(stderr, "Warning: %s\n", x); std::exit(1);} while (0)
 #define THROW_EXCEPTION(x) do { throw x;} while (0)
-#define FATAL_ERROR(x) do {std::fprintf(stderr, "Error: %s\n", x); std::exit(1);} while(0)
+#define FATAL_ERROR(...) do {std::fprintf(stderr, "Error: "); std::fprintf(stderr, __VA_ARGS__);\
+                              std::fprintf(stderr, "\n"); std::exit(1);} while(0)
 #define SPUMONI_LOG(...) do{std::fprintf(stderr, "[spumoni] "); std::fprintf(stderr, __VA_ARGS__);\
                             std::fprintf(stderr, "\n");} while(0)
 #define ASSERT(condition, msg) do {if (!condition){std::fprintf(stderr, "Assertion Failed: %s\n", msg); \
@@ -47,7 +34,7 @@
 /* DEBUG macros */
 #define DEBUG 1
 #define DBG_ONLY(...)  do { if (DEBUG) {std::fprintf(stderr, "[DEBUG] "); \
-                            std::fprintf(stderr, __VA_ARGS__);}} while (0)
+                            std::fprintf(stderr, __VA_ARGS__); std::fprintf(stderr, "\n");}} while (0)
 
 /* Type Definitions */
 typedef uint64_t ulint;
@@ -63,6 +50,7 @@ int run_main(int argc, char** argv);
 int spumoni_usage ();
 int is_file(std::string path);
 int is_dir(std::string path);
+bool is_integer(const std::string& str);
 std::vector<std::string> split(std::string input, char delim);
 std::string execute_cmd(const char* cmd);
 size_t get_avail_phy_mem();
@@ -113,6 +101,8 @@ public:
 
 struct SpumoniBuildOptions {
   std::string ref_file = "";
+  std::string input_list = "";
+  std::string output_dir = "";
   size_t wind = 10; // sliding window size
   size_t hash_mod = 100; // hash modulus
   size_t threads = 0; // number of helper threads
@@ -126,18 +116,25 @@ struct SpumoniBuildOptions {
 
 public:
   void validate() const {
-        /* Checks if the parse arguments are valid for continuing the execution */
-        if (!ms_index && !pml_index) {
-            FATAL_WARNING("Need to specify what type of quantities you would like to compute with -M, -P or both.");
-        }
-        if (ref_file.find(".fq") != std::string::npos || ref_file.find(".fastq") != std::string::npos || ref_file.find(".fnq") != std::string::npos) {
-            FATAL_WARNING("Reference file cannot be in FASTQ format.\n");
-        }
-        if (!is_file(ref_file)) {
-          FATAL_ERROR("The following path is not valid: " + ref_file);}
-        if (build_doc && !is_file(ref_file + ".fai")){
-          FATAL_ERROR("The FASTA index (*.fai) is not found, please create it.");}
-    }
+      /* Checks if the parse arguments are valid for continuing the execution */
+      if (!ms_index && !pml_index) {
+          FATAL_WARNING("Need to specify what type of quantities you would like to compute with -M, -P or both.");}
+      if (ref_file.find(".fq") != std::string::npos || ref_file.find(".fastq") != std::string::npos || ref_file.find(".fnq") != std::string::npos) {
+          FATAL_WARNING("Reference file cannot be in FASTQ format.\n");}
+      if (ref_file.length() && input_list.length()) {
+          FATAL_WARNING("Reference file and input list cannot be specified at same time.");}
+      if (ref_file.length()){
+          if (!is_file(ref_file)) {FATAL_ERROR("%s %s", "The following path is not valid: ", ref_file.data());}  
+          if (output_dir.length()){FATAL_ERROR("The -b option should not be set when using a single file.");}  
+      } else {
+          if (!is_file(input_list)) {FATAL_ERROR("%s %s", "The following path is not valid: ", input_list.data());} 
+          if (!output_dir.length()) {FATAL_ERROR("You must specify an output directory with -b option when using filelist.");}
+          if (!is_dir(output_dir)){FATAL_ERROR("The output directory for the index is not valid.");}
+      }
+      if (build_doc && ref_file.length()) {
+        FATAL_ERROR("Cannot build a document array if you are indexing a single file.");}
+
+  }
 };
 
 enum output_type {MS, PML, NOT_CHOSEN};

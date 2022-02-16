@@ -1,9 +1,9 @@
-
+#-------------------------------------------------------------------
 # Builds the executable for compressing the dictionary
 #-------------------------------------------------------------------
 add_executable(compress_dictionary compress_dictionary.cpp)
 target_link_libraries(compress_dictionary common_h sdsl malloc_count)
-target_include_directories(compress_dictionary  PUBLIC    "../include")
+target_include_directories(compress_dictionary PUBLIC  "../include")
 
 FetchContent_GetProperties(r-index)
 FetchContent_GetProperties(shaped_slp)
@@ -13,9 +13,9 @@ FetchContent_GetProperties(bigbwt)
 set(FOLCA_SOURCE_DIR ${shaped_slp_SOURCE_DIR}/folca)
 set(SUX_SOURCE_DIR ${shaped_slp_SOURCE_DIR}/external/sux/sux)
 
-
+#-------------------------------------------------------------------
 # Builds the two executables for index building
-#---------------------------------------------------------------------------------------
+#-------------------------------------------------------------------
 # Commented out construction of executables that build index
 #add_executable(rlebwt_ms_build rlebwt_ms_build.cpp)
 #target_link_libraries(rlebwt_ms_build common_h sdsl divsufsort divsufsort64 ri)
@@ -49,10 +49,12 @@ set(SUX_SOURCE_DIR ${shaped_slp_SOURCE_DIR}/external/sux/sux)
 #target_include_directories(run_spumoni PUBLIC    "../../include/ms" "../../include/common" "${bigbwt_SOURCE_DIR}" "${klib_SOURCE_DIR}")
 #target_compile_options(run_spumoni PUBLIC "-std=c++17")
 
+#-------------------------------------------------------------------
 # Builds the final executable 
-#--------------------------------------------------------------------------------------
-add_executable(spumoni spumoni.cpp ${bigbwt_SOURCE_DIR}/xerrors.c compute_ms_pml.cpp doc_array.cpp)
-target_link_libraries(spumoni sdsl common_h divsufsort divsufsort64 ri pthread )
+#-------------------------------------------------------------------
+add_executable(spumoni spumoni.cpp ${bigbwt_SOURCE_DIR}/xerrors.c 
+                      compute_ms_pml.cpp doc_array.cpp refbuilder.cpp)
+target_link_libraries(spumoni sdsl common_h divsufsort divsufsort64 ri pthread klib zlib)
 target_include_directories(spumoni PUBLIC "../include"  "${bigbwt_SOURCE_DIR}"
                             "${shaped_slp_SOURCE_DIR}" "${FOLCA_SOURCE_DIR}" "${SUX_SOURCE_DIR}/function" 
                             "${SUX_SOURCE_DIR}/support" "${bigbwt_SOURCE_DIR}")

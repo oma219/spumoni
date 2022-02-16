@@ -1,11 +1,10 @@
-
- /*
-  * File: doc_array.hpp
-  * Description: Header for document array ...
-  *
-  * Author: Omar Ahmed
-  * Start Date: January 14, 2021
-  */
+/*
+ * File: doc_array.hpp
+ * Description: Header for document array ...
+ *
+ * Author: Omar Ahmed
+ * Start Date: January 14, 2021
+ */
 
 #ifndef _DOCARRAY_H
 #define _DOCARRAY_H

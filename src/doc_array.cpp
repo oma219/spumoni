@@ -70,6 +70,7 @@ DocumentArray::DocumentArray(std::string ref_path, size_t num_runs): ref_file(re
 
     // Write the document array to int vectors
     uint32_t max_width = std::ceil(std::log2((this->seq_lengths.size() + 0.0)));
+    DBG_ONLY("%s %d", "Number of bits used per document entry:", max_width);
 
     this->start_runs_doc = sdsl::int_vector<> (num_runs, 0, max_width);
     this->end_runs_doc = sdsl::int_vector<> (num_runs, 0, max_width);
@@ -83,13 +84,11 @@ DocumentArray::DocumentArray(std::string ref_path, size_t num_runs): ref_file(re
 
 void DocumentArray::load_seq_boundaries() {
     /* 
-     *  Takes in a FASTA index from samtools, and stores the length of each
+     *  Takes in a FASTA document index from RefBuilder Class, and stores the length of each
      *  sequence in order to build an interval tree.
-     *
-     *  TODO: Implement a scanner ourselves to avoid depending on samtools faidx
      */
 
-    std::ifstream index_file (ref_file + ".fai", std::ifstream::in);
+    std::ifstream index_file (ref_file + ".fdi", std::ifstream::in);
     std::string line;
 
     while(std::getline(index_file, line)) {
