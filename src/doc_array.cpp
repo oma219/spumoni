@@ -39,7 +39,7 @@ DocumentArray::DocumentArray(std::string ref_path, size_t num_runs): ref_file(re
                   [&](size_t size) {if (i == 0){sum = seq_lengths[0]; i++; return sum;} 
                                     else {sum += seq_lengths[i];
                                           i++; return sum;}});
-
+    
     size_t last_pos = end_pos.back();
     end_pos.back() = last_pos + 1; // add 1 for dollar sign
 
@@ -97,7 +97,7 @@ void DocumentArray::load_seq_boundaries() {
 
         bool is_num = std::all_of(seq_length.begin(), seq_length.end(), [](char c){return std::isdigit(c);});
         ASSERT(is_num, "Issue with FASTA index, sequence length is not a number.");
-        this->seq_lengths.push_back(std::atoi(seq_length.data()));
+        this->seq_lengths.push_back(std::atol(seq_length.data()));
     }
 }
 
