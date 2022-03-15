@@ -1,6 +1,8 @@
 include(FetchContent)
 
-## Add malloc_count
+#----------------------------------------
+# Add malloc_count
+#----------------------------------------
 FetchContent_Declare(
   malloc_count
   GIT_REPOSITORY https://github.com/bingmann/malloc_count
@@ -18,7 +20,9 @@ if(NOT malloc_count_POPULATED)
   target_include_directories(memprofile PUBLIC "${malloc_count_SOURCE_DIR}")
 endif()
 
-  ## Add klib
+#----------------------------------------
+# Add klib
+#----------------------------------------
 FetchContent_Declare(
   klib
   GIT_REPOSITORY https://github.com/attractivechaos/klib
@@ -34,7 +38,24 @@ if(NOT klib_POPULATED)
   target_include_directories(klib INTERFACE ${klib_SOURCE_DIR})
 endif()
 
-## Add Big-BWT
+#----------------------------------------
+# Add zlib
+#----------------------------------------
+FetchContent_Declare(
+  zlib
+  GIT_REPOSITORY https://github.com/madler/zlib.git
+)
+
+FetchContent_GetProperties(zlib)
+if(NOT zlib_POPULATED)
+  FetchContent_Populate(zlib)
+  add_library(zlib INTERFACE)
+  #target_include_directories(zlib INTERFACE ${zlib_SOURCE_DIR})
+endif()
+
+#----------------------------------------
+# Add Big-BWT
+#----------------------------------------
 FetchContent_Declare(
   bigbwt
   GIT_REPOSITORY https://github.com/alshai/Big-BWT.git
@@ -54,9 +75,9 @@ if(NOT bigbwt_POPULATED)
   
   endif()
 
-
-  
-## Add gsacak
+#----------------------------------------
+# Add gsacak
+#----------------------------------------
 FetchContent_Declare(
   gsacak
   GIT_REPOSITORY https://github.com/felipelouza/gsa-is.git
@@ -74,23 +95,9 @@ if(NOT gsacak_POPULATED)
   # add_subdirectory(${gsacak_SOURCE_DIR} ${gsacak_BINARY_DIR} EXCLUDE_FROM_ALL)
 endif()
 
-
-# ## Google benchmark
-# FetchContent_Declare(
-#   benchmark
-#   GIT_REPOSITORY https://github.com/google/benchmark.git
-#   GIT_TAG        master
-#   )
-  
-# FetchContent_GetProperties(benchmark)
-# if(NOT benchmark_POPULATED)
-#   FetchContent_Populate(benchmark)
-#   set(BENCHMARK_ENABLE_TESTING OFF CACHE BOOL "Enable testing of the benchmark library." FORCE)
-#   add_subdirectory(${benchmark_SOURCE_DIR} ${benchmark_BINARY_DIR} EXCLUDE_FROM_ALL)
-# endif()
-
-
-## Add sdsl
+#----------------------------------------
+# Add sdsl
+#----------------------------------------
 FetchContent_Declare(
   sdsl
   # GIT_REPOSITORY https://github.com/elarielcl/sdsl-lite.git
@@ -106,7 +113,9 @@ if(NOT sdsl_POPULATED)
   add_subdirectory(${sdsl_SOURCE_DIR} ${sdsl_BINARY_DIR} EXCLUDE_FROM_ALL)
 endif()
 
-## Add divsuffsort
+#----------------------------------------
+# Add divsuffsort
+#----------------------------------------
 FetchContent_Declare(
   divsufsort
   GIT_REPOSITORY https://github.com/simongog/libdivsufsort.git
@@ -125,6 +134,79 @@ if(NOT divsufsort_POPULATED)
 
   target_include_directories(divsufsort PUBLIC "${divsufsort_BINARY_DIR}/include")
   target_include_directories(divsufsort64 PUBLIC "${divsufsort_BINARY_DIR}/include")
+endif()
+
+#----------------------------------------
+# Add r-index
+#----------------------------------------
+FetchContent_Declare(
+  r-index
+  GIT_REPOSITORY https://github.com/maxrossi91/r-index.git
+)
+
+FetchContent_GetProperties(r-index)
+if(NOT r-index_POPULATED)
+  FetchContent_Populate(r-index)
+
+  add_subdirectory(${r-index_SOURCE_DIR} ${r-index_BINARY_DIR} )#EXCLUDE_FROM_ALL)
+  add_library(ri INTERFACE)
+  target_link_libraries(ri INTERFACE klib z)
+  target_include_directories(ri INTERFACE ${r-index_SOURCE_DIR}/internal)
+endif()
+
+#----------------------------------------
+# Add pfp-thresholds
+#----------------------------------------
+FetchContent_Declare(
+  pfp_thresholds
+  GIT_REPOSITORY https://github.com/maxrossi91/pfp-thresholds.git
+  GIT_TAG develop
+  )
+  
+FetchContent_GetProperties(pfp_thresholds)
+if(NOT pfp_thresholds_POPULATED)
+  FetchContent_Populate(pfp_thresholds)
+  add_subdirectory(${pfp_thresholds_SOURCE_DIR} ${pfp_thresholds_BINARY_DIR})
+  
+endif()
+
+#----------------------------------------
+# Add bigrepair
+#----------------------------------------
+FetchContent_Declare(
+  bigrepair
+  GIT_REPOSITORY https://gitlab.com/manzai/bigrepair.git
+  )
+  
+FetchContent_GetProperties(bigrepair)
+if(NOT bigrepair_POPULATED)
+  FetchContent_Populate(bigrepair)
+  # add_subdirectory(${bigrepair_SOURCE_DIR} ${bigrepair_BINARY_DIR})
+
+  execute_process(COMMAND make
+        RESULT_VARIABLE result
+        WORKING_DIRECTORY ${bigrepair_SOURCE_DIR} )
+  if(result)
+      message(FATAL_ERROR "CMake step for bigrepair failed: ${result}")
+  endif()
+  
+endif()
+
+#----------------------------------------
+# Add ShapedSlp
+#----------------------------------------
+FetchContent_Declare(
+  shaped_slp
+  GIT_REPOSITORY https://github.com/koeppl/ShapedSlp.git
+  GIT_TAG master
+  )
+  
+FetchContent_GetProperties(shaped_slp)
+if(NOT shaped_slp_POPULATED)
+  FetchContent_Populate(shaped_slp)
+  add_subdirectory(${shaped_slp_SOURCE_DIR} ${shaped_slp_BINARY_DIR})
+  set(FOLCA_SOURCE_DIR ${shaped_slp_SOURCE_DIR}/folca)
+  set(SUX_SOURCE_DIR ${shaped_slp_SOURCE_DIR}/external/sux/sux)
 endif()
 
 
@@ -184,70 +266,19 @@ endif()
 #   # target_include_directories(rlbwt2lcp PUBLIC "${rlbwt2lcp_BINARY_DIR}/internal")
 # endif()
 
-## Add r-index
-FetchContent_Declare(
-  r-index
-  GIT_REPOSITORY https://github.com/maxrossi91/r-index.git
-)
-
-FetchContent_GetProperties(r-index)
-if(NOT r-index_POPULATED)
-  FetchContent_Populate(r-index)
-
-  add_subdirectory(${r-index_SOURCE_DIR} ${r-index_BINARY_DIR} )#EXCLUDE_FROM_ALL)
-  add_library(ri INTERFACE)
-  target_link_libraries(ri INTERFACE klib z)
-  target_include_directories(ri INTERFACE ${r-index_SOURCE_DIR}/internal)
-endif()
-
-## Add pfp-thresholds
-FetchContent_Declare(
-  pfp_thresholds
-  GIT_REPOSITORY https://github.com/maxrossi91/pfp-thresholds.git
-  GIT_TAG develop
-  )
+# ## Google benchmark
+# FetchContent_Declare(
+#   benchmark
+#   GIT_REPOSITORY https://github.com/google/benchmark.git
+#   GIT_TAG        master
+#   )
   
-FetchContent_GetProperties(pfp_thresholds)
-if(NOT pfp_thresholds_POPULATED)
-  FetchContent_Populate(pfp_thresholds)
-  add_subdirectory(${pfp_thresholds_SOURCE_DIR} ${pfp_thresholds_BINARY_DIR})
-  
-endif()
-
-## Add bigrepair
-FetchContent_Declare(
-  bigrepair
-  GIT_REPOSITORY https://gitlab.com/manzai/bigrepair.git
-  )
-  
-FetchContent_GetProperties(bigrepair)
-if(NOT bigrepair_POPULATED)
-  FetchContent_Populate(bigrepair)
-  # add_subdirectory(${bigrepair_SOURCE_DIR} ${bigrepair_BINARY_DIR})
-
-  execute_process(COMMAND make
-        RESULT_VARIABLE result
-        WORKING_DIRECTORY ${bigrepair_SOURCE_DIR} )
-  if(result)
-      message(FATAL_ERROR "CMake step for bigrepair failed: ${result}")
-  endif()
-  
-endif()
-
-## Add ShapedSlp
-FetchContent_Declare(
-  shaped_slp
-  GIT_REPOSITORY https://github.com/koeppl/ShapedSlp.git
-  GIT_TAG master
-  )
-  
-FetchContent_GetProperties(shaped_slp)
-if(NOT shaped_slp_POPULATED)
-  FetchContent_Populate(shaped_slp)
-  add_subdirectory(${shaped_slp_SOURCE_DIR} ${shaped_slp_BINARY_DIR})
-  set(FOLCA_SOURCE_DIR ${shaped_slp_SOURCE_DIR}/folca)
-  set(SUX_SOURCE_DIR ${shaped_slp_SOURCE_DIR}/external/sux/sux)
-endif()
+# FetchContent_GetProperties(benchmark)
+# if(NOT benchmark_POPULATED)
+#   FetchContent_Populate(benchmark)
+#   set(BENCHMARK_ENABLE_TESTING OFF CACHE BOOL "Enable testing of the benchmark library." FORCE)
+#   add_subdirectory(${benchmark_SOURCE_DIR} ${benchmark_BINARY_DIR} EXCLUDE_FROM_ALL)
+# endif()
 
 
   # ## Add tlx

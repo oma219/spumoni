@@ -48,7 +48,7 @@ endif()
 #-------------------------------------------------------------------------------
 add_subdirectory(include)
 add_subdirectory(src)
-add_subdirectory(utils)
+#add_subdirectory(utils)
 
 #configure_file(${PROJECT_SOURCE_DIR}/pipeline/moni ${PROJECT_BINARY_DIR}/moni)
 
@@ -60,5 +60,5 @@ configure_file(${PROJECT_BINARY_DIR}/_deps/bigrepair-src/largeb_repair/irepair $
 # Install pipeline executables
 install(TARGETS spumoni DESTINATION ${PROJECT_BINARY_DIR})
 install(TARGETS newscanNT.x pscan.x newscan.x pfp_thresholds64 pfp_thresholds 
-                compress_dictionary SlpEncBuild rlebwt_ms_build build_spumoni 
+                compress_dictionary SlpEncBuild
         DESTINATION ${PROJECT_BINARY_DIR}/bin)
