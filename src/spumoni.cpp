@@ -396,7 +396,7 @@ int build_main(int argc, char** argv) {
         run_build_grammar_cmds(&build_opts, &helper_bins);
         run_build_slp_cmds(&build_opts, &helper_bins);
         num_runs = run_build_ms_cmd(&build_opts, &helper_bins);
-    }
+    } 
 
     // Build the PML index if asked for as well 
     if (build_opts.pml_index) {num_runs = run_build_pml_cmd(&build_opts, &helper_bins);}

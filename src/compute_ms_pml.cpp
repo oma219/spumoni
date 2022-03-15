@@ -1292,7 +1292,6 @@ size_t st_ms_general(ms_t *ms, std::string pattern_filename, std::string out_fil
 
 typedef std::pair<std::string, std::vector<uint8_t>> pattern_t;
 
-
 /*
  * This section contains the "main" methods for the running process where
  * the first method computes the PMLs, and the second one computes the MSs
