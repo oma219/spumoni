@@ -53,15 +53,16 @@ RefBuilder::RefBuilder(const char* ref_file, const char* list_file, const char* 
         // Makes sure the files are valid, and there is data to begin with.
         ASSERT((word_list.size() >= 1), "Input file-list does not have expected structure.");
         if (!is_file(word_list[0])) {
-            FATAL_ERROR("%s %s", "The following path in the input list is not valid: ", word_list[0].data());
-        }
+            FATAL_ERROR("The following path in the input list is not valid: %s", word_list[0].data());}
+        if (!endsWith(word_list[0], ".fa") && !endsWith(word_list[0], ".fasta") && !endsWith(word_list[0], ".fna")) {
+            FATAL_ERROR("The following input-file is not a FASTA file: %s", word_list[0].data());}
         input_files.push_back(word_list[0]);
 
         // If the user wants a document array, there needs to be a ID in second column
         if (using_doc){
             ASSERT((word_list.size() >= 2), "If you want to build a document array, you need a second column with IDs.");
 
-            if (!is_integer(word_list[1])) FATAL_ERROR("%s %s", "A document ID in the file_list is not an integer:", word_list[1].data());  
+            if (!is_integer(word_list[1])) FATAL_ERROR("A document ID in the file_list is not an integer: %s", word_list[1].data());  
             if (member_num == 0 && std::stoi(word_list[1]) != 1) FATAL_ERROR("The first ID in file_list must be 1");
             
             if (std::stoi(word_list[1]) ==  curr_id || std::stoi(word_list[1]) == (curr_id+1)) {

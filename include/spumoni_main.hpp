@@ -52,6 +52,7 @@ int is_file(std::string path);
 int is_dir(std::string path);
 bool is_integer(const std::string& str);
 std::vector<std::string> split(std::string input, char delim);
+bool endsWith(const std::string& str, const std::string& suffix);
 std::string execute_cmd(const char* cmd);
 size_t get_avail_phy_mem();
 int spumoni_run_usage ();
@@ -111,7 +112,7 @@ struct SpumoniBuildOptions {
   bool pml_index = false; // want pml index
   bool stop_after_parse = false; // stop build after build parse
   bool compress_parse = false; // compress parse
-  bool is_fasta = false; // reference is fasta
+  bool is_fasta = true; // reference is fasta (default: true)
   bool build_doc = false; // build the document array
 
 public:
@@ -119,15 +120,18 @@ public:
       /* Checks if the parse arguments are valid for continuing the execution */
       if (!ms_index && !pml_index) {
           FATAL_WARNING("Need to specify what type of quantities you would like to compute with -M, -P or both.");}
-      if (ref_file.find(".fq") != std::string::npos || ref_file.find(".fastq") != std::string::npos || ref_file.find(".fnq") != std::string::npos) {
-          FATAL_WARNING("Reference file cannot be in FASTQ format.\n");}
       if (ref_file.length() && input_list.length()) {
           FATAL_WARNING("Reference file and input list cannot be specified at same time.");}
+      
+      // Check based on approach used: file-list or single reference file
       if (ref_file.length()){
-          if (!is_file(ref_file)) {FATAL_ERROR("%s %s", "The following path is not valid: ", ref_file.data());}  
-          if (output_dir.length()){FATAL_ERROR("The -b option should not be set when using a single file.");}  
+          if (!is_file(ref_file)) {FATAL_ERROR("The following path is not valid: %s", ref_file.data());}  
+          if (output_dir.length()){FATAL_ERROR("The -b option should not be set when using a single file.");}
+          if (!endsWith(ref_file, ".fa") && !endsWith(ref_file, ".fasta") && !endsWith(ref_file, ".fna")){
+                 FATAL_ERROR("The reference file provided does not appear to be a FASTA\n" 
+                             "       file, please convert to FASTA and re-run.");}  
       } else {
-          if (!is_file(input_list)) {FATAL_ERROR("%s %s", "The following path is not valid: ", input_list.data());} 
+          if (!is_file(input_list)) {FATAL_ERROR("The following path is not valid: %s", input_list.data());} 
           if (!output_dir.length()) {FATAL_ERROR("You must specify an output directory with -b option when using filelist.");}
           if (!is_dir(output_dir)){FATAL_ERROR("The output directory for the index is not valid.");}
       }
@@ -144,7 +148,7 @@ struct SpumoniRunOptions {
   std::string pattern_file = ""; // pattern file
   bool ms_requested = false; // user wants to compute MS
   bool pml_requested = false; // user wants to compute PML
-  bool query_fasta = false; // query file is a fasta
+  bool query_fasta = true; // query file is a fasta (default)
   output_type result_type = NOT_CHOSEN; // output type requested by user
   size_t threads = 1; // number of TOTAL threads
   bool use_doc = false; // build the document array
@@ -160,12 +164,20 @@ public:
       /* Checks the options for the run command, and makes sure it has everything it needs */
       if (ref_file == "" || pattern_file == ""){FATAL_WARNING("Both a reference file (-r) and pattern file (-f) must be provided.");}
       if (result_type == NOT_CHOSEN) {FATAL_WARNING("An output type with -M or -P must be specified, only one can be used at a time.");}
+      
+      // Make sure provided files are valid
+      if (!is_file(ref_file)) {FATAL_ERROR("The following path is not valid: %s", ref_file.data());}
+      if (!is_file(pattern_file)) {FATAL_ERROR("The following path is not valid: %s", pattern_file.data());}
 
-      if (!is_file(ref_file)) {THROW_EXCEPTION(std::runtime_error("The following path is not valid: " + ref_file));}
-      if (!is_file(pattern_file)) {THROW_EXCEPTION(std::runtime_error("The following path is not valid: " + pattern_file));}
-      if (ms_requested && pml_requested) {FATAL_WARNING("Only MS or PMLs can be computed at one time, please re-run with only -M or -P");}
-      if (pattern_file.find(".fq") != std::string::npos || pattern_file.find(".fastq") != std::string::npos || pattern_file.find(".fnq") != std::string::npos) {
-            FATAL_WARNING("Patterns file cannot be in FASTQ format.\n");}
+      // Make sure input files are FASTA files
+      if (!endsWith(ref_file, ".fa") && !endsWith(ref_file, ".fasta") && !endsWith(ref_file, ".fna")){
+          FATAL_ERROR("The reference file provided does not appear to be a FASTA\n" 
+                      "       file, please convert to FASTA and re-run.");}
+      if (!endsWith(pattern_file, ".fa") && !endsWith(pattern_file, ".fasta") && !endsWith(pattern_file, ".fna")){
+          FATAL_ERROR("The pattern file provided does not appear to be a FASTA\n" 
+                      "       file, please convert to FASTA and re-run.");}
+
+      // Verify doc array is available, if needed
       if (use_doc && !is_file(ref_file + ".doc")) {FATAL_WARNING("*.doc file is not present, so it cannot be used");}
       
       switch (result_type) {
@@ -184,7 +196,5 @@ public:
 /* Additional Function Declarations */
 void parse_build_options(int argc, char** argv, SpumoniBuildOptions* opts);
 void parse_run_options(int argc, char** argv, SpumoniRunOptions* opts);
-
-
 
 #endif /* End of SPUMONI_MAIN_H */

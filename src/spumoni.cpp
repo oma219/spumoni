@@ -29,9 +29,9 @@ int spumoni_run_usage () {
     std::fprintf(stderr, "\t%-10sprints this usage message\n", "-h");
     std::fprintf(stderr, "\t%-10spath to reference file that has index built for it\n", "-r [FILE]");
     std::fprintf(stderr, "\t%-10spath to patterns file that will be used.\n", "-p [FILE]");
-    std::fprintf(stderr, "\t%-10sUse index to compute MSs\n", "-M");
-    std::fprintf(stderr, "\t%-10sUse index to compute PMLs\n", "-P");
-    std::fprintf(stderr, "\t%-10spattern file is in fasta format (default: general text)\n", "-f");
+    std::fprintf(stderr, "\t%-10suse index to compute MSs\n", "-M");
+    std::fprintf(stderr, "\t%-10suse index to compute PMLs\n", "-P");
+    //std::fprintf(stderr, "\t%-10spattern file is in fasta format (default: general text)\n", "-f");
     std::fprintf(stderr, "\t%-10suse document array to get assignments\n", "-d");
     std::fprintf(stderr, "\t%-10snumber of helper threads (default: 0)\n\n", "-t [arg]");
     return 0;
@@ -53,14 +53,14 @@ int spumoni_build_usage () {
     std::fprintf(stderr, "\t%-10shash modulus value (default: 100)\n", "-p [arg]");
     std::fprintf(stderr, "\t%-10snumber of helper threads (default: 0)\n", "-t [arg]");
     std::fprintf(stderr, "\t%-10skeep the temporary files (default: false)\n", "-k");
-    std::fprintf(stderr, "\t%-10suse when the reference file is a fasta file (default: false)\n", "-f");
+    //std::fprintf(stderr, "\t%-10suse when the reference file is a fasta file (default: true)\n", "-f");
     std::fprintf(stderr, "\t%-10sbuild the document array (default: false)\n\n", "-d");
     return 0;
 }
 
 void parse_build_options(int argc, char** argv, SpumoniBuildOptions* opts) {
     /* Parses the arguments for the build sub-command and returns a struct with arguments */
-    for(int c;(c = getopt(argc, argv, "hr:MPw:p:t:kfdi:b:")) >= 0;) { 
+    for(int c;(c = getopt(argc, argv, "hr:MPw:p:t:kdi:b:")) >= 0;) { 
         switch(c) {
                     case 'h': spumoni_build_usage(); std::exit(1);
                     case 'r': opts->ref_file.assign(optarg); break;
@@ -72,7 +72,7 @@ void parse_build_options(int argc, char** argv, SpumoniBuildOptions* opts) {
                     case 'p': opts->hash_mod = std::max(std::atoi(optarg), 1); break;
                     case 't': opts->threads = std::max(std::atoi(optarg), 0); break;
                     case 'k': opts->keep_files = true; break;
-                    case 'f': opts->is_fasta = true; break;
+                    //case 'f': opts->is_fasta = true; break;
                     case 'd': opts->build_doc = true; break;
                     default: spumoni_build_usage(); std::exit(1);
         }
@@ -81,14 +81,14 @@ void parse_build_options(int argc, char** argv, SpumoniBuildOptions* opts) {
 
 void parse_run_options(int argc, char** argv, SpumoniRunOptions* opts) {
     /* Parses the arguments for the build sub-command and returns a struct with arguments */
-    for(int c;(c = getopt(argc, argv, "hr:p:MPft:d")) >= 0;) { 
+    for(int c;(c = getopt(argc, argv, "hr:p:MPt:d")) >= 0;) { 
         switch(c) {
                     case 'h': spumoni_run_usage(); std::exit(1);
                     case 'r': opts->ref_file.assign(optarg); break;
                     case 'p': opts->pattern_file.assign(optarg); break;
                     case 'M': opts->ms_requested = true; break;
                     case 'P': opts->pml_requested = true; break;
-                    case 'f': opts->query_fasta = true; break;
+                    //case 'f': opts->query_fasta = true; break;
                     case 't': opts->threads = std::max(std::atoi(optarg), 1); break;
                     case 'd': opts->use_doc = true; break;
                     default: spumoni_run_usage(); std::exit(1);
@@ -129,6 +129,12 @@ std::vector<std::string> split(std::string input, char delim) {
     if (curr_word.length()) {word_list.push_back(curr_word);}
     return word_list;
 }
+
+bool endsWith(const std::string& str, const std::string& suffix) {
+    // Checks if the string ends the suffix
+    return str.size() >= suffix.size() && 0 == str.compare(str.size()-suffix.size(), suffix.size(), suffix);
+}
+
 
 size_t get_avail_phy_mem() {
     /* Computes the available memory on UNIX machines */
