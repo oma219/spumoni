@@ -14,9 +14,11 @@
 #include <vector>
 #include <iostream>
 #include <zlib.h>  
-#include <kseq.h>
+#include <encoder.h>
 
-KSEQ_INIT(gzFile, gzread)
+// Commented out for including encoder.h - Omar
+//#include <kseq.h>
+//KSEQ_INIT(gzFile, gzread)
 
 /* Complement Table from: https://github.com/lh3/seqtk/blob/master/seqtk.c */
 char comp_tab[] = {
@@ -31,22 +33,23 @@ char comp_tab[] = {
 };
 
 RefBuilder::RefBuilder(const char* ref_file, const char* list_file, const char* output_dir, 
-                       bool build_doc, bool file_list): using_doc(build_doc), using_list(file_list) {
+                       bool build_doc, bool file_list, bool use_minimizers): using_doc(build_doc), using_list(file_list) {
     /* Performs the needed operations to generate a single input file. */
     char ch;
     std::string output_path(output_dir);
-    
-    if ((ch = output_path.back()) != '/') {output_path += "/";}
-    output_path += "spumoni_full_ref.fa";
 
+    if ((ch = output_path.back()) != '/') {output_path += "/";}
+    if (use_minimizers) output_path += "spumoni_full_ref.bin";
+    else output_path += "spumoni_full_ref.fa";
+
+    // Verify every file in the list is valid 
     std::string line = "";
     size_t curr_id = 0, member_num = 0;
-    
+
     std::ifstream input_fd (list_file, std::ifstream::in);
     std::vector<std::string> input_files;
     std::vector<size_t> document_ids;
 
-    // Verify every file in the list is valid
     while (std::getline(input_fd, line)) {
         auto word_list = split(line, ' ');
 
@@ -78,12 +81,32 @@ RefBuilder::RefBuilder(const char* ref_file, const char* list_file, const char* 
             FATAL_WARNING("If you only have one class ID, you should not build a document array.");}
     }
 
-    gzFile fp;
-    kseq_t* seq;
+    // Define variables needed for minimizer digest
+    bns::RollingHasher<uint8_t> rh(4, false, bns::DNA, 12);
     std::ofstream output_fd (output_path, std::ofstream::out);
-    std::vector<size_t> seq_lengths;
+    bool hp_compress = true;
+
+    std::string mseq = "";
+    std::vector<uint8_t> mseq_vec;
+
+    // Define lambda function to take in a DNA sequence and return minimizer sequence
+    auto get_minimizer_seq = [&](std::string seq, size_t seq_length) {
+                mseq = ""; mseq_vec.clear();
+                rh.for_each_uncanon([&](auto x) { // Extracts all minimizers and stores in mseq
+                if(mseq_vec.empty() || !hp_compress || mseq_vec.back() != x) {
+                    x = (x > 2) ? x : (x + 3);
+                    mseq_vec.push_back(x);
+                    mseq += x;
+                }
+            }, seq.data(), seq_length);
+            return mseq;
+    };
 
     // Process each input file, and store it forward + reverse complement sequence
+    gzFile fp;
+    kseq_t* seq;
+    std::vector<size_t> seq_lengths;
+
     curr_id = 1;
     size_t curr_id_seq_length = 0;
     for (auto iter = input_files.begin(); iter != input_files.end(); ++iter) {
@@ -96,8 +119,16 @@ RefBuilder::RefBuilder(const char* ref_file, const char* list_file, const char* 
             // Get forward seq, and print it
 			for (size_t i = 0; i < seq->seq.l; ++i)
 				seq->seq.s[i] = std::toupper(seq->seq.s[i]);
-            output_fd << '>' << seq->name.s << '\n' << seq->seq.s << '\n';
-            curr_id_seq_length += seq->seq.l;
+            
+            // Convert forward_seq to minimizers by default, or save as DNA if asked
+            if (use_minimizers) {
+                mseq = get_minimizer_seq(seq->seq.s, seq->seq.l);
+                output_fd << mseq;
+                curr_id_seq_length += mseq.length();
+            } else {
+                output_fd << '>' << seq->name.s << '\n' << seq->seq.s << '\n';
+                curr_id_seq_length += seq->seq.l;
+            }
 
             // Get reverse complement, and print it
             // Based on seqtk reverse complement code, that does it 
@@ -112,8 +143,16 @@ RefBuilder::RefBuilder(const char* ref_file, const char* list_file, const char* 
 			if (seq->seq.l & 1) // complement the remaining base
 				seq->seq.s[seq->seq.l>>1] = comp_tab[(int)seq->seq.s[seq->seq.l>>1]];
 
-            output_fd << '>' << seq->name.s << "_rev_comp" << '\n' << seq->seq.s << '\n';
-            curr_id_seq_length += seq->seq.l;
+
+            // Convert rev_comp seq to minimizers by default, otherwise DNA
+            if (use_minimizers) {
+                mseq = get_minimizer_seq(seq->seq.s, seq->seq.l);
+                output_fd << mseq;
+                curr_id_seq_length += mseq.length();
+            } else {
+                output_fd << '>' << seq->name.s << "_rev_comp" << '\n' << seq->seq.s << '\n';
+                curr_id_seq_length += seq->seq.l;
+            }
         }
         kseq_destroy(seq);
         gzclose(fp);
@@ -123,6 +162,7 @@ RefBuilder::RefBuilder(const char* ref_file, const char* list_file, const char* 
             if (iter_index < document_ids.size()-1 && document_ids[iter_index] != document_ids[iter_index+1]){
                 seq_lengths.push_back(curr_id_seq_length);
                 curr_id += 1; curr_id_seq_length = 0;
+            // If last file, output current sequence length
             } else if (iter_index == document_ids.size()-1){
                 seq_lengths.push_back(curr_id_seq_length);
                 curr_id_seq_length = 0;}

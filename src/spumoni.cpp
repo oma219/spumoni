@@ -47,6 +47,7 @@ int spumoni_build_usage () {
     std::fprintf(stderr, "\t%-10spath to reference file to be indexed\n", "-r [FILE]");
     std::fprintf(stderr, "\t%-10sfile with a list of files to index\n", "-i [FILE]");
     std::fprintf(stderr, "\t%-10sbuild directory for index(es) (if using -i option)\n", "-b [DIR]");
+    std::fprintf(stderr, "\t%-10sturn off minimizer digestion of sequence (default: on)\n", "-n");
     std::fprintf(stderr, "\t%-10sbuild an index that can be used to compute MSs\n", "-M");
     std::fprintf(stderr, "\t%-10sbuild an index that can be used to compute PMLs\n", "-P");
     std::fprintf(stderr, "\t%-10ssliding window size (default: 10)\n", "-w [arg]");
@@ -60,7 +61,7 @@ int spumoni_build_usage () {
 
 void parse_build_options(int argc, char** argv, SpumoniBuildOptions* opts) {
     /* Parses the arguments for the build sub-command and returns a struct with arguments */
-    for(int c;(c = getopt(argc, argv, "hr:MPw:p:t:kdi:b:")) >= 0;) { 
+    for(int c;(c = getopt(argc, argv, "hr:MPw:p:t:kdi:b:n")) >= 0;) { 
         switch(c) {
                     case 'h': spumoni_build_usage(); std::exit(1);
                     case 'r': opts->ref_file.assign(optarg); break;
@@ -68,6 +69,7 @@ void parse_build_options(int argc, char** argv, SpumoniBuildOptions* opts) {
                     case 'b': opts->output_dir.assign(optarg); break;
                     case 'M': opts->ms_index = true; break;
                     case 'P': opts->pml_index = true; break;
+                    case 'n': opts->use_minimizers = false; opts->is_fasta = true; break;
                     case 'w': opts->wind = std::max(std::atoi(optarg), 10); break;
                     case 'p': opts->hash_mod = std::max(std::atoi(optarg), 1); break;
                     case 't': opts->threads = std::max(std::atoi(optarg), 0); break;
@@ -134,7 +136,6 @@ bool endsWith(const std::string& str, const std::string& suffix) {
     // Checks if the string ends the suffix
     return str.size() >= suffix.size() && 0 == str.compare(str.size()-suffix.size(), suffix.size(), suffix);
 }
-
 
 size_t get_avail_phy_mem() {
     /* Computes the available memory on UNIX machines */
@@ -387,7 +388,7 @@ int build_main(int argc, char** argv) {
     // Perform needed operations to input file(s) prior to building index
     if (build_opts.input_list.length()){ 
         RefBuilder refbuild (build_opts.ref_file.data(), build_opts.input_list.data(), build_opts.output_dir.data(),
-                             build_opts.build_doc, build_opts.input_list.length());
+                             build_opts.build_doc, build_opts.input_list.length(), build_opts.use_minimizers);
         build_opts.ref_file = refbuild.get_ref_path();
     }
 

@@ -9,9 +9,14 @@
  * Start Date: October 13, 2021
  */
 
-  extern "C" {
-#include <xerrors.h>
-}
+/*
+ * Commented out since it is needed for pthread calls
+ * which I hope to replace with OMP.
+ * extern "C" {
+ * #include <xerrors.h>
+ * }
+ */
+ 
 #include <spumoni_main.hpp>
 #include <r_index.hpp>
 #include <thresholds_ds.hpp>
@@ -995,6 +1000,7 @@ void *mt_pml_worker(void *param) {
     return NULL;
 }
 
+/*
 void mt_pml(pml_t *ms, std::string pattern_filename, std::string out_filename, size_t n_threads) {
     pthread_t t[n_threads] = {0};
     mt_pml_param params[n_threads];
@@ -1016,6 +1022,7 @@ void mt_pml(pml_t *ms, std::string pattern_filename, std::string out_filename, s
     }
     return;
 }
+*/
 
 void *mt_ms_worker(void *param) {
     mt_ms_param *p = (mt_ms_param*) param;
@@ -1054,6 +1061,7 @@ void *mt_ms_worker(void *param) {
     return NULL;
 }
 
+/*
 void mt_ms(ms_t *ms, std::string pattern_filename, std::string out_filename, size_t n_threads) {
     pthread_t t[n_threads] = {0};
     mt_ms_param params[n_threads];
@@ -1075,6 +1083,7 @@ void mt_ms(ms_t *ms, std::string pattern_filename, std::string out_filename, siz
     }
     return;
 }
+*/
 
 /*
  * This section of the code contains the single-threaded processing methods

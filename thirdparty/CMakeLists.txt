@@ -54,6 +54,21 @@ if(NOT zlib_POPULATED)
 endif()
 
 #----------------------------------------
+# Add bonsai
+#----------------------------------------
+FetchContent_Declare(
+  bonsai
+  GIT_REPOSITORY https://github.com/dnbaker/bonsai.git
+  GIT_TAG        5273b81a92
+)
+
+FetchContent_GetProperties(bonsai)
+if(NOT bonsai_POPULATED)
+  FetchContent_Populate(bonsai)  
+  add_library(bonsai INTERFACE)
+endif()
+
+#----------------------------------------
 # Add Big-BWT
 #----------------------------------------
 FetchContent_Declare(

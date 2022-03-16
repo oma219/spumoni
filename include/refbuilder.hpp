@@ -18,7 +18,8 @@ public:
     bool using_doc = false; // user intends to build a document array
     bool using_list = false; // user provided a filelist
 
-    RefBuilder(const char* ref_file, const char* list_file, const char* output_dir, bool build_doc, bool file_list);
+    RefBuilder(const char* ref_file, const char* list_file, const char* output_dir, 
+               bool build_doc, bool file_list, bool use_minimizers);
 
     const char* get_ref_path();
 

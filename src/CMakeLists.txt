@@ -52,14 +52,37 @@ set(SUX_SOURCE_DIR ${shaped_slp_SOURCE_DIR}/external/sux/sux)
 #-------------------------------------------------------------------
 # Builds the final executable 
 #-------------------------------------------------------------------
-add_executable(spumoni spumoni.cpp ${bigbwt_SOURCE_DIR}/xerrors.c 
-                      compute_ms_pml.cpp doc_array.cpp refbuilder.cpp)
-target_link_libraries(spumoni sdsl common_h divsufsort divsufsort64 ri pthread klib zlib)
-target_include_directories(spumoni PUBLIC "../include"  "${bigbwt_SOURCE_DIR}"
+
+## Declare some variables
+set(bonsai_SOURCE_DIR "${CMAKE_BINARY_DIR}/_deps/bonsai-src")
+set(zlib_SOURCE_DIR "${CMAKE_BINARY_DIR}/_deps/zlib-src")
+set(klib_SOURCE_DIR "${CMAKE_BINARY_DIR}/_deps/klib-src")
+ #"${bigbwt_SOURCE_DIR}" "${bigbwt_SOURCE_DIR}"
+
+# "${bigbwt_SOURCE_DIR}"
+# ${bigbwt_SOURCE_DIR}/xerrors.c
+# "${bigbwt_SOURCE_DIR}"
+
+add_executable(spumoni spumoni.cpp  compute_ms_pml.cpp doc_array.cpp refbuilder.cpp)
+target_link_libraries(spumoni sdsl common_h divsufsort divsufsort64 ri pthread zlib bonsai)
+target_include_directories(spumoni PUBLIC 
+                            "../include" 
                             "${shaped_slp_SOURCE_DIR}" "${FOLCA_SOURCE_DIR}" "${SUX_SOURCE_DIR}/function" 
-                            "${SUX_SOURCE_DIR}/support" "${bigbwt_SOURCE_DIR}")
+                            "${SUX_SOURCE_DIR}/support" 
+                            "${bonsai_SOURCE_DIR}/include/bonsai"
+                            "${bonsai_SOURCE_DIR}"
+                            "${bonsai_SOURCE_DIR}/hll/include/"
+                            "${bonsai_SOURCE_DIR}/include")
 target_compile_options(spumoni PUBLIC "-std=c++17")
 
+#set(bonsai_SOURCE_DIR "${CMAKE_BINARY_DIR}_deps/bonsai")
+#message(STATUS "include_directory_is = ${bonsai_SOURCE_DIR}/include/bonsai")
+#message(STATUS "include_directory_is = ${bonsai_BINARY_DIR}/include/bonsai")
+#message(STATUS "include_directory_is = ${SUX_SOURCE_DIR}/support")
+#message(STATUS "include_directory_is = ${shaped_slp_SOURCE_DIR}")
+#message(STATUS "include_directory_is = ${CMAKE_BINARY_DIR}")
+
+# Old binary tree code ...
 #add_executable(bst bst.cpp)
 #target_include_directories(bst PUBLIC "../include")
 

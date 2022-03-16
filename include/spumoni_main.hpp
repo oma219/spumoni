@@ -112,8 +112,10 @@ struct SpumoniBuildOptions {
   bool pml_index = false; // want pml index
   bool stop_after_parse = false; // stop build after build parse
   bool compress_parse = false; // compress parse
-  bool is_fasta = true; // reference is fasta (default: true)
+  bool is_fasta = false; // reference is binary by default, since 
+                         // we use minimizers by default (default: true)
   bool build_doc = false; // build the document array
+  bool use_minimizers = true; // digest sequences into minimizers
 
 public:
   void validate() const {
@@ -137,7 +139,6 @@ public:
       }
       if (build_doc && ref_file.length()) {
         FATAL_ERROR("Cannot build a document array if you are indexing a single file.");}
-
   }
 };
 
