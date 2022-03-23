@@ -143,41 +143,53 @@ public:
 };
 
 enum output_type {MS, PML, NOT_CHOSEN};
+enum reference_type {FASTA, MINIMIZER, NOT_SET};
 
 struct SpumoniRunOptions {
   std::string ref_file = ""; // reference file
   std::string pattern_file = ""; // pattern file
   bool ms_requested = false; // user wants to compute MS
   bool pml_requested = false; // user wants to compute PML
-  bool query_fasta = true; // query file is a fasta (default)
+  bool min_digest = true; // need to digest reads (default is true)
   output_type result_type = NOT_CHOSEN; // output type requested by user
-  size_t threads = 1; // number of TOTAL threads
+  reference_type ref_type = NOT_SET; // the type of reference
+  size_t threads = 1; // number of helper threads
   bool use_doc = false; // build the document array
 
 public:
-  void populate_output_type() {
+  void populate_types() {
       /* Populates the output type member of the struct */
+
+      // Specify the output type requested
       if (ms_requested && !pml_requested) {result_type = MS;}
       if (!ms_requested && pml_requested) {result_type = PML;}
+
+      // Specify the input database type
+      bool is_fasta = (endsWith(ref_file, ".fa") || endsWith(ref_file, ".fasta") || endsWith(ref_file, ".fna"));
+      bool is_min = endsWith(ref_file, ".bin");
+
+      if (is_fasta && !is_min) {ref_type = FASTA; min_digest = false;}
+      if (!is_fasta && is_min) {ref_type = MINIMIZER; min_digest = true;}
   }
   
   void validate() const {
       /* Checks the options for the run command, and makes sure it has everything it needs */
-      if (ref_file == "" || pattern_file == ""){FATAL_WARNING("Both a reference file (-r) and pattern file (-f) must be provided.");}
+      if (ref_file == "" || pattern_file == ""){FATAL_WARNING("Both a reference file (-r) and pattern file (-p) must be provided.");}
       if (result_type == NOT_CHOSEN) {FATAL_WARNING("An output type with -M or -P must be specified, only one can be used at a time.");}
       
       // Make sure provided files are valid
       if (!is_file(ref_file)) {FATAL_ERROR("The following path is not valid: %s", ref_file.data());}
       if (!is_file(pattern_file)) {FATAL_ERROR("The following path is not valid: %s", pattern_file.data());}
 
-      // Make sure input files are FASTA files
-      if (!endsWith(ref_file, ".fa") && !endsWith(ref_file, ".fasta") && !endsWith(ref_file, ".fna")){
-          FATAL_ERROR("The reference file provided does not appear to be a FASTA\n" 
-                      "       file, please convert to FASTA and re-run.");}
+      // Make sure reference file is a valid type
+      if (ref_type == NOT_SET) {FATAL_ERROR("Reference file is an unrecognized type. It needs to be a\n"
+                                            "       FASTA file or binary file produced by spumoni build.");}
+
+      // Make sure query file is a FASTA file                                     
       if (!endsWith(pattern_file, ".fa") && !endsWith(pattern_file, ".fasta") && !endsWith(pattern_file, ".fna")){
           FATAL_ERROR("The pattern file provided does not appear to be a FASTA\n" 
                       "       file, please convert to FASTA and re-run.");}
-
+      
       // Verify doc array is available, if needed
       if (use_doc && !is_file(ref_file + ".doc")) {FATAL_WARNING("*.doc file is not present, so it cannot be used");}
       

@@ -91,7 +91,7 @@ void parse_run_options(int argc, char** argv, SpumoniRunOptions* opts) {
                     case 'M': opts->ms_requested = true; break;
                     case 'P': opts->pml_requested = true; break;
                     //case 'f': opts->query_fasta = true; break;
-                    case 't': opts->threads = std::max(std::atoi(optarg), 1); break;
+                    case 't': opts->threads = std::max(std::atoi(optarg),0); break;
                     case 'd': opts->use_doc = true; break;
                     default: spumoni_run_usage(); std::exit(1);
         }
@@ -434,9 +434,9 @@ int run_main(int argc, char** argv) {
     // Grab the run options, and validate they are not missing/don't make sense 
     SpumoniRunOptions run_opts;
     parse_run_options(argc, argv, &run_opts);
-    run_opts.populate_output_type();
+    run_opts.populate_types();
     run_opts.validate();
-    
+
     switch (run_opts.result_type) {
         case MS: run_spumoni_ms_main(&run_opts); break;
         case PML: run_spumoni_main(&run_opts); break;

@@ -1000,30 +1000,6 @@ void *mt_pml_worker(void *param) {
     return NULL;
 }
 
-/*
-void mt_pml(pml_t *ms, std::string pattern_filename, std::string out_filename, size_t n_threads) {
-    pthread_t t[n_threads] = {0};
-    mt_pml_param params[n_threads];
-    std::vector<size_t> starts = split_fastq(pattern_filename, n_threads);
-    for(size_t i = 0; i < n_threads; ++i)
-    {
-        params[i].ms = ms;
-        params[i].pattern_filename = pattern_filename;
-        params[i].out_filename = out_filename + "_" + std::to_string(i) + ".ms.tmp.out";
-        params[i].start = starts[i];
-        params[i].end = starts[i+1];
-        params[i].wk_id = i;
-        xpthread_create(&t[i], NULL, &mt_pml_worker, &params[i], __LINE__, __FILE__);
-    }
-
-    for(size_t i = 0; i < n_threads; ++i)
-    {
-        xpthread_join(t[i],NULL,__LINE__,__FILE__);
-    }
-    return;
-}
-*/
-
 void *mt_ms_worker(void *param) {
     mt_ms_param *p = (mt_ms_param*) param;
     size_t n_reads = 0;
@@ -1060,6 +1036,30 @@ void *mt_ms_worker(void *param) {
 
     return NULL;
 }
+
+/*
+void mt_pml(pml_t *ms, std::string pattern_filename, std::string out_filename, size_t n_threads) {
+    pthread_t t[n_threads] = {0};
+    mt_pml_param params[n_threads];
+    std::vector<size_t> starts = split_fastq(pattern_filename, n_threads);
+    for(size_t i = 0; i < n_threads; ++i)
+    {
+        params[i].ms = ms;
+        params[i].pattern_filename = pattern_filename;
+        params[i].out_filename = out_filename + "_" + std::to_string(i) + ".ms.tmp.out";
+        params[i].start = starts[i];
+        params[i].end = starts[i+1];
+        params[i].wk_id = i;
+        xpthread_create(&t[i], NULL, &mt_pml_worker, &params[i], __LINE__, __FILE__);
+    }
+
+    for(size_t i = 0; i < n_threads; ++i)
+    {
+        xpthread_join(t[i],NULL,__LINE__,__FILE__);
+    }
+    return;
+}
+*/
 
 /*
 void mt_ms(ms_t *ms, std::string pattern_filename, std::string out_filename, size_t n_threads) {
@@ -1314,32 +1314,17 @@ int run_spumoni_main(SpumoniRunOptions* run_opts){
     pml_t ms(run_opts->ref_file, run_opts->use_doc);
     std::string out_filename = run_opts->pattern_file;
 
-    if (is_gzipped(run_opts->pattern_file)) { 
-        SPUMONI_LOG("The input is gzipped - forcing single threaded pseudo matching lengths.");
-        run_opts->threads = 1;
+    // Omar - temporary as I make the adjustment in coming days
+    if (run_opts->threads >= 1) { 
+        FATAL_ERROR("Multi-threading not implemented yet.");
     }
 
-    // Determine approach to parse pattern files
+    // Process all the reads in the input pattern file
     auto start_time = std::chrono::system_clock::now();
     SPUMONI_LOG("Processing the patterns");
-
-    size_t num_reads = 0;
-    if (run_opts->query_fasta) {
-        if(run_opts->threads <= 1) {
-            num_reads=st_pml(&ms, run_opts->pattern_file, out_filename, run_opts->use_doc);
-        }
-        else {FATAL_WARNING("Multi-threading not implemented yet for FASTA querying.");}
-    }
-    else {
-        if(run_opts->threads == 1) {
-            num_reads=st_pml_general(&ms, run_opts->pattern_file,out_filename, run_opts->use_doc);
-        }
-        else {FATAL_WARNING("Multi-threading not implemented yet for general-text querying.");}
-    }
-
-    auto end_time = std::chrono::system_clock::now();
-    TIME_LOG((end_time - start_time));
-
+    
+    size_t num_reads = st_pml(&ms, run_opts->pattern_file, out_filename, run_opts->use_doc);
+    TIME_LOG((std::chrono::system_clock::now() - start_time));
     SPUMONI_LOG("Finished processing %d reads", num_reads);
     return 0;
 }
@@ -1353,28 +1338,17 @@ int run_spumoni_ms_main(SpumoniRunOptions* run_opts) {
     ms_t ms(run_opts->ref_file, run_opts->use_doc);
     std::string out_filename = run_opts->pattern_file;
 
-    if (is_gzipped(run_opts->pattern_file)) {
-        SPUMONI_LOG("The input is gzipped - forcing single threaded matching statistics.");
-        run_opts->threads = 1;
+    // Omar - temporary as I make the adjustment in coming days
+    if (run_opts->threads >= 1) { 
+        FATAL_ERROR("Multi-threading not implemented yet.");
     }
 
     // Determine approach to parse pattern files
     auto start_time = std::chrono::system_clock::now();
     SPUMONI_LOG("Processing the patterns");
 
-    size_t num_reads = 0;
-    if (run_opts->query_fasta) {
-        if(run_opts->threads == 1) {num_reads=st_ms(&ms, run_opts->pattern_file, out_filename, run_opts->use_doc);}
-        else {FATAL_WARNING("Multi-threading not implemented yet for FASTA querying.");}
-    }
-    else {
-        if(run_opts->threads == 1) {num_reads=st_ms_general(&ms,run_opts->pattern_file,out_filename, run_opts->use_doc);}
-        else {FATAL_WARNING("Multi-threading not implemented yet for general-text querying.");}
-    }
- 
-    auto end_time = std::chrono::system_clock::now();
-    TIME_LOG((end_time - start_time));
-
+    size_t num_reads = st_ms(&ms, run_opts->pattern_file, out_filename, run_opts->use_doc);
+    TIME_LOG((std::chrono::system_clock::now() - start_time));
     SPUMONI_LOG("Finished processing %d reads", num_reads);
     return 0;
 }
