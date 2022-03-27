@@ -15,6 +15,7 @@
 #include <iostream>
 #include <zlib.h>  
 #include <encoder.h>
+#include <filesystem>
 
 // Commented out for including encoder.h - Omar
 //#include <kseq.h>
@@ -102,6 +103,18 @@ RefBuilder::RefBuilder(const char* ref_file, const char* list_file, const char* 
             return mseq;
     };
 
+    // Initialize variables needs for over-sampling of reads for null database
+    srand(0);
+    size_t curr_total_null_reads = 0;
+    char grabbed_seq[NULL_READ_CHUNK+1];
+    grabbed_seq[NULL_READ_CHUNK] = '\0';
+
+    std::string output_null_path(output_dir);
+    if ((ch = output_null_path.back()) != '/') {output_null_path += "/";}
+
+    output_null_path += "spumoni_null_reads.fa";
+    std::ofstream output_null_fd (output_null_path, std::ofstream::out);
+
     // Process each input file, and store it forward + reverse complement sequence
     gzFile fp;
     kseq_t* seq;
@@ -119,6 +132,20 @@ RefBuilder::RefBuilder(const char* ref_file, const char* list_file, const char* 
             // Get forward seq, and print it
 			for (size_t i = 0; i < seq->seq.l; ++i)
 				seq->seq.s[i] = std::toupper(seq->seq.s[i]);
+
+            // Extract some reads for null database generation
+            size_t reads_to_grab = (curr_total_null_reads >= NUM_NULL_READS) ? 5 : 25; // downsample if done
+            bool go_for_extraction = (curr_total_null_reads < NULL_READ_BOUND);
+
+            for (size_t i = 0; i < reads_to_grab && go_for_extraction; i++) {
+                size_t random_index = rand() % (seq->seq.l-75);
+                std::strncpy(grabbed_seq, (seq->seq.s+random_index), NULL_READ_CHUNK);
+
+                output_null_fd << ">read_" << curr_total_null_reads << "\n";
+                output_null_fd << grabbed_seq << "\n";
+                curr_total_null_reads++;
+                go_for_extraction = (curr_total_null_reads < NULL_READ_BOUND);
+            }
             
             // Convert forward_seq to minimizers by default, or save as DNA if asked
             if (use_minimizers) {
@@ -169,6 +196,7 @@ RefBuilder::RefBuilder(const char* ref_file, const char* list_file, const char* 
         }
     }
     output_fd.close(); 
+    output_null_fd.close();
     
     // Assign the full reference to the attribute
     input_file = output_path;
@@ -187,6 +215,45 @@ RefBuilder::RefBuilder(const char* ref_file, const char* list_file, const char* 
 const char* RefBuilder::get_ref_path() {
     /* Accessor - return path to full reference that was build */
     return input_file.data();
+}
+
+void RefBuilder::parse_null_reads(const char* ref_file) {
+    /* Parses out null reads in the case that we don't use a file-list */
+    std::filesystem::path p1 = ref_file;
+    std::string output_path = "";
+
+    // Adds a backslash to filepath when needed
+    if (p1.parent_path().string().length()) {output_path = p1.parent_path().string() + "/spumoni_null_reads.fa";}
+    else {output_path = "spumoni_null_reads.fa";}
+    
+    // Variables for generating null reads ...
+    srand(0);
+    char grabbed_seq[NULL_READ_CHUNK+1];
+    grabbed_seq[NULL_READ_CHUNK] = '\0';
+
+    size_t curr_total_null_reads = 0;
+    std::ofstream output_null_fd (output_path, std::ofstream::out);
+
+    // Variables for parsing FASTA ...
+    gzFile fp = gzopen(ref_file, "r");
+    kseq_t* seq = kseq_init(fp);
+
+    // Go through FASTA file, and extract reads until done
+    bool go_for_extraction = (curr_total_null_reads < NULL_READ_BOUND);
+    while (kseq_read(seq)>=0 && go_for_extraction) {
+        size_t reads_to_grab = (curr_total_null_reads >= NUM_NULL_READS) ? 5 : 25; // downsample if done
+
+        for (size_t i = 0; i < reads_to_grab && go_for_extraction; i++) {
+            size_t random_index = rand() % (seq->seq.l-75);
+            std::strncpy(grabbed_seq, (seq->seq.s+random_index), NULL_READ_CHUNK);
+
+            output_null_fd << ">read_" << curr_total_null_reads << "\n";
+            output_null_fd << grabbed_seq << "\n";
+            curr_total_null_reads++;
+            go_for_extraction = (curr_total_null_reads < NULL_READ_BOUND);
+        }
+    }
+    output_null_fd.close();
 }
 
 

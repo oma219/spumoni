@@ -440,7 +440,8 @@ int build_main(int argc, char** argv) {
         RefBuilder refbuild (build_opts.ref_file.data(), build_opts.input_list.data(), build_opts.output_dir.data(),
                              build_opts.build_doc, build_opts.input_list.length(), build_opts.use_minimizers);
         build_opts.ref_file = refbuild.get_ref_path();
-    }
+    } else {RefBuilder::parse_null_reads(build_opts.ref_file.data());}
+    std::exit(1);
 
     // Performs the parsing of the reference and builds the thresholds based on the PFP
     auto build_process_start = std::chrono::system_clock::now();

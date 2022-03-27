@@ -12,6 +12,7 @@
 #include <fstream>
 #include <chrono>
 #include <vector>
+#include <stdlib.h>
 
 /* Commonly Used MACROS */
 #define SPUMONI_VERSION "1.0.1"
@@ -42,6 +43,9 @@ typedef uint64_t ulint;
 /* Value Definitions */
 #define THRBYTES 5 
 #define SSABYTES 5 
+#define NULL_READ_CHUNK 75
+#define NUM_NULL_READS 100 // 7500 = 75 bp * 100 reads
+#define NULL_READ_BOUND 200
 
 /* Function Declarations */
 int spumoni_build_usage();

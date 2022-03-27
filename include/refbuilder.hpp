@@ -22,6 +22,7 @@ public:
                bool build_doc, bool file_list, bool use_minimizers);
 
     const char* get_ref_path();
+    static void parse_null_reads(const char* ref_file);
 
 };// end of RefBuilder class
 
