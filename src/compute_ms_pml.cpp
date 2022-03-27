@@ -1094,7 +1094,7 @@ void mt_ms(ms_t *ms, std::string pattern_filename, std::string out_filename, siz
  *       code.
  */
 
-size_t st_pml(pml_t *ms, std::string pattern_filename, std::string out_filename, bool use_doc) {
+size_t st_pml(pml_t *pml, std::string pattern_filename, std::string out_filename, bool use_doc, bool min_digest) {
     // Declare output file and iterator
     std::ofstream lengths_file (out_filename + ".pseudo_lengths");
     std::ostream_iterator<size_t> lengths_iter (lengths_file, " ");
@@ -1114,15 +1114,18 @@ size_t st_pml(pml_t *ms, std::string pattern_filename, std::string out_filename,
         std::string curr_read = std::string(seq->seq.s);
         transform(curr_read.begin(), curr_read.end(), curr_read.begin(), ::toupper); 
 
-        // Grab MS and write to output file
+        // Convert to minimizer-form if needed
+        if (min_digest){curr_read = perform_minimizer_digestion(curr_read);}
+
+        // Grab PML and write to output file
         std::vector<size_t> lengths, doc_nums;
         if (use_doc){
-            ms->matching_statistics(curr_read.c_str(), seq->seq.l, lengths, doc_nums);
+            pml->matching_statistics(curr_read.c_str(), seq->seq.l, lengths, doc_nums);
             doc_file << '>' << seq->name.s << '\n';
             std::copy(doc_nums.begin(), doc_nums.end(), doc_iter);
             doc_file << '\n';
         }
-        else {ms->matching_statistics(curr_read.c_str(), seq->seq.l, lengths);}
+        else {pml->matching_statistics(curr_read.c_str(), seq->seq.l, lengths);}
         
         lengths_file << '>' << seq->name.s << '\n';
         std::copy(lengths.begin(), lengths.end(), lengths_iter);
@@ -1190,7 +1193,7 @@ size_t st_pml_general(pml_t *ms, std::string pattern_filename, std::string out_f
     return num_reads;
 }
 
-size_t st_ms(ms_t *ms, std::string pattern_filename, std::string out_filename, bool use_doc) {
+size_t st_ms(ms_t *ms, std::string pattern_filename, std::string out_filename, bool use_doc, bool min_digest) {
     // Declare output files, and output iterators
     std::ofstream lengths_file (out_filename + ".lengths");
     std::ofstream pointers_file (out_filename + ".pointers");
@@ -1211,6 +1214,9 @@ size_t st_ms(ms_t *ms, std::string pattern_filename, std::string out_filename, b
         //Make sure all characters are upper-case
         std::string curr_read = std::string(seq->seq.s);
         transform(curr_read.begin(), curr_read.end(), curr_read.begin(), ::toupper); 
+
+        // Convert to minimizer-form if needed
+        if (min_digest){curr_read = perform_minimizer_digestion(curr_read);}
 
         // Grab MS and write to output file
         std::vector<size_t> lengths, pointers, doc_nums;
@@ -1323,7 +1329,7 @@ int run_spumoni_main(SpumoniRunOptions* run_opts){
     auto start_time = std::chrono::system_clock::now();
     SPUMONI_LOG("Processing the patterns");
     
-    size_t num_reads = st_pml(&ms, run_opts->pattern_file, out_filename, run_opts->use_doc);
+    size_t num_reads = st_pml(&ms, run_opts->pattern_file, out_filename, run_opts->use_doc, run_opts->min_digest);
     TIME_LOG((std::chrono::system_clock::now() - start_time));
     SPUMONI_LOG("Finished processing %d reads", num_reads);
     return 0;
@@ -1347,7 +1353,7 @@ int run_spumoni_ms_main(SpumoniRunOptions* run_opts) {
     auto start_time = std::chrono::system_clock::now();
     SPUMONI_LOG("Processing the patterns");
 
-    size_t num_reads = st_ms(&ms, run_opts->pattern_file, out_filename, run_opts->use_doc);
+    size_t num_reads = st_ms(&ms, run_opts->pattern_file, out_filename, run_opts->use_doc, run_opts->min_digest);
     TIME_LOG((std::chrono::system_clock::now() - start_time));
     SPUMONI_LOG("Finished processing %d reads", num_reads);
     return 0;

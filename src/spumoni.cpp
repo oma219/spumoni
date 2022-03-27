@@ -19,6 +19,13 @@
 #include <compute_ms_pml.hpp>
 #include <doc_array.hpp>
 #include <refbuilder.hpp>
+#include <encoder.h>
+
+/*
+ * Section 1: 
+ * Contains methods that output command-line options, and
+ * parses those options
+ */
 
 int spumoni_run_usage () {
     /* prints out the usage information for the spumoni build sub-command */
@@ -97,6 +104,12 @@ void parse_run_options(int argc, char** argv, SpumoniRunOptions* opts) {
         }
     }
 }
+
+/*
+ * Section 2: 
+ * Contains general helper methods that are used by different
+ * methods across the SPUMONI repo.
+ */
 
 int is_file(std::string path) {
     /* Checks if the path is a valid file-path */
@@ -177,6 +190,37 @@ std::string execute_cmd(const char* cmd) {
     pclose(pipe);
     return output;
 }
+
+std::string perform_minimizer_digestion(std::string input_query) {
+    /* Performs minimizer digestion, and returns concatenated minimizers */
+    bns::RollingHasher<uint8_t> rh(4, false, bns::DNA, 12);
+    bool hp_compress = true;
+
+    std::string mseq = "";
+    std::vector<uint8_t> mseq_vec;
+
+    // Define lambda function to take in a DNA sequence and return minimizer sequence
+    auto get_minimizer_seq = [&](std::string seq, size_t seq_length) {
+                mseq = ""; mseq_vec.clear();
+                rh.for_each_uncanon([&](auto x) { // Extracts all minimizers and stores in mseq
+                if(mseq_vec.empty() || !hp_compress || mseq_vec.back() != x) {
+                    x = (x > 2) ? x : (x + 3); // Reserves 0,1,2 for PFP
+                    mseq_vec.push_back(x);
+                    mseq += x;
+                }
+            }, seq.data(), seq_length);
+            return mseq;
+    };
+
+    return get_minimizer_seq(input_query, input_query.length());
+}
+
+/*
+ * Section 3: 
+ * Contains methods that generate shell commands that are run
+ * in order to build different components needed for the
+ * r-index data-structure.
+ */
 
 void run_build_grammar_cmds(SpumoniBuildOptions* build_opts, SpumoniHelperPrograms* helper_bins) {
     /* Generates the command-line for compressing the PFP dictonary */
@@ -369,6 +413,12 @@ void run_build_thresholds_cmd(SpumoniBuildOptions* build_opts, SpumoniHelperProg
     OTHER_LOG(thresholds_log.data());
     TIME_LOG((std::chrono::system_clock::now() - start));
 }
+
+/*
+ * Section 4: 
+ * Contains the "main" methods of SPUMONI that ultimately call
+ * other methods to either build indexes or run queries.
+ */
 
 int build_main(int argc, char** argv) {
     /* main method for the build sub-command */

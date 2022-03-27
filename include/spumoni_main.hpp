@@ -56,6 +56,7 @@ bool endsWith(const std::string& str, const std::string& suffix);
 std::string execute_cmd(const char* cmd);
 size_t get_avail_phy_mem();
 int spumoni_run_usage ();
+std::string perform_minimizer_digestion(std::string input_query);
 
 struct SpumoniHelperPrograms {
   /* Contains paths to run helper programs */
@@ -153,7 +154,7 @@ struct SpumoniRunOptions {
   bool min_digest = true; // need to digest reads (default is true)
   output_type result_type = NOT_CHOSEN; // output type requested by user
   reference_type ref_type = NOT_SET; // the type of reference
-  size_t threads = 1; // number of helper threads
+  size_t threads = 0; // number of helper threads
   bool use_doc = false; // build the document array
 
 public:
