@@ -20,6 +20,7 @@
 #include <doc_array.hpp>
 #include <refbuilder.hpp>
 #include <encoder.h>
+#include <emp_null_database.hpp>
 
 /*
  * Section 1: 
@@ -436,13 +437,14 @@ int build_main(int argc, char** argv) {
     helper_bins.validate();
 
     // Perform needed operations to input file(s) prior to building index
+    std::string null_read_file = "";
     if (build_opts.input_list.length()){ 
         RefBuilder refbuild (build_opts.ref_file.data(), build_opts.input_list.data(), build_opts.output_dir.data(),
                              build_opts.build_doc, build_opts.input_list.length(), build_opts.use_minimizers);
         build_opts.ref_file = refbuild.get_ref_path();
-    } else {RefBuilder::parse_null_reads(build_opts.ref_file.data());}
-    std::exit(1);
-
+        null_read_file = refbuild.get_null_readfile();
+    } else {null_read_file = RefBuilder::parse_null_reads(build_opts.ref_file.data()); std::cout << null_read_file << std::endl;}
+    
     // Performs the parsing of the reference and builds the thresholds based on the PFP
     auto build_process_start = std::chrono::system_clock::now();
     run_build_parse_cmd(&build_opts, &helper_bins);
@@ -471,9 +473,16 @@ int build_main(int argc, char** argv) {
         TIME_LOG((std::chrono::system_clock::now() - start));
     }
     
+    // Build the null database of MS/PML
+    EmpNullDatabase null_db(build_opts.ref_file.data(), null_read_file.data(), build_opts.use_minimizers,
+                            build_opts.ms_index, build_opts.pml_index);
+    std::ofstream out_stream(build_opts.ref_file + ".nulldb");
+    null_db.serialize(out_stream);
+    out_stream.close();
+    
     rm_temp_build_files(&build_opts, &helper_bins);
     auto total_build_time = std::chrono::duration<double>((std::chrono::system_clock::now() - build_process_start));
-    SPUMONI_LOG("TOTAL Elapsed Time for Build Process (s): %.3f", total_build_time);
+    SPUMONI_LOG("Total Elapsed Time for Build Process (s): %.3f", total_build_time);
 
     return 0;
 }

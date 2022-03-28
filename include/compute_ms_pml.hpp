@@ -14,6 +14,10 @@ int run_spumoni_ms_main(SpumoniRunOptions* run_opts);
 int run_spumoni_main(SpumoniRunOptions* run_opts);
 size_t build_spumoni_ms_main(std::string ref_file);
 size_t build_spumoni_main(std::string ref_file);
+void generate_null_ms_statistics(std::string ref_file, std::string pattern_file, std::vector<size_t>& ms_stats,
+                                 bool min_digest);
+void generate_null_pml_statistics(std::string ref_file, std::string pattern_file, std::vector<size_t>& pml_stats,
+                                  bool min_digest);
 std::pair<ulint, ulint> get_bwt_stats(std::string ref_file, size_t type);
 
 #endif /* End of include of COMPUTE_MS_PML_H */

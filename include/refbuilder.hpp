@@ -15,6 +15,7 @@ class RefBuilder {
 
 public:
     std::string input_file = ""; // path to input data, single file or list
+    std::string null_read_file = ""; // path to the null read file
     bool using_doc = false; // user intends to build a document array
     bool using_list = false; // user provided a filelist
 
@@ -22,7 +23,8 @@ public:
                bool build_doc, bool file_list, bool use_minimizers);
 
     const char* get_ref_path();
-    static void parse_null_reads(const char* ref_file);
+    const char* get_null_readfile();
+    static std::string parse_null_reads(const char* ref_file);
 
 };// end of RefBuilder class
 

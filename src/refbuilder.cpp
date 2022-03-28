@@ -114,6 +114,7 @@ RefBuilder::RefBuilder(const char* ref_file, const char* list_file, const char* 
 
     output_null_path += "spumoni_null_reads.fa";
     std::ofstream output_null_fd (output_null_path, std::ofstream::out);
+    null_read_file = output_null_path;
 
     // Process each input file, and store it forward + reverse complement sequence
     gzFile fp;
@@ -217,7 +218,12 @@ const char* RefBuilder::get_ref_path() {
     return input_file.data();
 }
 
-void RefBuilder::parse_null_reads(const char* ref_file) {
+const char* RefBuilder::get_null_readfile() {
+    /* Accessor - return path to null reads that were grabbed */
+    return null_read_file.data();
+}
+
+std::string RefBuilder::parse_null_reads(const char* ref_file) {
     /* Parses out null reads in the case that we don't use a file-list */
     std::filesystem::path p1 = ref_file;
     std::string output_path = "";
@@ -254,6 +260,7 @@ void RefBuilder::parse_null_reads(const char* ref_file) {
         }
     }
     output_null_fd.close();
+    return output_path;
 }
 
 

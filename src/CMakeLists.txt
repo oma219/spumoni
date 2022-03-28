@@ -63,7 +63,7 @@ set(klib_SOURCE_DIR "${CMAKE_BINARY_DIR}/_deps/klib-src")
 # ${bigbwt_SOURCE_DIR}/xerrors.c
 # "${bigbwt_SOURCE_DIR}"
 
-add_executable(spumoni spumoni.cpp  compute_ms_pml.cpp doc_array.cpp refbuilder.cpp)
+add_executable(spumoni spumoni.cpp  compute_ms_pml.cpp doc_array.cpp refbuilder.cpp emp_null_database.cpp)
 target_link_libraries(spumoni sdsl common_h divsufsort divsufsort64 ri pthread zlib bonsai)
 target_include_directories(spumoni PUBLIC 
                             "../include" 

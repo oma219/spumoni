@@ -28,6 +28,7 @@
 #include <fstream>
 #include <iterator>
 #include <doc_array.hpp>
+#include <bits/stdc++.h>
 
 /*
  * This first section of the code contains classes that define pml_pointers
@@ -1385,6 +1386,62 @@ size_t build_spumoni_main(std::string ref_file) {
     out.close();
 
     return num_runs;
+}
+
+void generate_null_ms_statistics(std::string ref_file, std::string pattern_file, std::vector<size_t>& ms_stats,
+                                 bool min_digest) {
+    /* Generates the null ms statistics and returns them to be saved */
+    
+    // Loads the index, and needed variables
+    ms_t ms_index(ref_file, false);
+    gzFile fp = gzopen(pattern_file.data(), "r");
+    kseq_t* seq = kseq_init(fp);
+
+    // Iterate through sample reads and generate null MS
+    while (kseq_read(seq)>=0) {
+        //Make sure all characters are upper-case
+        std::string curr_read = std::string(seq->seq.s);
+        transform(curr_read.begin(), curr_read.end(), curr_read.begin(), ::toupper); 
+
+        // Reverse string to make it a null read
+        std::reverse(curr_read.begin(), curr_read.end());
+
+        // Convert to minimizer-form if needed
+        if (min_digest){curr_read = perform_minimizer_digestion(curr_read);}
+
+        // Generate the null MS
+        std::vector<size_t> lengths, pointers;
+        ms_index.matching_statistics(curr_read.c_str(), seq->seq.l, lengths, pointers);
+        ms_stats.insert(ms_stats.end(), lengths.begin(), lengths.end());
+    }
+}
+
+void generate_null_pml_statistics(std::string ref_file, std::string pattern_file, std::vector<size_t>& pml_stats,
+                                 bool min_digest) {
+    /* Generates the null pml statistics and returns them to be saved */
+
+    // Load the indexes, and needed variables
+    pml_t pml_index(ref_file, false);
+    gzFile fp = gzopen(pattern_file.data(), "r");
+    kseq_t* seq = kseq_init(fp);
+
+    // Iterates through sample reads, and generates PML reads
+    while (kseq_read(seq)>=0) {
+        //Make sure all characters are upper-case
+        std::string curr_read = std::string(seq->seq.s);
+        transform(curr_read.begin(), curr_read.end(), curr_read.begin(), ::toupper); 
+
+        // Reverse string to make it a null read
+        std::reverse(curr_read.begin(), curr_read.end());
+
+        // Convert to minimizer-form if needed
+        if (min_digest){curr_read = perform_minimizer_digestion(curr_read);}
+
+        // Generate the null PML
+        std::vector<size_t> lengths;
+        pml_index.matching_statistics(curr_read.c_str(), seq->seq.l, lengths);
+        pml_stats.insert(pml_stats.end(), lengths.begin(), lengths.end());
+    }
 }
 
 std::pair<ulint, ulint> get_bwt_stats(std::string ref_file, size_t type) {
