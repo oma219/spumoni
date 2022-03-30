@@ -443,8 +443,8 @@ int build_main(int argc, char** argv) {
                              build_opts.build_doc, build_opts.input_list.length(), build_opts.use_minimizers);
         build_opts.ref_file = refbuild.get_ref_path();
         null_read_file = refbuild.get_null_readfile();
-    } else {null_read_file = RefBuilder::parse_null_reads(build_opts.ref_file.data()); std::cout << null_read_file << std::endl;}
-    
+    } else {null_read_file = RefBuilder::parse_null_reads(build_opts.ref_file.data());}
+
     // Performs the parsing of the reference and builds the thresholds based on the PFP
     auto build_process_start = std::chrono::system_clock::now();
     run_build_parse_cmd(&build_opts, &helper_bins);

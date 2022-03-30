@@ -13,27 +13,34 @@
 #include <compute_ms_pml.hpp>
 #include <string>
 #include <math.h> 
+#include <algorithm>
 #include <sdsl/vectors.hpp>
 
 EmpNullDatabase::EmpNullDatabase(const char* ref_file, const char* null_reads, bool use_minimizers, 
                                  bool ms_built, bool pml_built) {
     /* Builds the null database of MS/PML and saves it */
-    std::cout << "hellor there1 " << std::endl;
+
     // Generate those null MS/PMLs
     std::vector<size_t> ms_stats, pml_stats;
     if (ms_built) {generate_null_ms_statistics(std::string(ref_file), std::string(null_reads), ms_stats, true);}
     if (pml_built) {generate_null_pml_statistics(std::string(ref_file), std::string(null_reads), pml_stats, true);}
-    std::cout << "hellor there2 " << std::endl;
+
+    for (size_t i = 0; i < ms_stats.size(); i++) {
+        std::cout << ms_stats[i] << std::endl;
+    }
+
     // Determine the size needed for each vector
     uint32_t max_ms_width = 1, max_pml_width = 1;
     if (ms_built) {
         auto max_ms_stat = std::max_element(ms_stats.begin(), ms_stats.end()); 
-        max_ms_width = std::ceil(std::log2((*max_ms_stat + 0.0001)));
+        max_ms_width = std::max(static_cast<int>(std::ceil(std::log2((*max_ms_stat + 0.0001)))), 1);
+        DBG_ONLY("Maximum null ms: %i", *max_ms_stat);
         DBG_ONLY("Number of bits used per null ms: %i", max_ms_width);
     }
     if (pml_built) {
         auto max_pml_stat = std::max_element(pml_stats.begin(), pml_stats.end());
-        max_pml_width = std::ceil(std::log2((*max_pml_stat + 0.0001)));
+        max_pml_width = std::max(static_cast<int>(std::ceil(std::log2((*max_pml_stat)))), 1);
+        DBG_ONLY("Maximum null pml: %i", *max_pml_stat);
         DBG_ONLY("Number of bits used per null pml: %i", max_pml_width);
     }
 

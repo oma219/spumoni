@@ -138,14 +138,21 @@ RefBuilder::RefBuilder(const char* ref_file, const char* list_file, const char* 
             size_t reads_to_grab = (curr_total_null_reads >= NUM_NULL_READS) ? 5 : 25; // downsample if done
             bool go_for_extraction = (curr_total_null_reads < NULL_READ_BOUND);
 
-            for (size_t i = 0; i < reads_to_grab && go_for_extraction; i++) {
-                size_t random_index = rand() % (seq->seq.l-75);
+            for (size_t i = 0; i < reads_to_grab && go_for_extraction && (seq->seq.l > NULL_READ_CHUNK); i++) {
+                size_t random_index = rand() % (seq->seq.l-NULL_READ_CHUNK);
                 std::strncpy(grabbed_seq, (seq->seq.s+random_index), NULL_READ_CHUNK);
 
                 output_null_fd << ">read_" << curr_total_null_reads << "\n";
                 output_null_fd << grabbed_seq << "\n";
                 curr_total_null_reads++;
                 go_for_extraction = (curr_total_null_reads < NULL_READ_BOUND);
+            }
+
+            // Special case when FASTA sequence is less than or equal to 150 bp
+            if (seq->seq.l <= NULL_READ_CHUNK) {
+                output_null_fd << ">read_" << curr_total_null_reads << "\n";
+                output_null_fd << seq->seq.s << "\n";
+                curr_total_null_reads++;
             }
             
             // Convert forward_seq to minimizers by default, or save as DNA if asked
@@ -249,7 +256,7 @@ std::string RefBuilder::parse_null_reads(const char* ref_file) {
     while (kseq_read(seq)>=0 && go_for_extraction) {
         size_t reads_to_grab = (curr_total_null_reads >= NUM_NULL_READS) ? 5 : 25; // downsample if done
 
-        for (size_t i = 0; i < reads_to_grab && go_for_extraction; i++) {
+        for (size_t i = 0; i < reads_to_grab && go_for_extraction && (seq->seq.l > NULL_READ_CHUNK); i++) {
             size_t random_index = rand() % (seq->seq.l-75);
             std::strncpy(grabbed_seq, (seq->seq.s+random_index), NULL_READ_CHUNK);
 
@@ -257,6 +264,13 @@ std::string RefBuilder::parse_null_reads(const char* ref_file) {
             output_null_fd << grabbed_seq << "\n";
             curr_total_null_reads++;
             go_for_extraction = (curr_total_null_reads < NULL_READ_BOUND);
+        }
+
+        // Special case - if sequence is less than or equal to 150 bp 
+        if (seq->seq.l <= NULL_READ_CHUNK) {
+            output_null_fd << ">read_" << curr_total_null_reads << "\n";
+            output_null_fd << seq->seq.s << "\n";
+            curr_total_null_reads++;
         }
     }
     output_null_fd.close();
