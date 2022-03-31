@@ -75,8 +75,8 @@ struct SpumoniHelperPrograms {
   std::string repair_bin = "irepair";
   std::string postprocess_gram_bin = "postproc";
   std::string shaped_slp_bin = "SlpEncBuild";
-  std::string ms_build = "rlebwt_ms_build";
-  std::string pml_build = "build_spumoni";
+  //std::string ms_build = "rlebwt_ms_build";
+  //std::string pml_build = "build_spumoni";
   
 public:
   void build_paths(std::string base) {
@@ -92,15 +92,15 @@ public:
       repair_bin.assign(base_path + repair_bin);
       postprocess_gram_bin.assign(base_path + postprocess_gram_bin);
       shaped_slp_bin.assign(base_path + shaped_slp_bin);
-      ms_build.assign(base_path + ms_build);
-      pml_build.assign(base_path + pml_build);
+      //ms_build.assign(base_path + ms_build);
+      //pml_build.assign(base_path + pml_build);
   }
 
   void validate() const {
       /* Makes sure that each path for an executable is valid */
       bool invalid_path = !is_file(parseNT_bin) | !is_file(parse_fasta_bin) | !is_file(parse_bin) | !is_file(pfp_thresholds);
       invalid_path = invalid_path | !is_file(pfp_thresholds64) | !is_file(compress_bin) | !is_file(preprocess_dict_bin) | !is_file(repair_bin);
-      invalid_path = invalid_path | !is_file(postprocess_gram_bin) | !is_file(shaped_slp_bin) | !is_file(ms_build) | !is_file(pml_build);
+      invalid_path = invalid_path | !is_file(postprocess_gram_bin) | !is_file(shaped_slp_bin); // | !is_file(ms_build) | !is_file(pml_build);
       if (invalid_path) {THROW_EXCEPTION(std::runtime_error("One or more of helper program paths are invalid."));}
   }
 };

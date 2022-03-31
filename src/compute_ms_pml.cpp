@@ -349,7 +349,7 @@ public:
 
     ms_pointers(std::string filename, bool rle = false) : ri::r_index<sparse_bv_type, rle_string_t>() {
         std::string bwt_fname = filename + ".bwt";
-
+            
         if (rle){
             std::string bwt_heads_fname = bwt_fname + ".heads";
             std::ifstream ifs_heads(bwt_heads_fname);
@@ -368,7 +368,7 @@ public:
             ifs.seekg(0);
             this->build_F(ifs);
         }
-
+        
         this->r = this->bwt.number_of_runs();
         this->num_runs = this->bwt.number_of_runs();
         ri::ulint n = this->bwt.size();
