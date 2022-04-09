@@ -1,5 +1,5 @@
  /*
-  * File: spumoni.cpp 
+  * File: spumoni.hpp 
   * Description: Header file for main execution file for SPUMONI.
   *             
   * Author: Omar Ahmed
@@ -15,26 +15,40 @@
 #include <stdlib.h>
 
 /* Commonly Used MACROS */
-#define SPUMONI_VERSION "1.0.1"
+#define SPUMONI_VERSION "1.1.0"
 #define NOT_IMPL(x) do { std::fprintf(stderr, "%s is not implemented: %s\n", __func__, x); std::exit(1);} while (0)
-#define FATAL_WARNING(x) do {std::fprintf(stderr, "Warning: %s\n", x); std::exit(1);} while (0)
 #define THROW_EXCEPTION(x) do { throw x;} while (0)
+#define FATAL_WARNING(x) do {std::fprintf(stderr, "Warning: %s\n\n", x); std::exit(1);} while (0)
 #define FATAL_ERROR(...) do {std::fprintf(stderr, "Error: "); std::fprintf(stderr, __VA_ARGS__);\
-                              std::fprintf(stderr, "\n"); std::exit(1);} while(0)
+                              std::fprintf(stderr, "\n\n"); std::exit(1);} while(0)
 #define SPUMONI_LOG(...) do{std::fprintf(stderr, "[spumoni] "); std::fprintf(stderr, __VA_ARGS__);\
                             std::fprintf(stderr, "\n");} while(0)
+
+// General logging with option to silence based on command line options
+#define LOG(verbose, func, log)  if (verbose) {std::fprintf(stderr, "[%s] ", func); \
+                                               std::fprintf(stderr, log); \
+                                               std::fprintf(stderr, "\n");} 
+#define FORCE_LOG(func, ...)  do {std::fprintf(stderr, "[%s] ", func); \
+                                  std::fprintf(stderr, __VA_ARGS__); \
+                                  std::fprintf(stderr, "\n");} while (0)
+
+// Logging that keeps track of how long commands take: call STATUS_LOG, followed by DONE_LOG
+#define STATUS_LOG(x, ...) do {std::fprintf(stderr, "[%s] ", x); std::fprintf(stderr, __VA_ARGS__ ); \
+                               std::fprintf(stderr, " ... ");} while(0)
+#define DONE_LOG(x) do {auto sec = std::chrono::duration<double>(x); \
+                        std::fprintf(stderr, "done.  (%.3f sec)\n", sec.count());} while(0)
+
 #define ASSERT(condition, msg) do {if (!condition){std::fprintf(stderr, "Assertion Failed: %s\n", msg); \
-                                                  std::exit(1);}} while(0)
+                                                   std::exit(1);}} while(0)
 #define TIME_LOG(x) do {auto sec = std::chrono::duration<double>(x); \
                         std::fprintf(stderr, "[spumoni] Elapsed Time (s): %.3f\n", sec.count());} while(0)
-#define OTHER_LOG(x) do {std::stringstream str(x); std::string str_out;\
-                         while (std::getline(str, str_out, '\n')) { \
-                         std::fprintf(stderr, "[helper-prog] %s\n", str_out.data());}} while (0)
-
+#define OTHER_LOG(x) if (DEBUG) {std::stringstream str(x); std::string str_out;\
+                                 while (std::getline(str, str_out, '\n')) { \
+                                 std::fprintf(stderr, "[helper-prog] %s\n", str_out.data());}} 
 
 /* DEBUG macros */
-#define DEBUG 1
-#define DBG_ONLY(...)  do { if (DEBUG) {std::fprintf(stderr, "[DEBUG] "); \
+#define DEBUG 0
+#define DBG_ONLY(...)  do { if (DEBUG) {std::fprintf(stderr, "\n[DEBUG] "); \
                             std::fprintf(stderr, __VA_ARGS__); std::fprintf(stderr, "\n");}} while (0)
 
 /* Type Definitions */
@@ -105,6 +119,9 @@ public:
   }
 };
 
+enum output_type {MS, PML, NOT_CHOSEN};
+enum reference_type {FASTA, MINIMIZER, NOT_SET};
+
 struct SpumoniBuildOptions {
   std::string ref_file = "";
   std::string input_list = "";
@@ -115,6 +132,8 @@ struct SpumoniBuildOptions {
   bool keep_files = false; // keeps temporary files
   bool ms_index = false; // want ms index
   bool pml_index = false; // want pml index
+  bool verbose = false;
+  output_type index_type = NOT_CHOSEN; // the actual index that will be build
   bool stop_after_parse = false; // stop build after build parse
   bool compress_parse = false; // compress parse
   bool is_fasta = false; // reference is binary by default, since 
@@ -123,12 +142,16 @@ struct SpumoniBuildOptions {
   bool use_minimizers = true; // digest sequences into minimizers
 
 public:
-  void validate() const {
+  void validate() {
       /* Checks if the parse arguments are valid for continuing the execution */
-      if (!ms_index && !pml_index) {
-          FATAL_WARNING("Need to specify what type of quantities you would like to compute with -M, -P or both.");}
+      if (ms_index && !pml_index) {index_type = MS;}
+      else if (!ms_index && pml_index) {index_type = PML;}
+
+      if (index_type == NOT_CHOSEN) {
+          FATAL_ERROR("Need to specify what type of index to build with either -M\n"
+                      "       or -P. Only one index at time.");}
       if (ref_file.length() && input_list.length()) {
-          FATAL_WARNING("Reference file and input list cannot be specified at same time.");}
+          FATAL_ERROR("Reference file and input list cannot be specified at same time.");}
       
       // Check based on approach used: file-list or single reference file
       if (ref_file.length()){
@@ -146,9 +169,6 @@ public:
         FATAL_ERROR("Cannot build a document array if you are indexing a single file.");}
   }
 };
-
-enum output_type {MS, PML, NOT_CHOSEN};
-enum reference_type {FASTA, MINIMIZER, NOT_SET};
 
 struct SpumoniRunOptions {
   std::string ref_file = ""; // reference file

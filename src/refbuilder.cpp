@@ -255,7 +255,7 @@ std::string RefBuilder::parse_null_reads(const char* ref_file) {
     bool go_for_extraction = (curr_total_null_reads < NULL_READ_BOUND);
     while (kseq_read(seq)>=0 && go_for_extraction) {
         size_t reads_to_grab = (curr_total_null_reads >= NUM_NULL_READS) ? 5 : 25; // downsample if done
-
+        
         for (size_t i = 0; i < reads_to_grab && go_for_extraction && (seq->seq.l > NULL_READ_CHUNK); i++) {
             size_t random_index = rand() % (seq->seq.l-75);
             std::strncpy(grabbed_seq, (seq->seq.s+random_index), NULL_READ_CHUNK);
@@ -265,7 +265,7 @@ std::string RefBuilder::parse_null_reads(const char* ref_file) {
             curr_total_null_reads++;
             go_for_extraction = (curr_total_null_reads < NULL_READ_BOUND);
         }
-
+    
         // Special case - if sequence is less than or equal to 150 bp 
         if (seq->seq.l <= NULL_READ_CHUNK) {
             output_null_fd << ">read_" << curr_total_null_reads << "\n";
@@ -273,6 +273,8 @@ std::string RefBuilder::parse_null_reads(const char* ref_file) {
             curr_total_null_reads++;
         }
     }
+    kseq_destroy(seq);
+    gzclose(fp);
     output_null_fd.close();
     return output_path;
 }

@@ -10,6 +10,7 @@
 #define _EMPNULLDATABASE_H
 
 #include <string>
+#include <spumoni_main.hpp>
 #include <sdsl/vectors.hpp>
 
 class EmpNullDatabase {
@@ -17,10 +18,12 @@ class EmpNullDatabase {
 public:
     std::string input_file = ""; // path to input data, single file or list
     size_t num_values = 0; // number of entries in the database
-    sdsl::int_vector<> ms_null_stats; // empirical ms null statistics
-    sdsl::int_vector<> pml_null_stats; // empirical pml null statistics
+    output_type stat_type = NOT_CHOSEN; // either MS or PML
+    sdsl::int_vector<> null_stats; // empirical null statistics
+    
 
-    EmpNullDatabase(const char* ref_file, const char* null_reads, bool use_minimizers, bool ms_built, bool pml_built);
+    EmpNullDatabase(const char* ref_file, const char* null_reads, bool use_minimizers, 
+                    bool ms_built, bool pml_built, output_type stat_type);
 
     size_t serialize(std::ostream &out, sdsl::structure_tree_node *v = nullptr, std::string name = "");
 };

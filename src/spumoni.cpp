@@ -58,6 +58,7 @@ int spumoni_build_usage () {
     std::fprintf(stderr, "\t%-10sturn off minimizer digestion of sequence (default: on)\n", "-n");
     std::fprintf(stderr, "\t%-10sbuild an index that can be used to compute MSs\n", "-M");
     std::fprintf(stderr, "\t%-10sbuild an index that can be used to compute PMLs\n", "-P");
+    std::fprintf(stderr, "\t%-10sturn on verbose logging\n", "-v");
     std::fprintf(stderr, "\t%-10ssliding window size (default: 10)\n", "-w [arg]");
     std::fprintf(stderr, "\t%-10shash modulus value (default: 100)\n", "-p [arg]");
     std::fprintf(stderr, "\t%-10snumber of helper threads (default: 0)\n", "-t [arg]");
@@ -69,7 +70,7 @@ int spumoni_build_usage () {
 
 void parse_build_options(int argc, char** argv, SpumoniBuildOptions* opts) {
     /* Parses the arguments for the build sub-command and returns a struct with arguments */
-    for(int c;(c = getopt(argc, argv, "hr:MPw:p:t:kdi:b:n")) >= 0;) { 
+    for(int c;(c = getopt(argc, argv, "hr:MPw:p:t:kdi:b:nv")) >= 0;) { 
         switch(c) {
                     case 'h': spumoni_build_usage(); std::exit(1);
                     case 'r': opts->ref_file.assign(optarg); break;
@@ -77,6 +78,7 @@ void parse_build_options(int argc, char** argv, SpumoniBuildOptions* opts) {
                     case 'b': opts->output_dir.assign(optarg); break;
                     case 'M': opts->ms_index = true; break;
                     case 'P': opts->pml_index = true; break;
+                    case 'v': opts->verbose = true; break;
                     case 'n': opts->use_minimizers = false; opts->is_fasta = true; break;
                     case 'w': opts->wind = std::max(std::atoi(optarg), 10); break;
                     case 'p': opts->hash_mod = std::max(std::atoi(optarg), 1); break;
@@ -235,27 +237,27 @@ void run_build_grammar_cmds(SpumoniBuildOptions* build_opts, SpumoniHelperProgra
     std::ostringstream command_stream;
     command_stream << helper_bins->compress_bin << " " << build_opts->ref_file;
     command_stream << " -w " << build_opts->wind << " -p " << build_opts->hash_mod;
-
-    SPUMONI_LOG("Compressing the PFP dictionary for given reference ...");
-    SPUMONI_LOG(("Executing this command: " + command_stream.str()).data());
+    
+    LOG(build_opts->verbose, "build_grammar", ("Executing this command: " + command_stream.str()).data());
+    STATUS_LOG("build_grammar", "compressing the PFP dictionary");
 
     auto start = std::chrono::system_clock::now();
     auto output_log = execute_cmd(command_stream.str().c_str());
+    DONE_LOG((std::chrono::system_clock::now() - start));
     OTHER_LOG(output_log.data());
-    TIME_LOG((std::chrono::system_clock::now() - start));
 
     command_stream.str(""); command_stream.clear();
 
     // Generate and run command to preprocess dictionary
     command_stream << helper_bins->preprocess_dict_bin << " " << build_opts->ref_file << ".dicz";
 
-    SPUMONI_LOG("Preprocessing the PFP dictionary for given reference ...");
-    SPUMONI_LOG(("Executing this command: " + command_stream.str()).data());
+    LOG(build_opts->verbose, "build_grammar", ("Executing this command: " + command_stream.str()).data());
+    STATUS_LOG("build_grammar", "preprocessing the PFP dictionary");
 
     start = std::chrono::system_clock::now();
     output_log = execute_cmd(command_stream.str().c_str());
+    DONE_LOG((std::chrono::system_clock::now() - start));
     OTHER_LOG(output_log.data());
-    TIME_LOG((std::chrono::system_clock::now() - start));
 
     command_stream.str(""); command_stream.clear();
 
@@ -263,40 +265,40 @@ void run_build_grammar_cmds(SpumoniBuildOptions* build_opts, SpumoniHelperProgra
     command_stream << helper_bins->repair_bin << " " << build_opts->ref_file << ".dicz.int ";
     command_stream << avail_mem;
 
-    SPUMONI_LOG("Running RePair to generate grammar for modified dictionary ...");
-    SPUMONI_LOG(("Executing this command: " + command_stream.str()).data());
+    LOG(build_opts->verbose, "build_grammar", ("Executing this command: " + command_stream.str()).data());
+    STATUS_LOG("build_grammar", "running RePair to generate grammar for modified dictionary");
 
     start = std::chrono::system_clock::now();
     output_log = execute_cmd(command_stream.str().c_str());
+    DONE_LOG((std::chrono::system_clock::now() - start));
     OTHER_LOG(output_log.data());
-    TIME_LOG((std::chrono::system_clock::now() - start));
 
     command_stream.str(""); command_stream.clear();
 
     // Generate and run command to run RePair on the parse of PFP
     command_stream << helper_bins->repair_bin << " " << build_opts->ref_file << ".parse ";
     command_stream << avail_mem;
-
-    SPUMONI_LOG("Running RePair to generate grammar for parse ...");
-    SPUMONI_LOG(("Executing this command: " + command_stream.str()).data());
+    
+    LOG(build_opts->verbose, "build_grammar", ("Executing this command: " + command_stream.str()).data());
+    STATUS_LOG("build_grammar", "running RePair to generate grammar for parse");
 
     start = std::chrono::system_clock::now();
     output_log = execute_cmd(command_stream.str().c_str());
+    DONE_LOG((std::chrono::system_clock::now() - start));
     OTHER_LOG(output_log.data());
-    TIME_LOG((std::chrono::system_clock::now() - start));
 
     command_stream.str(""); command_stream.clear();
 
     // Generate and run command to postprocess the grammars
     command_stream << helper_bins->postprocess_gram_bin << " " << build_opts->ref_file;
 
-    SPUMONI_LOG("Running post-processing of grammars ...");
-    SPUMONI_LOG(("Executing this command: " + command_stream.str()).data());
+    LOG(build_opts->verbose, "build_grammar", ("Executing this command: " + command_stream.str()).data());
+    STATUS_LOG("build_grammar", "running post-processing of grammars");
 
     start = std::chrono::system_clock::now();
     output_log = execute_cmd(command_stream.str().c_str());
+    DONE_LOG((std::chrono::system_clock::now() - start));
     OTHER_LOG(output_log.data());
-    TIME_LOG((std::chrono::system_clock::now() - start));
 
     command_stream.str(""); command_stream.clear();
 
@@ -305,8 +307,12 @@ void run_build_grammar_cmds(SpumoniBuildOptions* build_opts, SpumoniHelperProgra
     command_stream << build_opts->ref_file << ".parse.R " << build_opts->ref_file << ".dicz.int ";
     command_stream << build_opts->ref_file << ".dicz.int.C " << build_opts->ref_file << ".dicz.int.R";
 
-    SPUMONI_LOG("Removing the temporary parse and dictionary files ...");
-    SPUMONI_LOG(("Executing this command: " + command_stream.str()).data());
+    LOG(build_opts->verbose, "build_grammar", ("Executing this command: " + command_stream.str()).data());
+    LOG(build_opts->verbose, "build_grammar", "removing the temporary parse and dictionary files");
+
+    start = std::chrono::system_clock::now();
+    output_log = execute_cmd(command_stream.str().c_str());
+    //TIME_LOG((std::chrono::system_clock::now() - start));
 }
 
 void run_build_slp_cmds(SpumoniBuildOptions* build_opts, SpumoniHelperPrograms* helper_bins) {
@@ -315,13 +321,13 @@ void run_build_slp_cmds(SpumoniBuildOptions* build_opts, SpumoniHelperPrograms* 
     command_stream << helper_bins->shaped_slp_bin << " -i " << build_opts->ref_file;
     command_stream << " -o " << build_opts->ref_file << ".slp -e SelfShapedSlp_SdSd_Sd -f Bigrepair";
 
-    SPUMONI_LOG("Generating the SLP for the given reference ...");
-    SPUMONI_LOG(("Executing this command: " + command_stream.str()).data());
+    LOG(build_opts->verbose, "build_slp", ("Executing this command: " + command_stream.str()).data());
+    STATUS_LOG("build_slp", "Generating the SLP for the given reference");
 
     auto start = std::chrono::system_clock::now();
     auto output_log = execute_cmd(command_stream.str().c_str());
+    DONE_LOG((std::chrono::system_clock::now() - start));
     OTHER_LOG(output_log.data());
-    TIME_LOG((std::chrono::system_clock::now() - start));
 }
 
 void run_build_parse_cmd(SpumoniBuildOptions* build_opts, SpumoniHelperPrograms* helper_bins) {
@@ -347,36 +353,38 @@ void run_build_parse_cmd(SpumoniBuildOptions* build_opts, SpumoniHelperPrograms*
     }
     if (build_opts->is_fasta) {command_stream << " -f";}
 
-    SPUMONI_LOG("Generating the PFP for given reference ...");
-    SPUMONI_LOG(("Executing this command: " + command_stream.str()).data());
+    LOG(build_opts->verbose, "build_parse", ("Executing this command: " + command_stream.str()).data());
+    STATUS_LOG("build_parse", "generating the prefix-free parse for given reference");
 
     auto start = std::chrono::system_clock::now();
     auto parse_log = execute_cmd(command_stream.str().c_str());
+    DONE_LOG((std::chrono::system_clock::now() - start));
     OTHER_LOG(parse_log.data());
-    TIME_LOG((std::chrono::system_clock::now() - start));
 }
 
 size_t run_build_ms_cmd(SpumoniBuildOptions* build_opts, SpumoniHelperPrograms* helper_bins) {
     /* Runs the constructor for generating the final index for computing MS */
-    SPUMONI_LOG("Building the index for computing MS ...");
+    STATUS_LOG("build_ms", "building the index for computing MS");
     
-    size_t num_runs = 0;
-    auto start = std::chrono::system_clock::now();
-    num_runs = build_spumoni_ms_main(build_opts->ref_file);
+    size_t length = 0, num_runs = 0;
+    auto start = std::chrono::system_clock::now();  
+    std::tie(length, num_runs) = build_spumoni_ms_main(build_opts->ref_file);
 
-    TIME_LOG((std::chrono::system_clock::now() - start));
+    DONE_LOG((std::chrono::system_clock::now() - start));
+    FORCE_LOG("build_ms", "bwt statistics: r = %d, n/r = %.3f", length, (length/num_runs));
     return num_runs;
 }
 
 size_t run_build_pml_cmd(SpumoniBuildOptions* build_opts, SpumoniHelperPrograms* helper_bins) {
     /* Runs the constructor for generating the final index for computing PML */
-    SPUMONI_LOG("Building the index for computing PML ...");
+    STATUS_LOG("build_ms", "building the index for computing PML");
 
-    size_t num_runs = 0;
+    size_t length = 0, num_runs = 0;
     auto start = std::chrono::system_clock::now();
-    num_runs = build_spumoni_main(build_opts->ref_file);
+    std::tie(length, num_runs) = build_spumoni_main(build_opts->ref_file);
 
-    TIME_LOG((std::chrono::system_clock::now() - start));
+    DONE_LOG((std::chrono::system_clock::now() - start));
+    FORCE_LOG("build_pml", "bwt statistics: r = %d, n/r = %.3f", length, (length/num_runs));
     return num_runs;
 }
 
@@ -386,8 +394,8 @@ void rm_temp_build_files(SpumoniBuildOptions* build_opts, SpumoniHelperPrograms*
     command_stream << "rm -f " << build_opts->ref_file << ".parse_old ";
     command_stream << build_opts->ref_file << ".last " << " rs_temp_output";
 
-    SPUMONI_LOG("Removing some additional temporary files from build process ...");
-    SPUMONI_LOG(("Executing this command: " + command_stream.str()).data());
+    LOG(build_opts->verbose, "build_main", ("Executing this command: " + command_stream.str()).data());
+    FORCE_LOG("build_main", "removing temporary files from build process");
 
     auto log = execute_cmd(command_stream.str().c_str());
 }
@@ -406,13 +414,13 @@ void run_build_thresholds_cmd(SpumoniBuildOptions* build_opts, SpumoniHelperProg
     command_stream << curr_exe << " " << build_opts->ref_file << " ";
     command_stream << "-w " << build_opts->wind << " -r";
 
-    SPUMONI_LOG("Generating the thresholds using the PFP of the given reference ...");
-    SPUMONI_LOG(("Executing this command: " + command_stream.str()).data());
+    LOG(build_opts->verbose, "build_thr", ("Executing this command: " + command_stream.str()).data());
+    STATUS_LOG("build_thr", "generating the thresholds data-structure");
 
     auto start = std::chrono::system_clock::now();
     auto thresholds_log = execute_cmd(command_stream.str().c_str());
+    DONE_LOG((std::chrono::system_clock::now() - start));
     OTHER_LOG(thresholds_log.data());
-    TIME_LOG((std::chrono::system_clock::now() - start));
 }
 
 /*
@@ -436,17 +444,35 @@ int build_main(int argc, char** argv) {
     helper_bins.build_paths((std::string(std::getenv("SPUMONI_BUILD_DIR")) + "/bin/").data());
     helper_bins.validate();
 
+    /*
+    // Variables needed for identifying required build files
+    const char* temp_build_files[13] = {".bwt.heads", ".bwt.len", ".R", ".C", ".dict", ".dicz", 
+                                        ".dicz.len", ".ssa", ".esa", ".occ", ".parse", ".thr", ".thr_pos"};
+    size_t num_temp_build_files = 13;
+
+    // Check all needed files are already present
+    bool quick_build = true;
+    for (size_t i = 0; i < num_temp_build_files; i++) {
+        if (!is_file(build_opts.ref_file + temp_build_files[i])) {quick_build = false;}
+    }
+    */
+    auto total_build_process_start = std::chrono::system_clock::now();
+    auto task_start = std::chrono::system_clock::now();
+
     // Perform needed operations to input file(s) prior to building index
     std::string null_read_file = "";
     if (build_opts.input_list.length()){ 
+        task_start = std::chrono::system_clock::now();
+        STATUS_LOG("build_main", "building the reference based on filelist");
+        
         RefBuilder refbuild (build_opts.ref_file.data(), build_opts.input_list.data(), build_opts.output_dir.data(),
                              build_opts.build_doc, build_opts.input_list.length(), build_opts.use_minimizers);
         build_opts.ref_file = refbuild.get_ref_path();
         null_read_file = refbuild.get_null_readfile();
+        DONE_LOG((std::chrono::system_clock::now() - task_start));
     } else {null_read_file = RefBuilder::parse_null_reads(build_opts.ref_file.data());}
 
     // Performs the parsing of the reference and builds the thresholds based on the PFP
-    auto build_process_start = std::chrono::system_clock::now();
     run_build_parse_cmd(&build_opts, &helper_bins);
     run_build_thresholds_cmd(&build_opts, &helper_bins);
 
@@ -463,27 +489,37 @@ int build_main(int argc, char** argv) {
 
     // Build the document array if asked for as well
     if (build_opts.build_doc) {
-        SPUMONI_LOG("Building the Document Array");
+        STATUS_LOG("build_main", "building the document array");
         auto start = std::chrono::system_clock::now();
         DocumentArray doc_arr(build_opts.ref_file, num_runs);
 
         std::ofstream out_stream(build_opts.ref_file + ".doc");
         doc_arr.serialize(out_stream);
         out_stream.close();
-        TIME_LOG((std::chrono::system_clock::now() - start));
+        DONE_LOG((std::chrono::system_clock::now() - start));
     }
     
     // Build the null database of MS/PML
+    STATUS_LOG("build_main", "building the empirical null statistic database");
+    task_start = std::chrono::system_clock::now();
     EmpNullDatabase null_db(build_opts.ref_file.data(), null_read_file.data(), build_opts.use_minimizers,
-                            build_opts.ms_index, build_opts.pml_index);
-    std::ofstream out_stream(build_opts.ref_file + ".nulldb");
+                            build_opts.ms_index, build_opts.pml_index, build_opts.index_type);
+
+    std::string output_nulldb_name = build_opts.ref_file;
+    if (build_opts.index_type == MS) {output_nulldb_name += ".msnulldb";}
+    else if (build_opts.index_type == PML) {output_nulldb_name += ".pmlnulldb";}
+
+    std::ofstream out_stream(output_nulldb_name);
     null_db.serialize(out_stream);
     out_stream.close();
-    
-    rm_temp_build_files(&build_opts, &helper_bins);
-    auto total_build_time = std::chrono::duration<double>((std::chrono::system_clock::now() - build_process_start));
-    SPUMONI_LOG("Total Elapsed Time for Build Process (s): %.3f", total_build_time);
+    DONE_LOG((std::chrono::system_clock::now() - task_start));
 
+    rm_temp_build_files(&build_opts, &helper_bins);
+    auto total_build_time = std::chrono::duration<double>((std::chrono::system_clock::now() - total_build_process_start));
+
+    std::cout << "\n";
+    FORCE_LOG("build_main", "total elapsed time for build process (s): %.3f", total_build_time);
+    FORCE_LOG("build_main", "build process has completed.");
     return 0;
 }
 

@@ -54,11 +54,15 @@ public:
             std::ifstream ifs_heads(bwt_heads_fname);
             std::string bwt_len_fname = bwt_fname + ".len";
             std::ifstream ifs_len(bwt_len_fname);
+
             this->bwt = rle_string_t(ifs_heads, ifs_len);
 
             ifs_heads.seekg(0);
             ifs_len.seekg(0);
             this->build_F_(ifs_heads, ifs_len);
+
+            ifs_heads.close();
+            ifs_len.close();
         } else {
             std::ifstream ifs(bwt_fname);
             this->bwt = rle_string_t(ifs);
@@ -73,11 +77,11 @@ public:
         int log_r = bitsize(uint64_t(this->r));
         int log_n = bitsize(uint64_t(this->bwt.size()));
 
-        SPUMONI_LOG("Text length: n = %d", n);
-        SPUMONI_LOG("Number of BWT equal-letter runs: r = %d", this->r);
-        SPUMONI_LOG("Rate n/r = %.4f", double(this->bwt.size()) / this->r);
-        SPUMONI_LOG("log2(r) = %.4f", log2(double(this->r)));
-        SPUMONI_LOG("log2(n/r) = %.4f", log2(double(this->bwt.size()) / this->r));
+        //SPUMONI_LOG("Text length: n = %d", n);
+        //SPUMONI_LOG("Number of BWT equal-letter runs: r = %d", this->r);
+        //SPUMONI_LOG("Rate n/r = %.4f", double(this->bwt.size()) / this->r);
+        //SPUMONI_LOG("log2(r) = %.4f", log2(double(this->r)));
+        //SPUMONI_LOG("log2(n/r) = %.4f", log2(double(this->bwt.size()) / this->r));
 
         thresholds = thresholds_t(filename,&this->bwt);
     }
@@ -354,13 +358,16 @@ public:
             std::string bwt_heads_fname = bwt_fname + ".heads";
             std::ifstream ifs_heads(bwt_heads_fname);
             std::string bwt_len_fname = bwt_fname + ".len";
-            std::ifstream ifs_len(bwt_len_fname);
+            std::ifstream ifs_len(bwt_len_fname);  
 
             this->bwt = rle_string_t(ifs_heads, ifs_len);
 
             ifs_heads.seekg(0);
             ifs_len.seekg(0);
             this->build_F_(ifs_heads, ifs_len);
+
+            ifs_heads.close();
+            ifs_len.close();
         } else {
             std::ifstream ifs(bwt_fname);
             this->bwt = rle_string_t(ifs);
@@ -375,10 +382,10 @@ public:
         int log_r = bitsize(uint64_t(this->r));
         int log_n = bitsize(uint64_t(this->bwt.size()));
 
-        SPUMONI_LOG("Number of BWT equal-letter runs: r = %d", this->r);
-        SPUMONI_LOG("Rate n/r = %.4f", double(this->bwt.size()) / this->r);
-        SPUMONI_LOG("log2(r) = %.4f", log2(double(this->r)));
-        SPUMONI_LOG("log2(n/r) = %.4f", log2(double(this->bwt.size()) / this->r));
+        //SPUMONI_LOG("Number of BWT equal-letter runs: r = %d", this->r);
+        //SPUMONI_LOG("Rate n/r = %.4f", double(this->bwt.size()) / this->r);
+        //SPUMONI_LOG("log2(r) = %.4f", log2(double(this->r)));
+        //SPUMONI_LOG("log2(n/r) = %.4f", log2(double(this->bwt.size()) / this->r));
 
         // this->build_F(istring);
         // istring.clear();
@@ -388,7 +395,7 @@ public:
         read_samples(filename + ".esa", this->r, n, this->samples_last);
 
         // Reading in the thresholds
-        thresholds = thresholds_t(filename,&this->bwt);
+        thresholds = thresholds_t(filename, &this->bwt);
     }
 
     void read_samples(std::string filename, ulint r, ulint n, int_vector<> &samples) {
@@ -680,8 +687,8 @@ public:
     DocArray doc_arr; 
 
     // Constructor
-    pml_t(std::string filename, bool use_doc){
-        SPUMONI_LOG("Loading the PML index ...");
+    pml_t(std::string filename, bool use_doc, bool verbose = false){
+        if (verbose){STATUS_LOG("pml_construct", "Loading the PML index ...");}
         auto start_time = std::chrono::system_clock::now();
         std::string filename_ms = filename + ms.get_file_extension();
 
@@ -690,16 +697,16 @@ public:
         fs_ms.close();
 
         auto end_time = std::chrono::system_clock::now();
-        TIME_LOG((end_time - start_time));
+        if (verbose) {DONE_LOG((end_time - start_time));}
 
         if (use_doc) {
-            SPUMONI_LOG("Loading the Document Array");
+            if (verbose) {STATUS_LOG("pml_construct", "Loading the Document Array");}
             start_time = std::chrono::system_clock::now();
             std::ifstream doc_file(filename + ".doc");
 
             doc_arr.load(doc_file);
             doc_file.close();
-            TIME_LOG((std::chrono::system_clock::now() - start_time));
+            if (verbose) {DONE_LOG((std::chrono::system_clock::now() - start_time));}
         }
     }
 
@@ -735,8 +742,8 @@ public:
     using DocArray = DocumentArray;
     DocArray doc_arr;
 
-    ms_t(std::string filename, bool use_doc) {
-        SPUMONI_LOG("Loading the MS index");
+    ms_t(std::string filename, bool use_doc, bool verbose=false) {
+        if (verbose) {STATUS_LOG("ms_construct", "Loading the MS index");}
         auto start_time = std::chrono::system_clock::now();    
         std::string filename_ms = filename + ms.get_file_extension();
 
@@ -745,9 +752,9 @@ public:
         fs_ms.close();
 
         auto end_time = std::chrono::system_clock::now();
-        TIME_LOG((end_time - start_time));
+        if (verbose) {DONE_LOG((end_time - start_time));}
 
-        SPUMONI_LOG("Loading the Random Access Data Structure");
+        if (verbose) {STATUS_LOG("ms_construct", "Loading the Random Access Data Structure");}
         start_time = std::chrono::system_clock::now();   
         std::string filename_slp = filename + ".slp";
 
@@ -755,16 +762,16 @@ public:
         ra.load(fs);
         fs.close();
         n = ra.getLen();
-        TIME_LOG((std::chrono::system_clock::now() - start_time));
+        if (verbose) {DONE_LOG((std::chrono::system_clock::now() - start_time));}
 
         if (use_doc) {
-            SPUMONI_LOG("Loading the Document Array");
+            if (verbose) {STATUS_LOG("ms_construct", "Loading the Document Array");}
             start_time = std::chrono::system_clock::now();
             std::ifstream doc_file(filename + ".doc");
 
             doc_arr.load(doc_file);
             doc_file.close();
-            TIME_LOG((std::chrono::system_clock::now() - start_time));
+            if (verbose) {DONE_LOG((std::chrono::system_clock::now() - start_time));}
         }
     } 
 
@@ -1360,38 +1367,36 @@ int run_spumoni_ms_main(SpumoniRunOptions* run_opts) {
     return 0;
 }
 
-size_t build_spumoni_ms_main(std::string ref_file) {
+std::pair<size_t, size_t> build_spumoni_ms_main(std::string ref_file) {
     // Builds the ms_pointers objects and stores it
     size_t length = 0, num_runs = 0;
     ms_pointers<> ms(ref_file, true);
-    num_runs = ms.num_runs;
+    std::tie(length, num_runs) = ms.get_bwt_stats(); 
 
     std::string outfile = ref_file + ms.get_file_extension();
     std::ofstream out(outfile);
     ms.serialize(out);
     out.close();
-
-    return num_runs;
+    return std::make_pair(length, num_runs);
 }
 
-size_t build_spumoni_main(std::string ref_file) {
+std::pair<size_t, size_t> build_spumoni_main(std::string ref_file) {
     // Builds the pml_pointers objects and stores it
     size_t length = 0, num_runs = 0;
     pml_pointers<> pml(ref_file, true);
-    num_runs = pml.num_runs;
+    std::tie(length, num_runs) = pml.get_bwt_stats();
 
     std::string outfile = ref_file + pml.get_file_extension();
     std::ofstream out(outfile);
     pml.serialize(out);
     out.close();
-
-    return num_runs;
+    return std::make_pair(length, num_runs);
 }
 
 void generate_null_ms_statistics(std::string ref_file, std::string pattern_file, std::vector<size_t>& ms_stats,
                                  bool min_digest) {
     /* Generates the null ms statistics and returns them to be saved */
-    
+
     // Loads the index, and needed variables
     ms_t ms_index(ref_file, false);
     gzFile fp = gzopen(pattern_file.data(), "r");
@@ -1405,15 +1410,17 @@ void generate_null_ms_statistics(std::string ref_file, std::string pattern_file,
 
         // Reverse string to make it a null read
         std::reverse(curr_read.begin(), curr_read.end());
-
+        
         // Convert to minimizer-form if needed
         if (min_digest){curr_read = perform_minimizer_digestion(curr_read);}
 
         // Generate the null MS
         std::vector<size_t> lengths, pointers;
-        ms_index.matching_statistics(curr_read.c_str(), seq->seq.l, lengths, pointers);
+        ms_index.matching_statistics(curr_read.c_str(), curr_read.length(), lengths, pointers);
         ms_stats.insert(ms_stats.end(), lengths.begin(), lengths.end());
     }
+    kseq_destroy(seq);
+    gzclose(fp);
 }
 
 void generate_null_pml_statistics(std::string ref_file, std::string pattern_file, std::vector<size_t>& pml_stats,
@@ -1439,9 +1446,11 @@ void generate_null_pml_statistics(std::string ref_file, std::string pattern_file
 
         // Generate the null PML
         std::vector<size_t> lengths;
-        pml_index.matching_statistics(curr_read.c_str(), seq->seq.l, lengths);
+        pml_index.matching_statistics(curr_read.c_str(), curr_read.length(), lengths);
         pml_stats.insert(pml_stats.end(), lengths.begin(), lengths.end());
     }
+    kseq_destroy(seq);
+    gzclose(fp);
 }
 
 std::pair<ulint, ulint> get_bwt_stats(std::string ref_file, size_t type) {
