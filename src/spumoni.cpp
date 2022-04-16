@@ -322,7 +322,7 @@ void run_build_slp_cmds(SpumoniBuildOptions* build_opts, SpumoniHelperPrograms* 
     command_stream << " -o " << build_opts->ref_file << ".slp -e SelfShapedSlp_SdSd_Sd -f Bigrepair";
 
     LOG(build_opts->verbose, "build_slp", ("Executing this command: " + command_stream.str()).data());
-    STATUS_LOG("build_slp", "Generating the SLP for the given reference");
+    STATUS_LOG("build_slp", "generating the SLP for the given reference");
 
     auto start = std::chrono::system_clock::now();
     auto output_log = execute_cmd(command_stream.str().c_str());
@@ -369,22 +369,24 @@ size_t run_build_ms_cmd(SpumoniBuildOptions* build_opts, SpumoniHelperPrograms* 
     size_t length = 0, num_runs = 0;
     auto start = std::chrono::system_clock::now();  
     std::tie(length, num_runs) = build_spumoni_ms_main(build_opts->ref_file);
-
+    
+    double average_run_size = (length + 0.0)/num_runs;
     DONE_LOG((std::chrono::system_clock::now() - start));
-    FORCE_LOG("build_ms", "bwt statistics: r = %d, n/r = %.3f", length, (length/num_runs));
+    FORCE_LOG("build_ms", "bwt statistics: r = %d, n = %d, n/r = %.3f", num_runs, length, average_run_size);
     return num_runs;
 }
 
 size_t run_build_pml_cmd(SpumoniBuildOptions* build_opts, SpumoniHelperPrograms* helper_bins) {
     /* Runs the constructor for generating the final index for computing PML */
-    STATUS_LOG("build_ms", "building the index for computing PML");
+    STATUS_LOG("build_pml", "building the index for computing PML");
 
     size_t length = 0, num_runs = 0;
     auto start = std::chrono::system_clock::now();
     std::tie(length, num_runs) = build_spumoni_main(build_opts->ref_file);
 
+    double average_run_size = (length + 0.0)/num_runs;
     DONE_LOG((std::chrono::system_clock::now() - start));
-    FORCE_LOG("build_pml", "bwt statistics: r = %d, n/r = %.3f", length, (length/num_runs));
+    FORCE_LOG("build_pml", "bwt statistics: r = %d, n = %d, n/r = %.3f", num_runs, length, average_run_size);
     return num_runs;
 }
 
@@ -474,7 +476,7 @@ int build_main(int argc, char** argv) {
 
     // Performs the parsing of the reference and builds the thresholds based on the PFP
     run_build_parse_cmd(&build_opts, &helper_bins);
-    run_build_thresholds_cmd(&build_opts, &helper_bins);
+    run_build_thresholds_cmd(&build_opts, &helper_bins); std::cout << std::endl;
 
     // Generate grammar over reference if you would like to compute MS
     size_t num_runs = 0;
@@ -482,10 +484,11 @@ int build_main(int argc, char** argv) {
         run_build_grammar_cmds(&build_opts, &helper_bins);
         run_build_slp_cmds(&build_opts, &helper_bins);
         num_runs = run_build_ms_cmd(&build_opts, &helper_bins);
-    } 
+    } std::cout << std::endl;
 
     // Build the PML index if asked for as well 
     if (build_opts.pml_index) {num_runs = run_build_pml_cmd(&build_opts, &helper_bins);}
+    std::cout << std::endl;
 
     // Build the document array if asked for as well
     if (build_opts.build_doc) {
@@ -503,11 +506,11 @@ int build_main(int argc, char** argv) {
     STATUS_LOG("build_main", "building the empirical null statistic database");
     task_start = std::chrono::system_clock::now();
     EmpNullDatabase null_db(build_opts.ref_file.data(), null_read_file.data(), build_opts.use_minimizers,
-                            build_opts.ms_index, build_opts.pml_index, build_opts.index_type);
+                            build_opts.ms_index, build_opts.pml_index, MS);
 
     std::string output_nulldb_name = build_opts.ref_file;
-    if (build_opts.index_type == MS) {output_nulldb_name += ".msnulldb";}
-    else if (build_opts.index_type == PML) {output_nulldb_name += ".pmlnulldb";}
+    if (build_opts.ms_index) {output_nulldb_name += ".msnulldb";}
+    else if (build_opts.pml_index) {output_nulldb_name += ".pmlnulldb";}
 
     std::ofstream out_stream(output_nulldb_name);
     null_db.serialize(out_stream);
@@ -516,10 +519,15 @@ int build_main(int argc, char** argv) {
 
     rm_temp_build_files(&build_opts, &helper_bins);
     auto total_build_time = std::chrono::duration<double>((std::chrono::system_clock::now() - total_build_process_start));
-
     std::cout << "\n";
+
+    std::string final_index_files = "";
+    if (build_opts.ms_index && !build_opts.pml_index) {final_index_files = "index files are saved in the *.ms, *.msnulldb, and *.slp files.";}
+    else if (!build_opts.ms_index && build_opts.pml_index) {final_index_files = "index files are saved in the *.spumoni, and *.pmlnulldb files.";}
+    else {final_index_files = "index files are saved in the  *.ms, *.spumoni, *.msnulldb, *.pmlnulldb and *.slp files.";}
+
     FORCE_LOG("build_main", "total elapsed time for build process (s): %.3f", total_build_time);
-    FORCE_LOG("build_main", "build process has completed.");
+    FORCE_LOG("build_main", final_index_files.data());
     return 0;
 }
 

@@ -3,7 +3,7 @@
  * Description: Extension of the r-index rle_string to compute 
  *              matching statistics.
  *
- * Authors: Massimiliano Rossi,
+ * Authors: Massimiliano Rossi
  * Start Date: July 10, 2021
  */
 
@@ -221,8 +221,6 @@ ms_rle_string<ri::sparse_sd_vector, ri::huff_string>::ms_rle_string(std::ifstrea
     lengths.seekg(0);
     this->B = B;
 
-    //std::cout << "hello from ms_rle_string 2" << std::endl;
-
     // Reads the run heads
     string run_heads_s;
     heads.seekg(0, heads.end);
@@ -230,7 +228,6 @@ ms_rle_string<ri::sparse_sd_vector, ri::huff_string>::ms_rle_string(std::ifstrea
     heads.seekg(0, heads.beg);
     heads.read(&run_heads_s[0], run_heads_s.size());
 
-    //std::cout << "hello from ms_rle_string 3" << std::endl;
     size_t pos = 0;
     this->n = 0;
     this->R = run_heads_s.size();
@@ -241,12 +238,10 @@ ms_rle_string<ri::sparse_sd_vector, ri::huff_string>::ms_rle_string(std::ifstrea
     // Runs in main bitvector
     vector<size_t> runs_bv_onset;
     size_t runs_bv_i = 0;
-   
-   //std::cout << "hello from ms_rle_string 4" << std::endl;
 
     // Compute runs_bv and runs_per_letter_bv
     for (size_t i = 0; i < run_heads_s.size(); ++i) {
-        size_t length;
+        size_t length = 0;
         lengths.read((char *)&length, 5);
         if (run_heads_s[i] <= TERMINATOR) // change 0 to 1
             run_heads_s[i] = TERMINATOR;
@@ -260,37 +255,24 @@ ms_rle_string<ri::sparse_sd_vector, ri::huff_string>::ms_rle_string(std::ifstrea
         this->n += length;
 
     }
-    //std::cout << "hello from ms_rle_string 5" << std::endl;
-
     // Now compact structures
     ulint t = 0;
-    for (ulint i = 0; i < 256; ++i)
+    for (ulint i = 0; i < 256; ++i) {
         t += runs_per_letter_bv_i[i];
+    }
     assert(t == this->n);
-    this->runs = ri::sparse_sd_vector(runs_bv_onset, this->n); 
-    //std::cout << "hello from ms_rle_string 6" << std::endl;
     
+    this->runs = ri::sparse_sd_vector(runs_bv_onset, this->n);  
     this->runs_per_letter = std::vector<ri::sparse_sd_vector>(256);
 
-
-    //std::cout << "size = " << this->runs_per_letter.size() << std::endl;
-    //std::cout << "size = " << runs_per_letter_bv.size() << std::endl;
-    //std::cout << "size = " << runs_per_letter_bv_i.size() << std::endl;
-
-    //std::cout << sizeof(this->runs_per_letter) << std::endl;
-
     for (ulint i = 0; i < 256; ++i) {
-        //std::cout << "i = " << i << " " << runs_per_letter_bv[i].size() << std::endl;
         this->runs_per_letter[i] = ri::sparse_sd_vector(runs_per_letter_bv[i], runs_per_letter_bv_i[i]);
-        //std::cout << "i = " << i << " " << runs_per_letter_bv[i].size() << std::endl;
     }
-    
-    //std::cout << "hello from ms_rle_string 7" << std::endl;
+
     this->run_heads = ri::huff_string(run_heads_s);
     assert(this->run_heads.size() == this->R);
 };
 
 typedef ms_rle_string<ri::sparse_sd_vector> ms_rle_string_sd;
 typedef ms_rle_string<ri::sparse_hyb_vector> ms_rle_string_hyb;
-
 #endif /* end of include guard: _MS_RLE_STRING_HH */
