@@ -392,13 +392,22 @@ size_t run_build_pml_cmd(SpumoniBuildOptions* build_opts, SpumoniHelperPrograms*
 
 void rm_temp_build_files(SpumoniBuildOptions* build_opts, SpumoniHelperPrograms* helper_bins) {
     /* Generates and runs commands to remove temporary files during build process */
-    std::ostringstream command_stream;
-    command_stream << "rm -f " << build_opts->ref_file << ".parse_old ";
-    command_stream << build_opts->ref_file << ".last " << " rs_temp_output";
 
+    const char* temp_build_files[15] = {".bwt.heads", ".bwt.len", ".R", ".C", ".dict", ".dicz", ".parse_old", ".last",
+                                        ".dicz.len", ".ssa", ".esa", ".occ", ".parse", ".thr", ".thr_pos"};
+    size_t num_temp_build_files = 15;
+
+    // Build the remove command
+    std::ostringstream command_stream;
+    command_stream << "rm -f "; 
+    for (size_t i = 0; i < num_temp_build_files; i++) {
+        command_stream << build_opts->ref_file << temp_build_files[i] << " ";
+    }
+    command_stream << "rs_temp_output ";
+
+    // Execute the removal of temporary files
     LOG(build_opts->verbose, "rm_temp", ("Executing this command: " + command_stream.str()).data());
     FORCE_LOG("rm_temp", "removing temporary files from build process");
-
     auto log = execute_cmd(command_stream.str().c_str());
 }
 
@@ -534,10 +543,9 @@ int build_main(int argc, char** argv) {
         out_stream.close();
         DONE_LOG((std::chrono::system_clock::now() - start));
     }
-    
-    //rm_temp_build_files(&build_opts, &helper_bins);
+
+    if (!build_opts.keep_files) {rm_temp_build_files(&build_opts, &helper_bins); std::cout << "\n";}
     auto total_build_time = std::chrono::duration<double>((std::chrono::system_clock::now() - total_build_process_start));
-    std::cout << "\n";
 
     std::string final_index_files = "";
     if (build_opts.ms_index && !build_opts.pml_index) {final_index_files = "index files are saved in the *.ms, *.msnulldb, and *.slp files.";}
