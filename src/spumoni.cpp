@@ -482,13 +482,38 @@ int build_main(int argc, char** argv) {
     size_t num_runs = 0;
     if (build_opts.ms_index) {
         run_build_grammar_cmds(&build_opts, &helper_bins);
-        run_build_slp_cmds(&build_opts, &helper_bins);
+        run_build_slp_cmds(&build_opts, &helper_bins); std::cout << std::endl;
         num_runs = run_build_ms_cmd(&build_opts, &helper_bins);
-    } std::cout << std::endl;
+
+        // Build the null database for MSs
+        STATUS_LOG("build_main", "building the empirical null statistic database for MS");
+        task_start = std::chrono::system_clock::now();
+        EmpNullDatabase null_db(build_opts.ref_file.data(), null_read_file.data(), build_opts.use_minimizers, MS);
+
+        std::string output_nulldb_name = build_opts.ref_file + ".msnulldb";
+        std::ofstream out_stream(output_nulldb_name);
+        null_db.serialize(out_stream);
+        out_stream.close();
+        DONE_LOG((std::chrono::system_clock::now() - task_start));
+        std::cout << std::endl;
+    } 
 
     // Build the PML index if asked for as well 
-    if (build_opts.pml_index) {num_runs = run_build_pml_cmd(&build_opts, &helper_bins);}
-    std::cout << std::endl;
+    if (build_opts.pml_index) {
+        num_runs = run_build_pml_cmd(&build_opts, &helper_bins);
+
+        // Build the null database for PMLs
+        STATUS_LOG("build_main", "building the empirical null statistic database for PML" );
+        task_start = std::chrono::system_clock::now();
+        EmpNullDatabase null_db(build_opts.ref_file.data(), null_read_file.data(), build_opts.use_minimizers, PML);
+
+        std::string output_nulldb_name = build_opts.ref_file + ".pmlnulldb";
+        std::ofstream out_stream(output_nulldb_name);
+        null_db.serialize(out_stream);
+        out_stream.close();
+        DONE_LOG((std::chrono::system_clock::now() - task_start));
+        std::cout << std::endl;
+    }
 
     // Build the document array if asked for as well
     if (build_opts.build_doc) {
@@ -502,21 +527,6 @@ int build_main(int argc, char** argv) {
         DONE_LOG((std::chrono::system_clock::now() - start));
     }
     
-    // Build the null database of MS/PML
-    STATUS_LOG("build_main", "building the empirical null statistic database");
-    task_start = std::chrono::system_clock::now();
-    EmpNullDatabase null_db(build_opts.ref_file.data(), null_read_file.data(), build_opts.use_minimizers,
-                            build_opts.ms_index, build_opts.pml_index, MS);
-
-    std::string output_nulldb_name = build_opts.ref_file;
-    if (build_opts.ms_index) {output_nulldb_name += ".msnulldb";}
-    else if (build_opts.pml_index) {output_nulldb_name += ".pmlnulldb";}
-
-    std::ofstream out_stream(output_nulldb_name);
-    null_db.serialize(out_stream);
-    out_stream.close();
-    DONE_LOG((std::chrono::system_clock::now() - task_start));
-
     rm_temp_build_files(&build_opts, &helper_bins);
     auto total_build_time = std::chrono::duration<double>((std::chrono::system_clock::now() - total_build_process_start));
     std::cout << "\n";

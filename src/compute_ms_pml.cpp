@@ -1453,8 +1453,9 @@ void generate_null_pml_statistics(std::string ref_file, std::string pattern_file
     gzclose(fp);
 }
 
+/*
 std::pair<ulint, ulint> get_bwt_stats(std::string ref_file, size_t type) {
-    /* Returns the length and number of runs in a text */
+    // Returns the length and number of runs in a text 
     ulint length = 0, num_runs = 0;
     if (type == 1) {
         ms_t ms_data_structure(ref_file, false);
@@ -1466,3 +1467,4 @@ std::pair<ulint, ulint> get_bwt_stats(std::string ref_file, size_t type) {
         return std::make_pair(length, num_runs);
     }
 }
+*/

@@ -21,9 +21,7 @@ public:
     output_type stat_type = NOT_CHOSEN; // either MS or PML
     sdsl::int_vector<> null_stats; // empirical null statistics
     
-
-    EmpNullDatabase(const char* ref_file, const char* null_reads, bool use_minimizers, 
-                    bool ms_built, bool pml_built, output_type stat_type);
+    EmpNullDatabase(const char* ref_file, const char* null_reads, bool use_minimizers, output_type stat_type);
 
     size_t serialize(std::ostream &out, sdsl::structure_tree_node *v = nullptr, std::string name = "");
 };

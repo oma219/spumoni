@@ -16,8 +16,7 @@
 #include <algorithm>
 #include <sdsl/vectors.hpp>
 
-EmpNullDatabase::EmpNullDatabase(const char* ref_file, const char* null_reads, bool use_minimizers, 
-                                 bool ms_built, bool pml_built, output_type index_type) {
+EmpNullDatabase::EmpNullDatabase(const char* ref_file, const char* null_reads, bool use_minimizers, output_type index_type) {
     /* Builds the null database of MS/PML and saves it */
     
     this->input_file = std::string(ref_file);

@@ -145,18 +145,6 @@ public:
   void validate() {
       /* Checks if the parse arguments are valid for continuing the execution */
 
-      /*
-      if (ms_index && !pml_index) {index_type = MS;}
-      else if (!ms_index && pml_index) {index_type = PML;}
-
-      // Remove this when done ... Omar
-      index_type = MS;
-      if (index_type == NOT_CHOSEN) {
-          FATAL_ERROR("Need to specify what type of index to build with either -M\n"
-                      "       or -P. Only one index at time.");}
-      if (ref_file.length() && input_list.length()) {
-          FATAL_ERROR("Reference file and input list cannot be specified at same time.");}
-      */
       // Check based on approach used: file-list or single reference file
       if (ref_file.length()){
           if (!is_file(ref_file)) {FATAL_ERROR("The following path is not valid: %s", ref_file.data());}  
