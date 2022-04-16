@@ -396,8 +396,8 @@ void rm_temp_build_files(SpumoniBuildOptions* build_opts, SpumoniHelperPrograms*
     command_stream << "rm -f " << build_opts->ref_file << ".parse_old ";
     command_stream << build_opts->ref_file << ".last " << " rs_temp_output";
 
-    LOG(build_opts->verbose, "build_main", ("Executing this command: " + command_stream.str()).data());
-    FORCE_LOG("build_main", "removing temporary files from build process");
+    LOG(build_opts->verbose, "rm_temp", ("Executing this command: " + command_stream.str()).data());
+    FORCE_LOG("rm_temp", "removing temporary files from build process");
 
     auto log = execute_cmd(command_stream.str().c_str());
 }
@@ -446,24 +446,30 @@ int build_main(int argc, char** argv) {
     helper_bins.build_paths((std::string(std::getenv("SPUMONI_BUILD_DIR")) + "/bin/").data());
     helper_bins.validate();
 
-    /*
     // Variables needed for identifying required build files
-    const char* temp_build_files[13] = {".bwt.heads", ".bwt.len", ".R", ".C", ".dict", ".dicz", 
+    const char* temp_build_files[15] = {".bwt.heads", ".bwt.len", ".R", ".C", ".dict", ".dicz", ".parse_old", ".last",
                                         ".dicz.len", ".ssa", ".esa", ".occ", ".parse", ".thr", ".thr_pos"};
-    size_t num_temp_build_files = 13;
+    size_t num_temp_build_files = 15;
 
     // Check all needed files are already present
-    bool quick_build = true;
-    for (size_t i = 0; i < num_temp_build_files; i++) {
+    std::filesystem::path p1 = build_opts.ref_file;
+    std::string null_read_file = "";
+
+    if (p1.parent_path().string().length()) {null_read_file = p1.parent_path().string() + "/spumoni_null_reads.fa";}
+    else {null_read_file = "spumoni_null_reads.fa";}
+
+    bool quick_build = is_file(null_read_file);
+    for (size_t i = 0; i < num_temp_build_files && quick_build; i++) {
         if (!is_file(build_opts.ref_file + temp_build_files[i])) {quick_build = false;}
     }
-    */
+    if (quick_build) {FORCE_LOG("build_main", "quick build is activated.");}
+
+    // Start of build process ...
     auto total_build_process_start = std::chrono::system_clock::now();
     auto task_start = std::chrono::system_clock::now();
 
     // Perform needed operations to input file(s) prior to building index
-    std::string null_read_file = "";
-    if (build_opts.input_list.length()){ 
+    if (!quick_build && build_opts.input_list.length()){ 
         task_start = std::chrono::system_clock::now();
         STATUS_LOG("build_main", "building the reference based on filelist");
         
@@ -475,10 +481,12 @@ int build_main(int argc, char** argv) {
     } else {null_read_file = RefBuilder::parse_null_reads(build_opts.ref_file.data());}
 
     // Performs the parsing of the reference and builds the thresholds based on the PFP
-    run_build_parse_cmd(&build_opts, &helper_bins);
-    run_build_thresholds_cmd(&build_opts, &helper_bins); std::cout << std::endl;
+    if (!quick_build) {
+        run_build_parse_cmd(&build_opts, &helper_bins);
+        run_build_thresholds_cmd(&build_opts, &helper_bins); std::cout << std::endl;
+    }
 
-    // Generate grammar over reference if you would like to compute MS
+    // Build the MS index, as well as grammar needed
     size_t num_runs = 0;
     if (build_opts.ms_index) {
         run_build_grammar_cmds(&build_opts, &helper_bins);
@@ -527,7 +535,7 @@ int build_main(int argc, char** argv) {
         DONE_LOG((std::chrono::system_clock::now() - start));
     }
     
-    rm_temp_build_files(&build_opts, &helper_bins);
+    //rm_temp_build_files(&build_opts, &helper_bins);
     auto total_build_time = std::chrono::duration<double>((std::chrono::system_clock::now() - total_build_process_start));
     std::cout << "\n";
 
