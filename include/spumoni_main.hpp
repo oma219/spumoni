@@ -60,6 +60,8 @@ typedef uint64_t ulint;
 #define NULL_READ_CHUNK 150
 #define NUM_NULL_READS 100 // 7500 = 75 bp * 100 reads
 #define NULL_READ_BOUND 200
+#define KS_STAT_MS_THR 0.25
+#define KS_STAT_PML_THR 0.10
 
 /* Function Declarations */
 int spumoni_build_usage();
@@ -172,6 +174,7 @@ struct SpumoniRunOptions {
   reference_type ref_type = NOT_SET; // the type of reference
   size_t threads = 0; // number of helper threads
   bool use_doc = false; // build the document array
+  bool write_report = false; // write out the classification report
 
 public:
   void populate_types() {

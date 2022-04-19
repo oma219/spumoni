@@ -41,6 +41,7 @@ int spumoni_run_usage () {
     std::fprintf(stderr, "\t%-10suse index to compute PMLs\n", "-P");
     //std::fprintf(stderr, "\t%-10spattern file is in fasta format (default: general text)\n", "-f");
     std::fprintf(stderr, "\t%-10suse document array to get assignments\n", "-d");
+    std::fprintf(stderr, "\t%-10swrite out the classifications in a report file\n", "-c");
     std::fprintf(stderr, "\t%-10snumber of helper threads (default: 0)\n\n", "-t [arg]");
     return 0;
 }
@@ -93,13 +94,14 @@ void parse_build_options(int argc, char** argv, SpumoniBuildOptions* opts) {
 
 void parse_run_options(int argc, char** argv, SpumoniRunOptions* opts) {
     /* Parses the arguments for the build sub-command and returns a struct with arguments */
-    for(int c;(c = getopt(argc, argv, "hr:p:MPt:d")) >= 0;) { 
+    for(int c;(c = getopt(argc, argv, "hr:p:MPt:dc")) >= 0;) { 
         switch(c) {
                     case 'h': spumoni_run_usage(); std::exit(1);
                     case 'r': opts->ref_file.assign(optarg); break;
                     case 'p': opts->pattern_file.assign(optarg); break;
                     case 'M': opts->ms_requested = true; break;
                     case 'P': opts->pml_requested = true; break;
+                    case 'c': opts->write_report = true; break;
                     //case 'f': opts->query_fasta = true; break;
                     case 't': opts->threads = std::max(std::atoi(optarg),0); break;
                     case 'd': opts->use_doc = true; break;

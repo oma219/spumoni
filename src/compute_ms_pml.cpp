@@ -29,6 +29,7 @@
 #include <iterator>
 #include <doc_array.hpp>
 #include <bits/stdc++.h>
+#include <ks_test.hpp>
 
 /*
  * This first section of the code contains classes that define pml_pointers
@@ -688,7 +689,7 @@ public:
 
     // Constructor
     pml_t(std::string filename, bool use_doc, bool verbose = false){
-        if (verbose){STATUS_LOG("pml_construct", "Loading the PML index ...");}
+        if (verbose){STATUS_LOG("pml_construct", "loading the PML index");}
         auto start_time = std::chrono::system_clock::now();
         std::string filename_ms = filename + ms.get_file_extension();
 
@@ -700,7 +701,7 @@ public:
         if (verbose) {DONE_LOG((end_time - start_time));}
 
         if (use_doc) {
-            if (verbose) {STATUS_LOG("pml_construct", "Loading the Document Array");}
+            if (verbose) {STATUS_LOG("pml_construct", "loading the document array");}
             start_time = std::chrono::system_clock::now();
             std::ifstream doc_file(filename + ".doc");
 
@@ -743,7 +744,7 @@ public:
     DocArray doc_arr;
 
     ms_t(std::string filename, bool use_doc, bool verbose=false) {
-        if (verbose) {STATUS_LOG("ms_construct", "Loading the MS index");}
+        if (verbose) {STATUS_LOG("ms_construct", "loading the MS index");}
         auto start_time = std::chrono::system_clock::now();    
         std::string filename_ms = filename + ms.get_file_extension();
 
@@ -754,7 +755,7 @@ public:
         auto end_time = std::chrono::system_clock::now();
         if (verbose) {DONE_LOG((end_time - start_time));}
 
-        if (verbose) {STATUS_LOG("ms_construct", "Loading the Random Access Data Structure");}
+        if (verbose) {STATUS_LOG("ms_construct", "loading the random access data structure");}
         start_time = std::chrono::system_clock::now();   
         std::string filename_slp = filename + ".slp";
 
@@ -765,7 +766,7 @@ public:
         if (verbose) {DONE_LOG((std::chrono::system_clock::now() - start_time));}
 
         if (use_doc) {
-            if (verbose) {STATUS_LOG("ms_construct", "Loading the Document Array");}
+            if (verbose) {STATUS_LOG("ms_construct", "loading the document array");}
             start_time = std::chrono::system_clock::now();
             std::ifstream doc_file(filename + ".doc");
 
@@ -1128,12 +1129,12 @@ size_t st_pml(pml_t *pml, std::string pattern_filename, std::string out_filename
         // Grab PML and write to output file
         std::vector<size_t> lengths, doc_nums;
         if (use_doc){
-            pml->matching_statistics(curr_read.c_str(), seq->seq.l, lengths, doc_nums);
+            pml->matching_statistics(curr_read.c_str(), curr_read.size(), lengths, doc_nums);
             doc_file << '>' << seq->name.s << '\n';
             std::copy(doc_nums.begin(), doc_nums.end(), doc_iter);
             doc_file << '\n';
         }
-        else {pml->matching_statistics(curr_read.c_str(), seq->seq.l, lengths);}
+        else {pml->matching_statistics(curr_read.c_str(), curr_read.size(), lengths);}
         
         lengths_file << '>' << seq->name.s << '\n';
         std::copy(lengths.begin(), lengths.end(), lengths_iter);
@@ -1201,40 +1202,43 @@ size_t st_pml_general(pml_t *ms, std::string pattern_filename, std::string out_f
     return num_reads;
 }
 
-size_t st_ms(ms_t *ms, std::string pattern_filename, std::string out_filename, bool use_doc, bool min_digest) {
-    // Declare output files, and output iterators
-    std::ofstream lengths_file (out_filename + ".lengths");
-    std::ofstream pointers_file (out_filename + ".pointers");
-    std::ofstream doc_file;
+size_t st_ms(ms_t *ms, std::string ref_filename, std::string pattern_filename, bool use_doc, bool min_digest, bool write_report) {
+    // declare output files, and output iterators
+    std::ofstream lengths_file (pattern_filename + ".lengths");
+    std::ofstream pointers_file (pattern_filename + ".pointers");
+    std::ofstream doc_file, report_file;
 
     std::ostream_iterator<size_t> length_iter (lengths_file, " ");
     std::ostream_iterator<size_t> pointers_iter (pointers_file, " ");
     std::ostream_iterator<size_t> doc_iter (doc_file, " ");
 
-    if (use_doc) {doc_file.open(out_filename + ".doc_numbers", std::ofstream::out);}
+    if (use_doc) {doc_file.open(pattern_filename + ".doc_numbers", std::ofstream::out);}
+    if (write_report) {report_file.open(pattern_filename + ".report", std::ofstream::out);}
+    KSTest sig_test(ref_filename.data(), MS, write_report, report_file);
 
-    // Use kseq to parse out sequences from FASTA file
+    // use kseq to parse out sequences from FASTA file
     gzFile fp = gzopen(pattern_filename.c_str(), "r");
     kseq_t* seq = kseq_init(fp);
     size_t num_reads = 0;
+    srand(0);
 
     while (kseq_read(seq) >= 0) {
-        //Make sure all characters are upper-case
+        // make sure all characters are upper-case
         std::string curr_read = std::string(seq->seq.s);
         transform(curr_read.begin(), curr_read.end(), curr_read.begin(), ::toupper); 
 
-        // Convert to minimizer-form if needed
+        // convert to minimizer-form if needed
         if (min_digest){curr_read = perform_minimizer_digestion(curr_read);}
 
-        // Grab MS and write to output file
+        // grab MS and write to output file
         std::vector<size_t> lengths, pointers, doc_nums;
         if (use_doc){
-            ms->matching_statistics(curr_read.c_str(), seq->seq.l, lengths, pointers, doc_nums);
+            ms->matching_statistics(curr_read.c_str(), curr_read.size(), lengths, pointers, doc_nums);
             doc_file << '>' << seq->name.s << '\n';
             std::copy(doc_nums.begin(), doc_nums.end(), doc_iter);
             doc_file << '\n';
         }
-        else {ms->matching_statistics(curr_read.c_str(), seq->seq.l, lengths, pointers);}
+        else {ms->matching_statistics(curr_read.c_str(), curr_read.size(), lengths, pointers);}
 
         lengths_file << '>' << seq->name.s << '\n';
         pointers_file << '>' << seq->name.s << '\n';
@@ -1242,6 +1246,9 @@ size_t st_ms(ms_t *ms, std::string pattern_filename, std::string out_filename, b
         std::copy(lengths.begin(), lengths.end(), length_iter);
         std::copy(pointers.begin(), pointers.end(), pointers_iter);
         lengths_file << '\n'; pointers_file << '\n';
+
+        // perform the KS-test
+        if (write_report) {sig_test.run_kstest(seq->name.s, lengths, report_file);}
 
         num_reads++;
     }
@@ -1251,6 +1258,7 @@ size_t st_ms(ms_t *ms, std::string pattern_filename, std::string out_filename, b
     lengths_file.close();
     pointers_file.close();
     if (use_doc) {doc_file.close();}
+    if (write_report) {report_file.close();}
     return num_reads;
 }
 
@@ -1325,8 +1333,9 @@ int run_spumoni_main(SpumoniRunOptions* run_opts){
     /* This method is responsible for the PML computation */
 
     // Loads the RLEBWT and Thresholds
-    pml_t ms(run_opts->ref_file, run_opts->use_doc);
+    pml_t ms(run_opts->ref_file, run_opts->use_doc, true);
     std::string out_filename = run_opts->pattern_file;
+    std::cout << std::endl;
 
     // Omar - temporary as I make the adjustment in coming days
     if (run_opts->threads >= 1) { 
@@ -1335,11 +1344,13 @@ int run_spumoni_main(SpumoniRunOptions* run_opts){
 
     // Process all the reads in the input pattern file
     auto start_time = std::chrono::system_clock::now();
-    SPUMONI_LOG("Processing the patterns");
+    STATUS_LOG("compute_pml", "processing the patterns");
     
     size_t num_reads = st_pml(&ms, run_opts->pattern_file, out_filename, run_opts->use_doc, run_opts->min_digest);
-    TIME_LOG((std::chrono::system_clock::now() - start_time));
-    SPUMONI_LOG("Finished processing %d reads", num_reads);
+    DONE_LOG((std::chrono::system_clock::now() - start_time));
+    FORCE_LOG("compute_pml", "finished processing %d reads. results are saved in *.pseudo_lengths file.", num_reads);
+    std::cout << std::endl;
+
     return 0;
 }
 
@@ -1349,8 +1360,9 @@ int run_spumoni_ms_main(SpumoniRunOptions* run_opts) {
     using DagcSd = DirectAccessibleGammaCode<SelSd>;
   
     // Loads the MS index containing the RLEBWT, Thresholds, and RA structure
-    ms_t ms(run_opts->ref_file, run_opts->use_doc);
+    ms_t ms(run_opts->ref_file, run_opts->use_doc, true);
     std::string out_filename = run_opts->pattern_file;
+    std::cout << std::endl;
 
     // Omar - temporary as I make the adjustment in coming days
     if (run_opts->threads >= 1) { 
@@ -1359,11 +1371,12 @@ int run_spumoni_ms_main(SpumoniRunOptions* run_opts) {
 
     // Determine approach to parse pattern files
     auto start_time = std::chrono::system_clock::now();
-    SPUMONI_LOG("Processing the patterns");
+    STATUS_LOG("compute_ms", "processing the reads");
 
-    size_t num_reads = st_ms(&ms, run_opts->pattern_file, out_filename, run_opts->use_doc, run_opts->min_digest);
-    TIME_LOG((std::chrono::system_clock::now() - start_time));
-    SPUMONI_LOG("Finished processing %d reads", num_reads);
+    size_t num_reads = st_ms(&ms, run_opts->ref_file, run_opts->pattern_file, run_opts->use_doc, run_opts->min_digest, run_opts->write_report);
+    DONE_LOG((std::chrono::system_clock::now() - start_time));
+    FORCE_LOG("compute_ms", "finished processing %d reads. results are saved in *.lengths file.", num_reads);
+    std::cout << std::endl;
     return 0;
 }
 

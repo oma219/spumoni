@@ -1,5 +1,5 @@
 /*
- * File: emp_null_database
+ * File: emp_null_database.hpp
  * Description: Header for emp_null_database.cpp file
  *
  * Author: Omar Ahmed
@@ -21,9 +21,11 @@ public:
     output_type stat_type = NOT_CHOSEN; // either MS or PML
     sdsl::int_vector<> null_stats; // empirical null statistics
     
+    EmpNullDatabase(){} // constructor used for loading
     EmpNullDatabase(const char* ref_file, const char* null_reads, bool use_minimizers, output_type stat_type);
 
     size_t serialize(std::ostream &out, sdsl::structure_tree_node *v = nullptr, std::string name = "");
+    void load(std::istream& in);
 };
 
 #endif /* end of _EMPNULLDATABASE_H */
