@@ -1103,27 +1103,30 @@ void mt_ms(ms_t *ms, std::string pattern_filename, std::string out_filename, siz
  *       code.
  */
 
-size_t st_pml(pml_t *pml, std::string pattern_filename, std::string out_filename, bool use_doc, bool min_digest) {
-    // Declare output file and iterator
-    std::ofstream lengths_file (out_filename + ".pseudo_lengths");
+size_t st_pml(pml_t *pml, std::string ref_filename, std::string pattern_filename, bool use_doc, bool min_digest, bool write_report) {
+    // declare output file and iterator
+    std::ofstream lengths_file (pattern_filename + ".pseudo_lengths");
     std::ostream_iterator<size_t> lengths_iter (lengths_file, " ");
 
-    std::ofstream doc_file;
+    std::ofstream doc_file, report_file;
     std::ostream_iterator<size_t> doc_iter (doc_file, " ");
 
-    if (use_doc) {doc_file.open(out_filename + ".doc_numbers");}
+    if (use_doc) {doc_file.open(pattern_filename + ".doc_numbers");}
+    if (write_report) {report_file.open(pattern_filename + ".report", std::ofstream::out);}
+    KSTest sig_test (ref_filename.data(), PML, write_report, report_file);
 
-    // Use kseq to parse out sequences from FASTA file
+    // use kseq to parse out sequences from FASTA file
     gzFile fp = gzopen(pattern_filename.c_str(), "r");
     kseq_t* seq = kseq_init(fp);
     size_t num_reads = 0;
+    srand(0);
 
     while (kseq_read(seq) >= 0) {
-        //Make sure all characters are upper-case
+        // make sure all characters are upper-case
         std::string curr_read = std::string(seq->seq.s);
         transform(curr_read.begin(), curr_read.end(), curr_read.begin(), ::toupper); 
 
-        // Convert to minimizer-form if needed
+        // convert to minimizer-form if needed
         if (min_digest){curr_read = perform_minimizer_digestion(curr_read);}
 
         // Grab PML and write to output file
@@ -1139,6 +1142,9 @@ size_t st_pml(pml_t *pml, std::string pattern_filename, std::string out_filename
         lengths_file << '>' << seq->name.s << '\n';
         std::copy(lengths.begin(), lengths.end(), lengths_iter);
         lengths_file << '\n';
+
+        // perform the KS test
+        if (write_report) {sig_test.run_kstest(seq->name.s, lengths, report_file);}
         
         num_reads++;
     }
@@ -1147,6 +1153,7 @@ size_t st_pml(pml_t *pml, std::string pattern_filename, std::string out_filename
 
     lengths_file.close();
     if (use_doc) {doc_file.close();}
+    if (write_report) {report_file.close();}
     return num_reads;
 }
 
@@ -1346,7 +1353,7 @@ int run_spumoni_main(SpumoniRunOptions* run_opts){
     auto start_time = std::chrono::system_clock::now();
     STATUS_LOG("compute_pml", "processing the patterns");
     
-    size_t num_reads = st_pml(&ms, run_opts->pattern_file, out_filename, run_opts->use_doc, run_opts->min_digest);
+    size_t num_reads = st_pml(&ms, run_opts->ref_file, run_opts->pattern_file, run_opts->use_doc, run_opts->min_digest, run_opts->write_report);
     DONE_LOG((std::chrono::system_clock::now() - start_time));
     FORCE_LOG("compute_pml", "finished processing %d reads. results are saved in *.pseudo_lengths file.", num_reads);
     std::cout << std::endl;
@@ -1465,19 +1472,3 @@ void generate_null_pml_statistics(std::string ref_file, std::string pattern_file
     kseq_destroy(seq);
     gzclose(fp);
 }
-
-/*
-std::pair<ulint, ulint> get_bwt_stats(std::string ref_file, size_t type) {
-    // Returns the length and number of runs in a text 
-    ulint length = 0, num_runs = 0;
-    if (type == 1) {
-        ms_t ms_data_structure(ref_file, false);
-        std::tie(length, num_runs) = ms_data_structure.get_bwt_stats();
-        return std::make_pair(length, num_runs);
-    } else {
-        pml_t pml_data_structure(ref_file, false);
-        std::tie(length, num_runs) = pml_data_structure.get_bwt_stats();
-        return std::make_pair(length, num_runs);
-    }
-}
-*/
