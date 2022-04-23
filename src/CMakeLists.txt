@@ -66,7 +66,7 @@ set(klib_SOURCE_DIR "${CMAKE_BINARY_DIR}/_deps/klib-src")
 add_executable(spumoni spumoni.cpp  compute_ms_pml.cpp doc_array.cpp 
                         refbuilder.cpp emp_null_database.cpp 
                         ks_test.cpp batch_loader.cpp)
-target_link_libraries(spumoni sdsl common_h divsufsort divsufsort64 ri pthread zlib bonsai "-fsanitize=address" "-fopenmp")
+target_link_libraries(spumoni sdsl common_h divsufsort divsufsort64 ri pthread zlib bonsai "-fopenmp")
 target_include_directories(spumoni PUBLIC 
                             "../include" 
                             "${shaped_slp_SOURCE_DIR}" "${FOLCA_SOURCE_DIR}" "${SUX_SOURCE_DIR}/function" 
@@ -75,7 +75,7 @@ target_include_directories(spumoni PUBLIC
                             "${bonsai_SOURCE_DIR}"
                             "${bonsai_SOURCE_DIR}/hll/include/"
                             "${bonsai_SOURCE_DIR}/include")
-target_compile_options(spumoni PUBLIC "-std=c++17" "-fsanitize=address" "-fopenmp")
+target_compile_options(spumoni PUBLIC "-std=c++17" "-fopenmp")
 
 #set(bonsai_SOURCE_DIR "${CMAKE_BINARY_DIR}_deps/bonsai")
 #message(STATUS "include_directory_is = ${bonsai_SOURCE_DIR}/include/bonsai")
