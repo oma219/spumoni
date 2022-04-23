@@ -89,8 +89,8 @@ target_compile_options(spumoni PUBLIC "-std=c++17" "-fsanitize=address" "-fopenm
 #target_include_directories(bst PUBLIC "../include")
 
 # Test executabl ...
-add_executable(test test.cpp batch_loader.cpp)
-target_compile_options(test PUBLIC "-std=c++17" "-fsanitize=address" "-fopenmp")
-target_link_libraries(test "-fsanitize=address" "-fopenmp")
-target_include_directories(test PUBLIC "../include")
+#add_executable(test test.cpp batch_loader.cpp)
+#target_compile_options(test PUBLIC "-std=c++17" "-fsanitize=address" "-fopenmp")
+#target_link_libraries(test "-fsanitize=address" "-fopenmp")
+#target_include_directories(test PUBLIC "../include")
 
