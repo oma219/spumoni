@@ -25,7 +25,8 @@ public:
 
     double run_test(std::vector<size_t> pos_stats, std::vector<size_t> null_stats);
     static inline std::vector<double> compute_cdf(std::vector<size_t> stats, size_t max_stat);
-    void run_kstest(const char* read_id, std::vector<size_t> pos_stats, std::ofstream& out);
+    std::vector<double> run_kstest(std::vector<size_t> pos_stats);
+    double get_threshold();
 };
 
 #endif /* end of _KSTEST_H */

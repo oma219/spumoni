@@ -42,7 +42,7 @@ int spumoni_run_usage () {
     //std::fprintf(stderr, "\t%-10spattern file is in fasta format (default: general text)\n", "-f");
     std::fprintf(stderr, "\t%-10suse document array to get assignments\n", "-d");
     std::fprintf(stderr, "\t%-10swrite out the classifications in a report file\n", "-c");
-    std::fprintf(stderr, "\t%-10snumber of helper threads (default: 0)\n\n", "-t [arg]");
+    std::fprintf(stderr, "\t%-10snumber of helper threads (default: 1)\n\n", "-t [arg]");
     return 0;
 }
 
@@ -62,7 +62,7 @@ int spumoni_build_usage () {
     std::fprintf(stderr, "\t%-10sturn on verbose logging\n", "-v");
     std::fprintf(stderr, "\t%-10ssliding window size (default: 10)\n", "-w [arg]");
     std::fprintf(stderr, "\t%-10shash modulus value (default: 100)\n", "-p [arg]");
-    std::fprintf(stderr, "\t%-10snumber of helper threads (default: 0)\n", "-t [arg]");
+    //std::fprintf(stderr, "\t%-10snumber of helper threads (default: 0)\n", "-t [arg]");
     std::fprintf(stderr, "\t%-10skeep the temporary files (default: false)\n", "-k");
     //std::fprintf(stderr, "\t%-10suse when the reference file is a fasta file (default: true)\n", "-f");
     std::fprintf(stderr, "\t%-10sbuild the document array (default: false)\n\n", "-d");
@@ -71,7 +71,7 @@ int spumoni_build_usage () {
 
 void parse_build_options(int argc, char** argv, SpumoniBuildOptions* opts) {
     /* Parses the arguments for the build sub-command and returns a struct with arguments */
-    for(int c;(c = getopt(argc, argv, "hr:MPw:p:t:kdi:b:nv")) >= 0;) { 
+    for(int c;(c = getopt(argc, argv, "hr:MPw:p:kdi:b:nv")) >= 0;) { 
         switch(c) {
                     case 'h': spumoni_build_usage(); std::exit(1);
                     case 'r': opts->ref_file.assign(optarg); break;
@@ -83,7 +83,7 @@ void parse_build_options(int argc, char** argv, SpumoniBuildOptions* opts) {
                     case 'n': opts->use_minimizers = false; opts->is_fasta = true; break;
                     case 'w': opts->wind = std::max(std::atoi(optarg), 10); break;
                     case 'p': opts->hash_mod = std::max(std::atoi(optarg), 1); break;
-                    case 't': opts->threads = std::max(std::atoi(optarg), 0); break;
+                    //case 't': opts->threads = std::max(std::atoi(optarg), 1); break;
                     case 'k': opts->keep_files = true; break;
                     //case 'f': opts->is_fasta = true; break;
                     case 'd': opts->build_doc = true; break;
@@ -103,7 +103,7 @@ void parse_run_options(int argc, char** argv, SpumoniRunOptions* opts) {
                     case 'P': opts->pml_requested = true; break;
                     case 'c': opts->write_report = true; break;
                     //case 'f': opts->query_fasta = true; break;
-                    case 't': opts->threads = std::max(std::atoi(optarg),0); break;
+                    case 't': opts->threads = std::max(std::atoi(optarg), 1); break;
                     case 'd': opts->use_doc = true; break;
                     default: spumoni_run_usage(); std::exit(1);
         }

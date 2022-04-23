@@ -30,6 +30,8 @@
 #include <doc_array.hpp>
 #include <bits/stdc++.h>
 #include <ks_test.hpp>
+#include <omp.h>
+#include <batch_loader.hpp>
 
 /*
  * This first section of the code contains classes that define pml_pointers
@@ -827,283 +829,12 @@ protected:
 };
 
 /*
- * This section of the code contains some helper methods, struct defintions, and
- * wrapper methods for the kseq.h.
+ * This section of the code contains the classification methods for reads
+ * based on whether it is requested to use MS/PMLs.
  */
 
-char complement(char n)
-{
-  switch (n) {
-    case 'A': return 'T';
-    case 'T': return 'A';
-    case 'G': return 'C';
-    case 'C': return 'G';
-    default: return n;
-  }
-}
-
-typedef struct{
-  // For MS multi-threading
-  ms_t *ms;
-  std::string pattern_filename;
-  std::string out_filename;
-  size_t start;
-  size_t end;
-  size_t wk_id;
-} mt_ms_param;
-
-typedef struct{
-  // For PML multi-threading
-  pml_t *ms;
-  std::string pattern_filename;
-  std::string out_filename;
-  size_t start;
-  size_t end;
-  size_t wk_id;
-} mt_pml_param;
-
-
-static inline size_t ks_tell(kseq_t *seq) {
-  return gztell(seq->f->f) - seq->f->end + seq->f->begin;
-}
-
-static void copy_kstring_t(kstring_t &l, kstring_t &r) {
-  l.l = r.l;
-  l.m = r.m;
-  l.s = (char *)malloc(l.m);
-  for (size_t i = 0; i < r.m; ++i)
-    l.s[i] = r.s[i];
-}
-
-static void copy_kseq_t(kseq_t *l, kseq_t *r) {
-  copy_kstring_t(l->name, r->name);
-  copy_kstring_t(l->comment, r->comment);
-  copy_kstring_t(l->seq, r->seq);
-  copy_kstring_t(l->qual, r->qual);
-  l->last_char = r->last_char;
-}
-
-static size_t next_start_fastq(gzFile fp){
-    int c;
-    // Special case when we arr at the beginning of the file.
-    if ((gztell(fp) == 0) && ((c = gzgetc(fp)) != EOF) && c == '@')
-        return 0;
-
-    // Strart from the previous character
-    gzseek(fp, -1, SEEK_CUR);
-
-    std::vector<std::pair<int, size_t>> window;
-    // Find the first new line
-    for (size_t i = 0; i < 4; ++i)
-    {
-        while (((c = gzgetc(fp)) != EOF) && (c != (int)'\n'))
-        {
-        }
-        if (c == EOF)
-        return gztell(fp);
-        if ((c = gzgetc(fp)) == EOF)
-        return gztell(fp);
-        window.push_back(std::make_pair(c, gztell(fp) - 1));
-    }
-
-    for (size_t i = 0; i < 2; ++i)
-    {
-        if (window[i].first == '@' && window[i + 2].first == '+')
-        return window[i].second;
-        if (window[i].first == '+' && window[i + 2].first == '@')
-        return window[i + 2].second;
-  }
-
-  return gztell(fp);
-}
-
-static inline bool is_gzipped(std::string filename) {
-    /* Methods tests if the file is gzipped */
-    FILE *fp = fopen(filename.c_str(), "rb");
-    if(fp == NULL) error("Opening file " + filename);
-    int byte1 = 0, byte2 = 0;
-    fread(&byte1, sizeof(char), 1, fp);
-    fread(&byte2, sizeof(char), 1, fp);
-    fclose(fp);
-    return (byte1 == 0x1f && byte2 == 0x8b);
-}
-
-inline size_t get_file_size(std::string filename) {
-    /* Returns the length of the file, it is assuming the file is not compressed */
-    if (is_gzipped(filename))
-    {
-        std::cerr << "The input is gzipped!" << std::endl;
-        return -1;
-    }
-    FILE *fp = fopen(filename.c_str(), "r");
-    fseek(fp, 0L, SEEK_END);
-    size_t size = ftell(fp);
-    fclose(fp);
-    return size;
-}
-
- std::vector<size_t> split_fastq(std::string filename, size_t n_threads)  {
-    /*
-    * Precondition: the file is not gzipped
-    * scan file for start positions and execute threads
-    */ 
-    size_t size = get_file_size(filename);
-    gzFile fp = gzopen(filename.c_str(), "r");
-
-    if (fp == Z_NULL) {
-        throw new std::runtime_error("Cannot open input file " + filename);
-    }
-
-    std::vector<size_t> starts(n_threads + 1);
-    for (int i = 0; i < n_threads + 1; ++i)
-    {
-        size_t start = (size_t)((size * i) / n_threads);
-        gzseek(fp, start, SEEK_SET);
-        starts[i] = next_start_fastq(fp);
-    }
-    gzclose(fp);
-    return starts;
-}
-
-/*
- * This section of the code deals with multi-threading of processing of 
- * pattern reads using pthreads.
- *
- * TODO: Try to replace with OpenMP threading, and using a producer/consumer-model
- *       and see if it will help to simplify the code.
- */
-
-void *mt_pml_worker(void *param) {
-    mt_pml_param *p = (mt_pml_param*) param;
-    size_t n_reads = 0;
-    size_t n_aligned_reads = 0;
-
-    FILE *out_fd;
-    gzFile fp;
-
-    if ((out_fd = fopen(p->out_filename.c_str(), "w")) == nullptr)
-        error("open() file " + p->out_filename + " failed");
-
-    if ((fp = gzopen(p->pattern_filename.c_str(), "r")) == Z_NULL)
-        error("open() file " + p->pattern_filename + " failed");
-
-    gzseek(fp, p->start, SEEK_SET);
-
-    kseq_t rev;
-    int l;
-
-    kseq_t *seq = kseq_init(fp);
-    while ((ks_tell(seq) < p->end) && ((l = kseq_read(seq)) >= 0)) {
-        std::string curr_read = std::string(seq->seq.s);
-        transform(curr_read.begin(), curr_read.end(), curr_read.begin(), ::toupper); //Make sure all characters are upper-case
-
-        // Just declared holder to avoid compilation error, will replace method in future
-        std::vector<size_t> holder;
-        p->ms->matching_statistics(curr_read.c_str(), seq->seq.l, holder);
-    }
-
-    kseq_destroy(seq);
-    gzclose(fp);
-    fclose(out_fd);
-
-    return NULL;
-}
-
-void *mt_ms_worker(void *param) {
-    mt_ms_param *p = (mt_ms_param*) param;
-    size_t n_reads = 0;
-    size_t n_aligned_reads = 0;
-
-    FILE *out_fd;
-    gzFile fp;
-
-    if ((out_fd = fopen(p->out_filename.c_str(), "w")) == nullptr)
-        error("open() file " + p->out_filename + " failed");
-
-    if ((fp = gzopen(p->pattern_filename.c_str(), "r")) == Z_NULL)
-        error("open() file " + p->pattern_filename + " failed");
-
-    gzseek(fp, p->start, SEEK_SET);
-
-    kseq_t rev;
-    int l;
-
-    kseq_t *seq = kseq_init(fp);
-    while ((ks_tell(seq) < p->end) && ((l = kseq_read(seq)) >= 0))
-    {
-        std::string curr_read = std::string(seq->seq.s);
-        transform(curr_read.begin(), curr_read.end(), curr_read.begin(), ::toupper); //Make sure all characters are upper-case
-
-        // replaced out_fd with ""
-        //p->ms->matching_statistics(curr_read.c_str(), seq->seq.l, "");
-
-    }
-
-    kseq_destroy(seq);
-    gzclose(fp);
-    fclose(out_fd);
-
-    return NULL;
-}
-
-/*
-void mt_pml(pml_t *ms, std::string pattern_filename, std::string out_filename, size_t n_threads) {
-    pthread_t t[n_threads] = {0};
-    mt_pml_param params[n_threads];
-    std::vector<size_t> starts = split_fastq(pattern_filename, n_threads);
-    for(size_t i = 0; i < n_threads; ++i)
-    {
-        params[i].ms = ms;
-        params[i].pattern_filename = pattern_filename;
-        params[i].out_filename = out_filename + "_" + std::to_string(i) + ".ms.tmp.out";
-        params[i].start = starts[i];
-        params[i].end = starts[i+1];
-        params[i].wk_id = i;
-        xpthread_create(&t[i], NULL, &mt_pml_worker, &params[i], __LINE__, __FILE__);
-    }
-
-    for(size_t i = 0; i < n_threads; ++i)
-    {
-        xpthread_join(t[i],NULL,__LINE__,__FILE__);
-    }
-    return;
-}
-*/
-
-/*
-void mt_ms(ms_t *ms, std::string pattern_filename, std::string out_filename, size_t n_threads) {
-    pthread_t t[n_threads] = {0};
-    mt_ms_param params[n_threads];
-    std::vector<size_t> starts = split_fastq(pattern_filename, n_threads);
-    for(size_t i = 0; i < n_threads; ++i)
-    {
-        params[i].ms = ms;
-        params[i].pattern_filename = pattern_filename;
-        params[i].out_filename = out_filename + "_" + std::to_string(i) + ".ms.tmp.out";
-        params[i].start = starts[i];
-        params[i].end = starts[i+1];
-        params[i].wk_id = i;
-        xpthread_create(&t[i], NULL, &mt_ms_worker, &params[i], __LINE__, __FILE__);
-    }
-
-    for(size_t i = 0; i < n_threads; ++i)
-    {
-        xpthread_join(t[i],NULL,__LINE__,__FILE__);
-    }
-    return;
-}
-*/
-
-/*
- * This section of the code contains the single-threaded processing methods
- * for computing the MS/PMLs.
- *
- * TODO: As mentioned above, I would like to use OpenMP since that could
- *       simplify the code since we can use pragmas instead of writing separate
- *       code.
- */
-
-size_t st_pml(pml_t *pml, std::string ref_filename, std::string pattern_filename, bool use_doc, bool min_digest, bool write_report) {
+size_t classify_reads_pml(pml_t *pml, std::string ref_filename, std::string pattern_filename, bool use_doc, 
+                          bool min_digest, bool write_report, size_t num_threads) {
     // declare output file and iterator
     std::ofstream lengths_file (pattern_filename + ".pseudo_lengths");
     std::ostream_iterator<size_t> lengths_iter (lengths_file, " ");
@@ -1115,101 +846,108 @@ size_t st_pml(pml_t *pml, std::string ref_filename, std::string pattern_filename
     if (write_report) {report_file.open(pattern_filename + ".report", std::ofstream::out);}
     KSTest sig_test (ref_filename.data(), PML, write_report, report_file);
 
-    // use kseq to parse out sequences from FASTA file
-    gzFile fp = gzopen(pattern_filename.c_str(), "r");
-    kseq_t* seq = kseq_init(fp);
+    // open query file, and start to classify
+    std::ifstream input_file (pattern_filename.c_str());
+    omp_set_num_threads(num_threads); 
     size_t num_reads = 0;
     srand(0);
 
-    while (kseq_read(seq) >= 0) {
-        // make sure all characters are upper-case
-        std::string curr_read = std::string(seq->seq.s);
-        transform(curr_read.begin(), curr_read.end(), curr_read.begin(), ::toupper); 
+    #pragma omp parallel
+    {
+        BatchLoader reader;
 
-        // convert to minimizer-form if needed
-        if (min_digest){curr_read = perform_minimizer_digestion(curr_read);}
+        // Iterates over batches of data until none left
+        while (true) {
+            bool valid_batch = true;
+            #pragma omp critical // one reader at a time
+            {
+                valid_batch = reader.loadBatch(input_file, 1000);
+            }
+            if (!valid_batch) break;
 
-        // Grab PML and write to output file
-        std::vector<size_t> lengths, doc_nums;
-        if (use_doc){
-            pml->matching_statistics(curr_read.c_str(), curr_read.size(), lengths, doc_nums);
-            doc_file << '>' << seq->name.s << '\n';
-            std::copy(doc_nums.begin(), doc_nums.end(), doc_iter);
-            doc_file << '\n';
-        }
-        else {pml->matching_statistics(curr_read.c_str(), curr_read.size(), lengths);}
-        
-        lengths_file << '>' << seq->name.s << '\n';
-        std::copy(lengths.begin(), lengths.end(), lengths_iter);
-        lengths_file << '\n';
+            Read read_struct;
+            bool valid_read = false;
 
-        // perform the KS test
-        if (write_report) {sig_test.run_kstest(seq->name.s, lengths, report_file);}
-        
-        num_reads++;
-    }
-    kseq_destroy(seq);
-    gzclose(fp);
+            // Iterates over reads in a single batch
+            while (true) {
+                valid_read = reader.grabNextRead(read_struct);
+                if (!valid_read) break;
+
+                // make sure all characters are upper-case
+                std::string curr_read = std::string(read_struct.seq);
+                transform(curr_read.begin(), curr_read.end(), curr_read.begin(), ::toupper); 
+
+                // convert to minimizer-form if needed
+                if (min_digest){curr_read = perform_minimizer_digestion(curr_read);}
+
+                // grab MS and write to output file
+                std::vector<size_t> lengths, doc_nums;
+                if (use_doc){
+                    pml->matching_statistics(curr_read.c_str(), curr_read.size(), lengths, doc_nums);
+                }
+                else {pml->matching_statistics(curr_read.c_str(), curr_read.size(), lengths);}
+
+                // perform the KS-test
+                std::vector<double> ks_list;
+                std::string status = "";
+                size_t num_bin_above_thr = 0;
+                double sum_ks_stats = 0.0;
+
+                if (write_report) {
+                    // gather the kolomogorov-smirnov statistics
+                    ks_list = sig_test.run_kstest(lengths);
+                
+                    // classify the based on ks-statistics
+                    double threshold = sig_test.get_threshold();
+                    for (size_t i = 0; i < ks_list.size(); i++) {
+                        if (ks_list[i] >= threshold) num_bin_above_thr++;
+                    }
+                    bool read_found = (num_bin_above_thr/(ks_list.size()+0.0) >= 0.50);
+
+                    std::for_each(ks_list.begin(), ks_list.end(), [&] (double n) {sum_ks_stats += n;});
+                    status = (read_found) ? "FOUND" : "NOT_PRESENT";
+                }
+
+                #pragma omp atomic
+                num_reads++;
+
+                // output the statistics requested
+                #pragma omp critical
+                {
+                    if (use_doc) {
+                        doc_file << '>' << read_struct.id << '\n';
+                        std::copy(doc_nums.begin(), doc_nums.end(), doc_iter);
+                        doc_file << '\n';
+                    }
+                    lengths_file << '>' << read_struct.id << '\n';
+                    std::copy(lengths.begin(), lengths.end(), lengths_iter);
+                    lengths_file << '\n'; 
+
+                    if (write_report) {
+                        report_file.precision(3);
+                        report_file << std::setw(20) << std::left << read_struct.id
+                                    << std::setw(15) << std::left << status 
+                                    << std::setw(15) << std::left << (sum_ks_stats/ks_list.size()) 
+                                    << std::setw(12) << std::left << num_bin_above_thr
+                                    << std::setw(12) << std::left << (ks_list.size() - num_bin_above_thr)
+                                    << std::endl;
+                    }
+                }
+            } // End of read while loop
+        } // End of batch while loop
+    } // End of parallel region
 
     lengths_file.close();
+    input_file.close();
+
     if (use_doc) {doc_file.close();}
     if (write_report) {report_file.close();}
     return num_reads;
 }
 
-size_t st_pml_general(pml_t *ms, std::string pattern_filename, std::string out_filename, bool use_doc) {
-    // Check if file is mistakenly labeled as non-fasta file
-    std::string file_ext = pattern_filename.substr(pattern_filename.find_last_of(".") + 1);
-    if (file_ext == "fa" || file_ext == "fasta") {
-        FATAL_WARNING("The file extension for the patterns suggests it is a fasta file.\n" 
-                      "Please run with -f option for correct results.");
-    }
+size_t classify_reads_ms(ms_t *ms, std::string ref_filename, std::string pattern_filename, 
+                         bool use_doc, bool min_digest, bool write_report, size_t num_threads) {
 
-    // Declare output files, and output iterators
-    std::ofstream lengths_file (out_filename + ".pseudo_lengths");
-    std::ofstream doc_file;
-
-    std::ostream_iterator<size_t> length_iter (lengths_file, " ");
-    std::ostream_iterator<size_t> doc_iter (doc_file, " ");
-    if (use_doc){doc_file.open(out_filename + ".doc_numbers");}
-
-    // Open pattern file to start reading reads
-    std::ifstream input_fd (pattern_filename, std::ifstream::in | std::ifstream::binary);
-    std::vector<size_t> lengths, doc_nums;
-    std::string read = "";
-    size_t num_reads = 0;
-
-    char ch = input_fd.get();
-    char* buf = new char [2]; // To just hold separator character
-
-    while (input_fd.good()) {
-        // Finds a separating character
-        if (ch == '\x01') { 
-            if (use_doc){
-                ms->matching_statistics(read.c_str(), read.size(), lengths, doc_nums);
-                doc_file << ">read_" << num_reads << "\n";
-                std::copy(doc_nums.begin(), doc_nums.end(), doc_iter);
-                doc_file << "\n"; 
-            }
-            else {ms->matching_statistics(read.c_str(), read.size(), lengths);}
-
-            lengths_file << ">read_" << num_reads << "\n";
-            std::copy(lengths.begin(), lengths.end(), length_iter);
-            lengths_file << "\n";
-
-            input_fd.read(buf, 2); 
-            num_reads++;
-            read="";
-        }
-        else {read += ch;}
-        ch = input_fd.get();
-    }
-    lengths_file.close();
-    if (use_doc) {doc_file.close();}
-    return num_reads;
-}
-
-size_t st_ms(ms_t *ms, std::string ref_filename, std::string pattern_filename, bool use_doc, bool min_digest, bool write_report) {
     // declare output files, and output iterators
     std::ofstream lengths_file (pattern_filename + ".lengths");
     std::ofstream pointers_file (pattern_filename + ".pointers");
@@ -1223,112 +961,109 @@ size_t st_ms(ms_t *ms, std::string ref_filename, std::string pattern_filename, b
     if (write_report) {report_file.open(pattern_filename + ".report", std::ofstream::out);}
     KSTest sig_test(ref_filename.data(), MS, write_report, report_file);
 
-    // use kseq to parse out sequences from FASTA file
-    gzFile fp = gzopen(pattern_filename.c_str(), "r");
-    kseq_t* seq = kseq_init(fp);
+    // open query file, and start to classify
+    std::ifstream input_file (pattern_filename.c_str());
+    omp_set_num_threads(num_threads); 
     size_t num_reads = 0;
     srand(0);
 
-    while (kseq_read(seq) >= 0) {
-        // make sure all characters are upper-case
-        std::string curr_read = std::string(seq->seq.s);
-        transform(curr_read.begin(), curr_read.end(), curr_read.begin(), ::toupper); 
+    #pragma omp parallel
+    {
+        BatchLoader reader;
 
-        // convert to minimizer-form if needed
-        if (min_digest){curr_read = perform_minimizer_digestion(curr_read);}
+        // Iterates over batches of data until none left
+        while (true) {
+            bool valid_batch = true;
+            #pragma omp critical // one reader at a time
+            {
+                valid_batch = reader.loadBatch(input_file, 1000);
+            }
+            if (!valid_batch) break;
 
-        // grab MS and write to output file
-        std::vector<size_t> lengths, pointers, doc_nums;
-        if (use_doc){
-            ms->matching_statistics(curr_read.c_str(), curr_read.size(), lengths, pointers, doc_nums);
-            doc_file << '>' << seq->name.s << '\n';
-            std::copy(doc_nums.begin(), doc_nums.end(), doc_iter);
-            doc_file << '\n';
-        }
-        else {ms->matching_statistics(curr_read.c_str(), curr_read.size(), lengths, pointers);}
+            Read read_struct;
+            bool valid_read = false;
 
-        lengths_file << '>' << seq->name.s << '\n';
-        pointers_file << '>' << seq->name.s << '\n';
+            // Iterates over reads in a single batch
+            while (true) {
+                valid_read = reader.grabNextRead(read_struct);
+                if (!valid_read) break;
 
-        std::copy(lengths.begin(), lengths.end(), length_iter);
-        std::copy(pointers.begin(), pointers.end(), pointers_iter);
-        lengths_file << '\n'; pointers_file << '\n';
+                // make sure all characters are upper-case
+                std::string curr_read = std::string(read_struct.seq);
+                transform(curr_read.begin(), curr_read.end(), curr_read.begin(), ::toupper); 
 
-        // perform the KS-test
-        if (write_report) {sig_test.run_kstest(seq->name.s, lengths, report_file);}
+                // convert to minimizer-form if needed
+                if (min_digest){curr_read = perform_minimizer_digestion(curr_read);}
 
-        num_reads++;
-    }
-    kseq_destroy(seq);
-    gzclose(fp);
+                // grab MS and write to output file
+                std::vector<size_t> lengths, pointers, doc_nums;
+                if (use_doc){
+                    ms->matching_statistics(curr_read.c_str(), curr_read.size(), lengths, pointers, doc_nums);
+                }
+                else {ms->matching_statistics(curr_read.c_str(), curr_read.size(), lengths, pointers);}
 
+                // perform the KS-test
+                std::vector<double> ks_list;
+                std::string status = "";
+                size_t num_bin_above_thr = 0;
+                double sum_ks_stats = 0.0;
+
+                if (write_report) {
+                    // gather the kolomogorov-smirnov statistics
+                    ks_list = sig_test.run_kstest(lengths);
+                
+                    // classify the based on ks-statistics
+                    double threshold = sig_test.get_threshold();
+                    for (size_t i = 0; i < ks_list.size(); i++) {
+                        if (ks_list[i] >= threshold) num_bin_above_thr++;
+                    }
+                    bool read_found = (num_bin_above_thr/(ks_list.size()+0.0) >= 0.50);
+
+                    std::for_each(ks_list.begin(), ks_list.end(), [&] (double n) {sum_ks_stats += n;});
+                    status = (read_found) ? "FOUND" : "NOT_PRESENT";
+                }
+
+                #pragma omp atomic
+                num_reads++;
+
+                // output the statistics requested
+                #pragma omp critical
+                {
+                    if (use_doc) {
+                        doc_file << '>' << read_struct.id << '\n';
+                        std::copy(doc_nums.begin(), doc_nums.end(), doc_iter);
+                        doc_file << '\n';
+                    }
+                    lengths_file << '>' << read_struct.id << '\n';
+                    pointers_file << '>' << read_struct.id << '\n';
+
+                    std::copy(lengths.begin(), lengths.end(), length_iter);
+                    std::copy(pointers.begin(), pointers.end(), pointers_iter);
+                    lengths_file << '\n'; pointers_file << '\n';
+
+                    if (write_report) {
+                        report_file.precision(3);
+                        report_file << std::setw(20) << std::left << read_struct.id
+                                    << std::setw(15) << std::left << status 
+                                    << std::setw(15) << std::left << (sum_ks_stats/ks_list.size()) 
+                                    << std::setw(12) << std::left << num_bin_above_thr
+                                    << std::setw(12) << std::left << (ks_list.size() - num_bin_above_thr)
+                                    << std::endl;
+                    }
+                }
+            } // End of read while loop
+        } // End of batch while loop
+    } // End of parallel region
+
+    input_file.close();
     lengths_file.close();
     pointers_file.close();
+
     if (use_doc) {doc_file.close();}
     if (write_report) {report_file.close();}
     return num_reads;
 }
 
-size_t st_ms_general(ms_t *ms, std::string pattern_filename, std::string out_filename, bool use_doc){
-    // Check if file is mistakenly labeled as non-fasta file
-    std::string file_ext = pattern_filename.substr(pattern_filename.find_last_of(".") + 1);
-    if (file_ext == "fa" || file_ext == "fasta") {
-        FATAL_WARNING("The file extension for the patterns suggests it is a fasta file.\n" 
-                      "Please run with -f option for correct results.");
-    }
-
-    // Declare output files, and output iterators
-    std::ofstream lengths_file (out_filename + ".lengths");
-    std::ofstream pointers_file (out_filename + ".pointers");
-    std::ofstream doc_file;
-
-    std::ostream_iterator<size_t> length_iter (lengths_file, " ");
-    std::ostream_iterator<size_t> pointers_iter (pointers_file, " ");
-    std::ostream_iterator<size_t> doc_iter (doc_file, " ");
-
-    if (use_doc) {doc_file.open(out_filename + ".doc_numbers");}
-
-    // Open pattern file to start reading reads
-    std::ifstream input_fd (pattern_filename, std::ifstream::in | std::ifstream::binary);
-    std::vector<size_t> lengths, pointers, doc_nums;
-    std::string read = "";
-    size_t num_reads = 0;
-
-    char ch = input_fd.get();
-    char* buf = new char [2]; // To just hold separator character
-
-    while (input_fd.good()) {
-        // Finds a separating character
-        if (ch == '\x01') { 
-            if (use_doc){
-                ms->matching_statistics(read.c_str(), read.size(), lengths, pointers, doc_nums);
-                doc_file << ">read_" << num_reads << "\n";
-                std::copy(doc_nums.begin(), doc_nums.end(), doc_iter);
-                doc_file << '\n';
-            }
-            else {ms->matching_statistics(read.c_str(), read.size(), lengths, pointers);}
-
-            lengths_file << ">read_" << num_reads << "\n";
-            pointers_file << ">read_" << num_reads << "\n";
-
-            std::copy(lengths.begin(), lengths.end(), length_iter);
-            std::copy(pointers.begin(), pointers.end(), pointers_iter);
-            lengths_file << "\n"; pointers_file << "\n";
-
-            input_fd.read(buf, 2); 
-            num_reads++;
-            read="";
-        }
-        else {read += ch;}
-        ch = input_fd.get();
-    }
-    lengths_file.close();
-    pointers_file.close();
-    if (use_doc) {doc_file.close();}
-    return num_reads;
-}
-
-typedef std::pair<std::string, std::vector<uint8_t>> pattern_t;
 
 /*
  * This section contains the "main" methods for the running process where
@@ -1344,16 +1079,12 @@ int run_spumoni_main(SpumoniRunOptions* run_opts){
     std::string out_filename = run_opts->pattern_file;
     std::cout << std::endl;
 
-    // Omar - temporary as I make the adjustment in coming days
-    if (run_opts->threads >= 1) { 
-        FATAL_ERROR("Multi-threading not implemented yet.");
-    }
-
     // Process all the reads in the input pattern file
     auto start_time = std::chrono::system_clock::now();
     STATUS_LOG("compute_pml", "processing the patterns");
     
-    size_t num_reads = st_pml(&ms, run_opts->ref_file, run_opts->pattern_file, run_opts->use_doc, run_opts->min_digest, run_opts->write_report);
+    size_t num_reads = classify_reads_pml(&ms, run_opts->ref_file, run_opts->pattern_file, run_opts->use_doc, 
+                                          run_opts->min_digest, run_opts->write_report, run_opts->threads);
     DONE_LOG((std::chrono::system_clock::now() - start_time));
     FORCE_LOG("compute_pml", "finished processing %d reads. results are saved in *.pseudo_lengths file.", num_reads);
     std::cout << std::endl;
@@ -1371,16 +1102,12 @@ int run_spumoni_ms_main(SpumoniRunOptions* run_opts) {
     std::string out_filename = run_opts->pattern_file;
     std::cout << std::endl;
 
-    // Omar - temporary as I make the adjustment in coming days
-    if (run_opts->threads >= 1) { 
-        FATAL_ERROR("Multi-threading not implemented yet.");
-    }
-
     // Determine approach to parse pattern files
     auto start_time = std::chrono::system_clock::now();
     STATUS_LOG("compute_ms", "processing the reads");
 
-    size_t num_reads = st_ms(&ms, run_opts->ref_file, run_opts->pattern_file, run_opts->use_doc, run_opts->min_digest, run_opts->write_report);
+    size_t num_reads = classify_reads_ms(&ms, run_opts->ref_file, run_opts->pattern_file, run_opts->use_doc, 
+                                         run_opts->min_digest, run_opts->write_report, run_opts->threads);
     DONE_LOG((std::chrono::system_clock::now() - start_time));
     FORCE_LOG("compute_ms", "finished processing %d reads. results are saved in *.lengths file.", num_reads);
     std::cout << std::endl;

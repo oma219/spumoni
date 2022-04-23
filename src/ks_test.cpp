@@ -38,6 +38,10 @@ KSTest::KSTest(std::string ref_file, output_type result_type, bool write_report,
         << std::setw(12) << std::left << "below thr:" << std::endl;
 }
 
+double KSTest::get_threshold() {
+    return (this->stat_type == MS) ? KS_STAT_MS_THR : KS_STAT_PML_THR;
+}
+
 std::vector<double> KSTest::compute_cdf(std::vector<size_t> stats, size_t max_stat) {
     /* generates the cdf for the list of sorted statistics, the x-value range from 0 to max_stat */
     std::vector<double> cdf_vals;
@@ -81,8 +85,8 @@ double KSTest::run_test(std::vector<size_t> pos_stats, std::vector<size_t> null_
     return ks_stat;
 }
 
-void KSTest::run_kstest(const char* read_id, std::vector<size_t> pos_stats, std::ofstream& out) {
-    /* runs the KS-test using empirical null database, and saves results */
+std::vector<double> KSTest::run_kstest(std::vector<size_t> pos_stats) {
+    /* runs the KS-test using empirical null database, and returns results */
     size_t curr_start_pos = 0;
     std::vector<double> ks_list;
 
@@ -105,27 +109,5 @@ void KSTest::run_kstest(const char* read_id, std::vector<size_t> pos_stats, std:
         ks_list.push_back(curr_ks_stat);
         curr_start_pos += this->bin_size;
     }
-
-    // determine how read should be classified
-    size_t num_bin_above_thr = 0;
-    double threshold = (this->stat_type == MS) ? KS_STAT_MS_THR : KS_STAT_PML_THR;
-    for (size_t i = 0; i < ks_list.size(); i++) {
-        if (ks_list[i] >= threshold) num_bin_above_thr++;
-    }
-    bool read_found = (num_bin_above_thr/(ks_list.size()+0.0) >= 0.50);
-
-    // write out to report ...
-    double sum_ks_stats = 0.0;
-    std::for_each(ks_list.begin(), ks_list.end(), [&] (double n) {sum_ks_stats += n;});
-
-    std::string status = (read_found) ? "FOUND" : "NOT_PRESENT";
-
-    out.precision(3);
-    out << std::setw(20) << std::left << read_id
-        << std::setw(15) << std::left << status 
-        << std::setw(15) << std::left << (sum_ks_stats/ks_list.size()) 
-        << std::setw(12) << std::left << num_bin_above_thr
-        << std::setw(12) << std::left << (ks_list.size() - num_bin_above_thr)
-        << std::endl;
-    
+    return ks_list;
 }

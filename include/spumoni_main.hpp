@@ -123,6 +123,7 @@ public:
 
 enum output_type {MS, PML, NOT_CHOSEN};
 enum reference_type {FASTA, MINIMIZER, NOT_SET};
+enum query_input_type {FA, FQ, NOT_CLEAR};
 
 struct SpumoniBuildOptions {
   std::string ref_file = "";
@@ -172,7 +173,7 @@ struct SpumoniRunOptions {
   bool min_digest = true; // need to digest reads (default is true)
   output_type result_type = NOT_CHOSEN; // output type requested by user
   reference_type ref_type = NOT_SET; // the type of reference
-  size_t threads = 0; // number of helper threads
+  size_t threads = 1; // number of threads
   bool use_doc = false; // build the document array
   bool write_report = false; // write out the classification report
 
