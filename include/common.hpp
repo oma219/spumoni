@@ -344,7 +344,7 @@ inline void parseArgs(int argc, char *const argv[], Args &arg)
   extern char *optarg;
   extern int optind;
 
-  std::string usage("usage: " + std::string(argv[0]) + " infile [-s store] [-m memo] [-c csv] [-p patterns] [-f fasta] [-r rle] [-t threads] [-l len]\n\n" +
+  std::string usage("usage: " + std::string(argv[0]) + " -i infile [-s store] [-m memo] [-c csv] [-p patterns] [-f fasta] [-r rle] [-t threads] [-l len]\n\n" +
                     "Computes the pfp data structures of infile, provided that infile.parse, infile.dict, and infile.occ exists.\n" +
                     "  wsize: [integer] - sliding window size (def. 10)\n" +
                     "  store: [boolean] - store the data structure in infile.pfp.ds. (def. false)\n" +
@@ -357,7 +357,7 @@ inline void parseArgs(int argc, char *const argv[], Args &arg)
                     "    csv: [boolean] - print the stats in csv form on strerr. (def. false)\n");
 
   std::string sarg;
-  while ((c = getopt(argc, argv, "w:smcfl:rhp:t:")) != -1)
+  while ((c = getopt(argc, argv, "w:smcfl:rhp:t:i:")) != -1)
   {
     switch (c)
     {
@@ -380,6 +380,9 @@ inline void parseArgs(int argc, char *const argv[], Args &arg)
     case 'p':
       arg.patterns.assign(optarg);
       break;
+    case 'i':
+      arg.filename.assign(optarg);
+      break;
     case 'l':
       sarg.assign(optarg);
       arg.l = stoi(sarg);
@@ -399,11 +402,7 @@ inline void parseArgs(int argc, char *const argv[], Args &arg)
     }
   }
   // the only input parameter is the file name
-  if (argc == optind + 1)
-  {
-    arg.filename.assign(argv[optind]);
-  }
-  else
+  if (argc == 1)
   {
     error("Invalid number of arguments\n", usage);
   }

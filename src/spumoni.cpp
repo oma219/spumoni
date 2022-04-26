@@ -237,7 +237,7 @@ void run_build_grammar_cmds(SpumoniBuildOptions* build_opts, SpumoniHelperProgra
 
     // Generate and run command to compress the dictionary
     std::ostringstream command_stream;
-    command_stream << helper_bins->compress_bin << " " << build_opts->ref_file;
+    command_stream << helper_bins->compress_bin << " -i " << build_opts->ref_file;
     command_stream << " -w " << build_opts->wind << " -p " << build_opts->hash_mod;
     
     LOG(build_opts->verbose, "build_grammar", ("Executing this command: " + command_stream.str()).data());
@@ -340,7 +340,7 @@ void run_build_parse_cmd(SpumoniBuildOptions* build_opts, SpumoniHelperPrograms*
         if (build_opts->is_fasta) {curr_exe.assign(helper_bins->parse_fasta_bin);}
         else {curr_exe.assign(helper_bins->parse_bin);}
 
-        command_stream << helper_bins->parse_fasta_bin << " ";
+        command_stream << curr_exe << " -i ";
         command_stream << build_opts->ref_file << " ";
         command_stream << "-w " << build_opts->wind;
         command_stream << " -p " << build_opts->hash_mod;
@@ -348,7 +348,7 @@ void run_build_parse_cmd(SpumoniBuildOptions* build_opts, SpumoniHelperPrograms*
     }
     else {
         std::string curr_exe = "";
-        command_stream << helper_bins->parseNT_bin << " ";
+        command_stream << helper_bins->parseNT_bin << " -i ";
         command_stream << build_opts->ref_file << " ";
         command_stream << "-w " << build_opts->wind;
         command_stream << " -p " << build_opts->hash_mod;
@@ -424,7 +424,7 @@ void run_build_thresholds_cmd(SpumoniBuildOptions* build_opts, SpumoniHelperProg
     } else {curr_exe.assign(helper_bins->pfp_thresholds);}
 
     std::ostringstream command_stream;
-    command_stream << curr_exe << " " << build_opts->ref_file << " ";
+    command_stream << curr_exe << " -i " << build_opts->ref_file << " ";
     command_stream << "-w " << build_opts->wind << " -r";
 
     LOG(build_opts->verbose, "build_thr", ("Executing this command: " + command_stream.str()).data());

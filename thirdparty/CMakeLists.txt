@@ -73,7 +73,7 @@ endif()
 #----------------------------------------
 FetchContent_Declare(
   bigbwt
-  GIT_REPOSITORY https://github.com/alshai/Big-BWT.git
+  GIT_REPOSITORY https://github.com/oma219/Big-BWT.git
   )
   
 FetchContent_GetProperties(bigbwt)
@@ -174,7 +174,7 @@ endif()
 #----------------------------------------
 FetchContent_Declare(
   pfp_thresholds
-  GIT_REPOSITORY https://github.com/maxrossi91/pfp-thresholds.git
+  GIT_REPOSITORY https://github.com/oma219/pfp-thresholds.git
   GIT_TAG develop
   )
   
