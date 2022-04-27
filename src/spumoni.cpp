@@ -60,8 +60,8 @@ int spumoni_build_usage () {
     std::fprintf(stderr, "\t%-10sbuild an index that can be used to compute MSs\n", "-M");
     std::fprintf(stderr, "\t%-10sbuild an index that can be used to compute PMLs\n", "-P");
     std::fprintf(stderr, "\t%-10sturn on verbose logging\n", "-v");
-    std::fprintf(stderr, "\t%-10ssliding window size (default: 10)\n", "-w [arg]");
-    std::fprintf(stderr, "\t%-10shash modulus value (default: 100)\n", "-p [arg]");
+    //std::fprintf(stderr, "\t%-10ssliding window size (default: 10)\n", "-w [arg]");
+    //std::fprintf(stderr, "\t%-10shash modulus value (default: 100)\n", "-p [arg]");
     //std::fprintf(stderr, "\t%-10snumber of helper threads (default: 0)\n", "-t [arg]");
     std::fprintf(stderr, "\t%-10skeep the temporary files (default: false)\n", "-k");
     //std::fprintf(stderr, "\t%-10suse when the reference file is a fasta file (default: true)\n", "-f");
@@ -479,20 +479,34 @@ int build_main(int argc, char** argv) {
     auto total_build_process_start = std::chrono::system_clock::now();
     auto task_start = std::chrono::system_clock::now();
 
-    // Perform needed operations to input file(s) prior to building index
-    if (!quick_build && build_opts.input_list.length()){ 
-        task_start = std::chrono::system_clock::now();
-        STATUS_LOG("build_main", "building the reference based on filelist");
-        
-        RefBuilder refbuild (build_opts.ref_file.data(), build_opts.input_list.data(), build_opts.output_dir.data(),
-                             build_opts.build_doc, build_opts.input_list.length(), build_opts.use_minimizers);
-        build_opts.ref_file = refbuild.get_ref_path();
-        null_read_file = refbuild.get_null_readfile();
-        DONE_LOG((std::chrono::system_clock::now() - task_start));
-    } else {null_read_file = RefBuilder::parse_null_reads(build_opts.ref_file.data());}
-
-    // Performs the parsing of the reference and builds the thresholds based on the PFP
     if (!quick_build) {
+        // Print out information describing the input files...
+        if (build_opts.use_minimizers && !build_opts.input_list.length()) {
+            STATUS_LOG("build_main", "digesting reference into a sequence of minimizers (spumoni_full_ref.bin)");
+        } else if (build_opts.use_minimizers && build_opts.input_list.length()) {
+            STATUS_LOG("build_main", "building reference from input list and converting into minimizer sequence (spumoni_full_ref.bin)");
+        } else if (!build_opts.use_minimizers && build_opts.input_list.length()) {
+            STATUS_LOG("build_main", "building reference from input list (spumoni_full_ref.fa)");
+        } else {
+            STATUS_LOG("build_main", "reference file will be used directly (%s)", build_opts.ref_file.data());
+        }
+        task_start = std::chrono::system_clock::now();
+
+        // Perform needed operations to input file(s) prior to building index
+        if (build_opts.input_list.length()){         
+            RefBuilder refbuild (build_opts.ref_file.data(), build_opts.input_list.data(), build_opts.output_dir.data(),
+                                build_opts.build_doc, build_opts.input_list.length(), build_opts.use_minimizers);
+            build_opts.ref_file = refbuild.get_ref_path();
+            null_read_file = refbuild.get_null_readfile();
+        } else {
+            null_read_file = RefBuilder::parse_null_reads(build_opts.ref_file.data());
+            if (build_opts.use_minimizers){
+                build_opts.ref_file = RefBuilder::digest_reference(build_opts.ref_file.data());
+            }
+        }
+        DONE_LOG((std::chrono::system_clock::now() - task_start));
+
+        // Performs the parsing of the reference and builds the thresholds based on the PFP
         run_build_parse_cmd(&build_opts, &helper_bins);
         run_build_thresholds_cmd(&build_opts, &helper_bins); std::cout << std::endl;
     }
@@ -537,13 +551,13 @@ int build_main(int argc, char** argv) {
     // Build the document array if asked for as well
     if (build_opts.build_doc) {
         STATUS_LOG("build_main", "building the document array");
-        auto start = std::chrono::system_clock::now();
+        task_start = std::chrono::system_clock::now();
         DocumentArray doc_arr(build_opts.ref_file, num_runs);
 
         std::ofstream out_stream(build_opts.ref_file + ".doc");
         doc_arr.serialize(out_stream);
         out_stream.close();
-        DONE_LOG((std::chrono::system_clock::now() - start));
+        DONE_LOG((std::chrono::system_clock::now() - task_start));
     }
 
     if (!build_opts.keep_files) {rm_temp_build_files(&build_opts, &helper_bins); std::cout << "\n";}

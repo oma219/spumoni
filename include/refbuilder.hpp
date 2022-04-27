@@ -25,6 +25,7 @@ public:
     const char* get_ref_path();
     const char* get_null_readfile();
     static std::string parse_null_reads(const char* ref_file);
+    static std::string digest_reference(const char* ref_file);
 
 };// end of RefBuilder class
 

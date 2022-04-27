@@ -17,9 +17,6 @@
 #include <encoder.h>
 #include <filesystem>
 
-// Commented out for including encoder.h - Omar
-//#include <kseq.h>
-//KSEQ_INIT(gzFile, gzread)
 
 /* Complement Table from: https://github.com/lh3/seqtk/blob/master/seqtk.c */
 char comp_tab[] = {
@@ -279,5 +276,29 @@ std::string RefBuilder::parse_null_reads(const char* ref_file) {
     return output_path;
 }
 
+std::string RefBuilder::digest_reference(const char* ref_file) {
+    /* Digests a singular-reference into minimizer-based reference if requested */
+    std::filesystem::path p1 = ref_file;
+    std::string output_path = "";
 
+    // Adds a backslash to filepath when needed
+    if (p1.parent_path().string().length()) {output_path = p1.parent_path().string() + "/spumoni_full_ref.bin";}
+    else {output_path = "/spumoni_full_ref.bin";}
+
+    std::ofstream output_null_fd (output_path, std::ofstream::out);
+
+    // Variables for parsing FASTA ...
+    gzFile fp = gzopen(ref_file, "r");
+    kseq_t* seq = kseq_init(fp);
+
+    while (kseq_read(seq)>=0) {
+        std::string curr_seq = "";
+        curr_seq = perform_minimizer_digestion(seq->seq.s);
+        output_null_fd << curr_seq;
+    }
+    kseq_destroy(seq);
+    gzclose(fp);
+    output_null_fd.close();
+    return output_path;
+}
 

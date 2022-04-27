@@ -8,14 +8,6 @@
  * Authors: Massimiliano Rossi, Omar Ahmed
  * Start Date: October 13, 2021
  */
-
-/*
- * Commented out since it is needed for pthread calls
- * which I hope to replace with OMP.
- * extern "C" {
- * #include <xerrors.h>
- * }
- */
  
 #include <spumoni_main.hpp>
 #include <r_index.hpp>
