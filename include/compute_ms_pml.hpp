@@ -1,17 +1,3 @@
-/* 
- *  compute_ms_pml.hpp
- *  Copyright (C) 2020 Omar Ahmed
- *  This program is free software: you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation, either version 3 of the License, or
- *  (at your option) any later version.
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *  You should have received a copy of the GNU General Public License
- *  along with this program.  If not, see http://www.gnu.org/licenses/ .
- */
  /*
   * File: compute_ms_pml.hpp
   * Description: Header file for compute_ms_pml.cpp
@@ -26,5 +12,12 @@
 /* Function Declarations */
 int run_spumoni_ms_main(SpumoniRunOptions* run_opts);
 int run_spumoni_main(SpumoniRunOptions* run_opts);
+std::pair<size_t, size_t> build_spumoni_ms_main(std::string ref_file);
+std::pair<size_t, size_t> build_spumoni_main(std::string ref_file);
+void generate_null_ms_statistics(std::string ref_file, std::string pattern_file, std::vector<size_t>& ms_stats,
+                                 bool min_digest);
+void generate_null_pml_statistics(std::string ref_file, std::string pattern_file, std::vector<size_t>& pml_stats,
+                                  bool min_digest);
+std::pair<ulint, ulint> get_bwt_stats(std::string ref_file, size_t type);
 
 #endif /* End of include of COMPUTE_MS_PML_H */

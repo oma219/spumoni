@@ -475,7 +475,7 @@ public:
         swap(*this, other);
     }
 
-    size_t operator[] (size_t& i)
+    size_t operator[] (size_t i)
     {
         assert(i < bwt->number_of_runs());
 
