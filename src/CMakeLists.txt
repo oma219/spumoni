@@ -67,8 +67,8 @@ add_executable(spumoni spumoni.cpp  compute_ms_pml.cpp doc_array.cpp
                         refbuilder.cpp emp_null_database.cpp 
                         ks_test.cpp batch_loader.cpp)
 target_link_libraries(spumoni sdsl common_h divsufsort divsufsort64 ri pthread zlib bonsai "-fopenmp")
-target_include_directories(spumoni PUBLIC 
-                            "../include" 
+target_include_directories(spumoni PUBLIC
+                            "../include"
                             "${shaped_slp_SOURCE_DIR}" "${FOLCA_SOURCE_DIR}" "${SUX_SOURCE_DIR}/function" 
                             "${SUX_SOURCE_DIR}/support" 
                             "${bonsai_SOURCE_DIR}/include/bonsai"

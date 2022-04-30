@@ -76,7 +76,8 @@ bool endsWith(const std::string& str, const std::string& suffix);
 std::string execute_cmd(const char* cmd);
 size_t get_avail_phy_mem();
 int spumoni_run_usage ();
-std::string perform_minimizer_digestion(std::string input_query);
+std::string perform_minimizer_digestion(std::string input_query, size_t k, size_t w);
+std::string perform_dna_minimizer_digestion(std::string input_query, size_t k, size_t w);
 
 struct SpumoniHelperPrograms {
   /* Contains paths to run helper programs */
@@ -143,6 +144,10 @@ struct SpumoniBuildOptions {
                          // we use minimizers by default (default: true)
   bool build_doc = false; // build the document array
   bool use_minimizers = true; // digest sequences into minimizers
+  bool use_promotions = false; // use alphabet promotion during promotion
+  bool use_dna_letters = false; // use DNA-letter based minimizers
+  size_t k = 4; // small window size for minimizers
+  size_t w = 12; // large window size for minimizers
 
 public:
   void validate() {
@@ -162,6 +167,21 @@ public:
       }
       if (build_doc && ref_file.length()) {
         FATAL_ERROR("Cannot build a document array if you are indexing a single file.");}
+      
+      // Check if we only set one type minimizers
+      if (use_minimizers) {
+        if (use_promotions && use_dna_letters) {FATAL_ERROR("Only one type of minimizer can be specified.");}
+        if (!use_promotions && !use_dna_letters) {FATAL_ERROR("A minimizer type must be specified.");}
+      } else {
+        if (use_promotions || use_dna_letters) {FATAL_ERROR("A minimizer type should not be specified if intending not to use minimizer digestion.");}
+      }
+
+      // Makes sure that at least one index type is chosen ...
+      if (!ms_index && !pml_index) {FATAL_ERROR("At least one index type (-M or -P) must be specified for build.");}
+
+      // Check the values for k and w
+      if (k > 4) {FATAL_WARNING("small window size (k) cannot be larger than 4 characters.");}
+      if (w < k) {FATAL_WARNING("large window size (w) should be larger than the small window size (k)");}
   }
 };
 
@@ -176,6 +196,8 @@ struct SpumoniRunOptions {
   size_t threads = 1; // number of threads
   bool use_doc = false; // build the document array
   bool write_report = false; // write out the classification report
+  size_t k = 4; // small window size for minimizers
+  size_t w = 12; // large window size for minimizers
 
 public:
   void populate_types() {
@@ -224,6 +246,10 @@ public:
         default:
             FATAL_WARNING("An output type with -M or -P must be specified, only one can be used at a time."); break;
       }
+
+      // Check the values for k and w
+      if (k > 4) {FATAL_WARNING("small window size (k) cannot be larger than 4 characters.");}
+      if (w < k) {FATAL_WARNING("large window size (w) should be larger than the small window size (k)");}
   }
 };
 

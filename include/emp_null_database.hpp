@@ -22,7 +22,8 @@ public:
     sdsl::int_vector<> null_stats; // empirical null statistics
     
     EmpNullDatabase(){} // constructor used for loading
-    EmpNullDatabase(const char* ref_file, const char* null_reads, bool use_minimizers, output_type stat_type);
+    EmpNullDatabase(const char* ref_file, const char* null_reads, bool use_minimizers, output_type stat_type,
+                    size_t k, size_t w);
 
     size_t serialize(std::ostream &out, sdsl::structure_tree_node *v = nullptr, std::string name = "");
     void load(std::istream& in);

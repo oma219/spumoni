@@ -20,7 +20,9 @@ public:
     bool using_list = false; // user provided a filelist
 
     RefBuilder(const char* ref_file, const char* list_file, const char* output_dir, 
-               bool build_doc, bool file_list, bool use_minimizers);
+               bool build_doc, bool file_list, bool use_minimizers,
+               bool use_promotions, bool use_dna_letters,
+               size_t k, size_t w);
 
     const char* get_ref_path();
     const char* get_null_readfile();

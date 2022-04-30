@@ -31,13 +31,15 @@ char comp_tab[] = {
 };
 
 RefBuilder::RefBuilder(const char* ref_file, const char* list_file, const char* output_dir, 
-                       bool build_doc, bool file_list, bool use_minimizers): using_doc(build_doc), using_list(file_list) {
+                       bool build_doc, bool file_list, bool use_minimizers,
+                       bool use_promotions, bool use_dna_letters, 
+                       size_t k, size_t w): using_doc(build_doc), using_list(file_list) {
     /* Performs the needed operations to generate a single input file. */
     char ch;
     std::string output_path(output_dir);
 
     if ((ch = output_path.back()) != '/') {output_path += "/";}
-    if (use_minimizers) output_path += "spumoni_full_ref.bin";
+    if (use_promotions) output_path += "spumoni_full_ref.bin";
     else output_path += "spumoni_full_ref.fa";
 
     // Verify every file in the list is valid 
@@ -80,14 +82,15 @@ RefBuilder::RefBuilder(const char* ref_file, const char* list_file, const char* 
     }
 
     // Define variables needed for minimizer digest
-    bns::RollingHasher<uint8_t> rh(4, false, bns::DNA, 12);
+    //bns::RollingHasher<uint8_t> rh(4, false, bns::DNA, 12);
     std::ofstream output_fd (output_path, std::ofstream::out);
-    bool hp_compress = true;
+    //bool hp_compress = true;
 
     std::string mseq = "";
-    std::vector<uint8_t> mseq_vec;
+    //std::vector<uint8_t> mseq_vec;
 
     // Define lambda function to take in a DNA sequence and return minimizer sequence
+    /*
     auto get_minimizer_seq = [&](std::string seq, size_t seq_length) {
                 mseq = ""; mseq_vec.clear();
                 rh.for_each_uncanon([&](auto x) { // Extracts all minimizers and stores in mseq
@@ -99,6 +102,7 @@ RefBuilder::RefBuilder(const char* ref_file, const char* list_file, const char* 
             }, seq.data(), seq_length);
             return mseq;
     };
+    */
 
     // Initialize variables needs for over-sampling of reads for null database
     srand(0);
@@ -153,15 +157,20 @@ RefBuilder::RefBuilder(const char* ref_file, const char* list_file, const char* 
             }
             
             // Convert forward_seq to minimizers by default, or save as DNA if asked
-            if (use_minimizers) {
-                mseq = get_minimizer_seq(seq->seq.s, seq->seq.l);
+            if (use_promotions) {
+                mseq = perform_minimizer_digestion(seq->seq.s, k, w);
                 output_fd << mseq;
+                curr_id_seq_length += mseq.length();
+            } else if (use_dna_letters) {
+                mseq = perform_dna_minimizer_digestion(seq->seq.s, k, w);
+                output_fd << '>' << seq->name.s << '\n' << seq->seq.s << '\n';
                 curr_id_seq_length += mseq.length();
             } else {
                 output_fd << '>' << seq->name.s << '\n' << seq->seq.s << '\n';
                 curr_id_seq_length += seq->seq.l;
             }
 
+        
             // Get reverse complement, and print it
             // Based on seqtk reverse complement code, that does it 
             // in place. (https://github.com/lh3/seqtk/blob/master/seqtk.c)
@@ -177,9 +186,13 @@ RefBuilder::RefBuilder(const char* ref_file, const char* list_file, const char* 
 
 
             // Convert rev_comp seq to minimizers by default, otherwise DNA
-            if (use_minimizers) {
-                mseq = get_minimizer_seq(seq->seq.s, seq->seq.l);
+            if (use_promotions) {
+                mseq = perform_minimizer_digestion(seq->seq.s, k, w);
                 output_fd << mseq;
+                curr_id_seq_length += mseq.length();
+            } else if (use_dna_letters) {
+                mseq = perform_dna_minimizer_digestion(seq->seq.s, k, w);
+                output_fd << '>' << seq->name.s << '\n' << seq->seq.s << '\n';
                 curr_id_seq_length += mseq.length();
             } else {
                 output_fd << '>' << seq->name.s << "_rev_comp" << '\n' << seq->seq.s << '\n';
@@ -293,7 +306,7 @@ std::string RefBuilder::digest_reference(const char* ref_file) {
 
     while (kseq_read(seq)>=0) {
         std::string curr_seq = "";
-        curr_seq = perform_minimizer_digestion(seq->seq.s);
+        curr_seq = perform_minimizer_digestion(seq->seq.s, 4, 12);
         output_null_fd << curr_seq;
     }
     kseq_destroy(seq);
@@ -301,4 +314,5 @@ std::string RefBuilder::digest_reference(const char* ref_file) {
     output_null_fd.close();
     return output_path;
 }
+
 

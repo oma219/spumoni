@@ -826,7 +826,8 @@ protected:
  */
 
 size_t classify_reads_pml(pml_t *pml, std::string ref_filename, std::string pattern_filename, bool use_doc, 
-                          bool min_digest, bool write_report, size_t num_threads) {
+                          bool min_digest, bool write_report, size_t num_threads,
+                          size_t k, size_t w) {
     // declare output file and iterator
     std::ofstream lengths_file (pattern_filename + ".pseudo_lengths");
     std::ostream_iterator<size_t> lengths_iter (lengths_file, " ");
@@ -870,7 +871,7 @@ size_t classify_reads_pml(pml_t *pml, std::string ref_filename, std::string patt
                 transform(curr_read.begin(), curr_read.end(), curr_read.begin(), ::toupper); 
 
                 // convert to minimizer-form if needed
-                if (min_digest){curr_read = perform_minimizer_digestion(curr_read);}
+                if (min_digest){curr_read = perform_minimizer_digestion(curr_read, k, w);}
 
                 // grab MS and write to output file
                 std::vector<size_t> lengths, doc_nums;
@@ -938,7 +939,8 @@ size_t classify_reads_pml(pml_t *pml, std::string ref_filename, std::string patt
 }
 
 size_t classify_reads_ms(ms_t *ms, std::string ref_filename, std::string pattern_filename, 
-                         bool use_doc, bool min_digest, bool write_report, size_t num_threads) {
+                         bool use_doc, bool min_digest, bool write_report, size_t num_threads,
+                         size_t k, size_t w) {
 
     // declare output files, and output iterators
     std::ofstream lengths_file (pattern_filename + ".lengths");
@@ -985,7 +987,7 @@ size_t classify_reads_ms(ms_t *ms, std::string ref_filename, std::string pattern
                 transform(curr_read.begin(), curr_read.end(), curr_read.begin(), ::toupper); 
 
                 // convert to minimizer-form if needed
-                if (min_digest){curr_read = perform_minimizer_digestion(curr_read);}
+                if (min_digest){curr_read = perform_minimizer_digestion(curr_read, k, w);}
 
                 // grab MS and write to output file
                 std::vector<size_t> lengths, pointers, doc_nums;
@@ -1076,7 +1078,8 @@ int run_spumoni_main(SpumoniRunOptions* run_opts){
     STATUS_LOG("compute_pml", "processing the patterns");
     
     size_t num_reads = classify_reads_pml(&ms, run_opts->ref_file, run_opts->pattern_file, run_opts->use_doc, 
-                                          run_opts->min_digest, run_opts->write_report, run_opts->threads);
+                                          run_opts->min_digest, run_opts->write_report, run_opts->threads,
+                                          run_opts->k, run_opts->w);
     DONE_LOG((std::chrono::system_clock::now() - start_time));
     FORCE_LOG("compute_pml", "finished processing %d reads. results are saved in *.pseudo_lengths file.", num_reads);
     std::cout << std::endl;
@@ -1099,7 +1102,8 @@ int run_spumoni_ms_main(SpumoniRunOptions* run_opts) {
     STATUS_LOG("compute_ms", "processing the reads");
 
     size_t num_reads = classify_reads_ms(&ms, run_opts->ref_file, run_opts->pattern_file, run_opts->use_doc, 
-                                         run_opts->min_digest, run_opts->write_report, run_opts->threads);
+                                         run_opts->min_digest, run_opts->write_report, run_opts->threads,
+                                         run_opts->k, run_opts->w);
     DONE_LOG((std::chrono::system_clock::now() - start_time));
     FORCE_LOG("compute_ms", "finished processing %d reads. results are saved in *.lengths file.", num_reads);
     std::cout << std::endl;
@@ -1133,7 +1137,7 @@ std::pair<size_t, size_t> build_spumoni_main(std::string ref_file) {
 }
 
 void generate_null_ms_statistics(std::string ref_file, std::string pattern_file, std::vector<size_t>& ms_stats,
-                                 bool min_digest) {
+                                 bool min_digest, size_t k, size_t w) {
     /* Generates the null ms statistics and returns them to be saved */
 
     // Loads the index, and needed variables
@@ -1151,7 +1155,7 @@ void generate_null_ms_statistics(std::string ref_file, std::string pattern_file,
         std::reverse(curr_read.begin(), curr_read.end());
         
         // Convert to minimizer-form if needed
-        if (min_digest){curr_read = perform_minimizer_digestion(curr_read);}
+        if (min_digest){curr_read = perform_minimizer_digestion(curr_read, k, w);}
 
         // Generate the null MS
         std::vector<size_t> lengths, pointers;
@@ -1163,7 +1167,7 @@ void generate_null_ms_statistics(std::string ref_file, std::string pattern_file,
 }
 
 void generate_null_pml_statistics(std::string ref_file, std::string pattern_file, std::vector<size_t>& pml_stats,
-                                 bool min_digest) {
+                                 bool min_digest, size_t k, size_t w) {
     /* Generates the null pml statistics and returns them to be saved */
 
     // Load the indexes, and needed variables
@@ -1181,7 +1185,7 @@ void generate_null_pml_statistics(std::string ref_file, std::string pattern_file
         std::reverse(curr_read.begin(), curr_read.end());
 
         // Convert to minimizer-form if needed
-        if (min_digest){curr_read = perform_minimizer_digestion(curr_read);}
+        if (min_digest){curr_read = perform_minimizer_digestion(curr_read, k, w);}
 
         // Generate the null PML
         std::vector<size_t> lengths;
