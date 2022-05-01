@@ -1137,7 +1137,7 @@ std::pair<size_t, size_t> build_spumoni_main(std::string ref_file) {
 }
 
 void generate_null_ms_statistics(std::string ref_file, std::string pattern_file, std::vector<size_t>& ms_stats,
-                                 bool min_digest, size_t k, size_t w) {
+                                 bool min_digest, bool use_promotions, bool use_dna_letters, size_t k, size_t w) {
     /* Generates the null ms statistics and returns them to be saved */
 
     // Loads the index, and needed variables
@@ -1155,8 +1155,11 @@ void generate_null_ms_statistics(std::string ref_file, std::string pattern_file,
         std::reverse(curr_read.begin(), curr_read.end());
         
         // Convert to minimizer-form if needed
-        if (min_digest){curr_read = perform_minimizer_digestion(curr_read, k, w);}
-
+        if (use_promotions)
+            curr_read = perform_minimizer_digestion(curr_read, k, w);
+        else if (use_dna_letters)
+            curr_read = perform_dna_minimizer_digestion(curr_read, k, w);
+        
         // Generate the null MS
         std::vector<size_t> lengths, pointers;
         ms_index.matching_statistics(curr_read.c_str(), curr_read.length(), lengths, pointers);
@@ -1167,7 +1170,7 @@ void generate_null_ms_statistics(std::string ref_file, std::string pattern_file,
 }
 
 void generate_null_pml_statistics(std::string ref_file, std::string pattern_file, std::vector<size_t>& pml_stats,
-                                 bool min_digest, size_t k, size_t w) {
+                                 bool min_digest, bool use_promotions, bool use_dna_letters, size_t k, size_t w) {
     /* Generates the null pml statistics and returns them to be saved */
 
     // Load the indexes, and needed variables
@@ -1185,7 +1188,10 @@ void generate_null_pml_statistics(std::string ref_file, std::string pattern_file
         std::reverse(curr_read.begin(), curr_read.end());
 
         // Convert to minimizer-form if needed
-        if (min_digest){curr_read = perform_minimizer_digestion(curr_read, k, w);}
+        if (use_promotions)
+            curr_read = perform_minimizer_digestion(curr_read, k, w);
+        else if (use_dna_letters)
+            curr_read = perform_dna_minimizer_digestion(curr_read, k, w);
 
         // Generate the null PML
         std::vector<size_t> lengths;

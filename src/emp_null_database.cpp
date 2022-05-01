@@ -17,7 +17,7 @@
 #include <sdsl/vectors.hpp>
 
 EmpNullDatabase::EmpNullDatabase(const char* ref_file, const char* null_reads, bool use_minimizers, output_type index_type, 
-                                size_t k, size_t w) {
+                                bool use_promotions, bool use_dna_letters, size_t k, size_t w) {
     /* Builds the null database of MS/PML and saves it */
     
     this->input_file = std::string(ref_file);
@@ -26,9 +26,11 @@ EmpNullDatabase::EmpNullDatabase(const char* ref_file, const char* null_reads, b
     // Generate those null statistics depending on the index type
     std::vector<size_t> output_stats;
     if (stat_type == MS)
-        generate_null_ms_statistics(this->input_file, std::string(null_reads), output_stats, use_minimizers, k, w);
+        generate_null_ms_statistics(this->input_file, std::string(null_reads), output_stats, use_minimizers, 
+                                    use_promotions, use_dna_letters, k, w);
     else if (stat_type == PML)
-        generate_null_pml_statistics(this->input_file, std::string(null_reads), output_stats, use_minimizers, k, w);
+        generate_null_pml_statistics(this->input_file, std::string(null_reads), output_stats, use_minimizers, 
+                                     use_promotions, use_dna_letters, k, w);
 
     // Determine the size needed for each vector
     uint32_t max_stat_width = 1;

@@ -23,7 +23,7 @@ public:
     
     EmpNullDatabase(){} // constructor used for loading
     EmpNullDatabase(const char* ref_file, const char* null_reads, bool use_minimizers, output_type stat_type,
-                    size_t k, size_t w);
+                    bool use_promotions, bool use_dna_letters, size_t k, size_t w);
 
     size_t serialize(std::ostream &out, sdsl::structure_tree_node *v = nullptr, std::string name = "");
     void load(std::istream& in);

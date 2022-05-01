@@ -163,7 +163,7 @@ RefBuilder::RefBuilder(const char* ref_file, const char* list_file, const char* 
                 curr_id_seq_length += mseq.length();
             } else if (use_dna_letters) {
                 mseq = perform_dna_minimizer_digestion(seq->seq.s, k, w);
-                output_fd << '>' << seq->name.s << '\n' << seq->seq.s << '\n';
+                output_fd << '>' << seq->name.s << '\n' << mseq << '\n';
                 curr_id_seq_length += mseq.length();
             } else {
                 output_fd << '>' << seq->name.s << '\n' << seq->seq.s << '\n';
@@ -192,7 +192,7 @@ RefBuilder::RefBuilder(const char* ref_file, const char* list_file, const char* 
                 curr_id_seq_length += mseq.length();
             } else if (use_dna_letters) {
                 mseq = perform_dna_minimizer_digestion(seq->seq.s, k, w);
-                output_fd << '>' << seq->name.s << '\n' << seq->seq.s << '\n';
+                output_fd << '>' << seq->name.s << '\n' << mseq << '\n';
                 curr_id_seq_length += mseq.length();
             } else {
                 output_fd << '>' << seq->name.s << "_rev_comp" << '\n' << seq->seq.s << '\n';
@@ -289,16 +289,20 @@ std::string RefBuilder::parse_null_reads(const char* ref_file) {
     return output_path;
 }
 
-std::string RefBuilder::digest_reference(const char* ref_file) {
+std::string RefBuilder::digest_reference(const char* ref_file, bool use_promotions, bool use_dna_letters,
+                                        size_t k, size_t w) {
     /* Digests a singular-reference into minimizer-based reference if requested */
     std::filesystem::path p1 = ref_file;
     std::string output_path = "";
 
-    // Adds a backslash to filepath when needed
-    if (p1.parent_path().string().length()) {output_path = p1.parent_path().string() + "/spumoni_full_ref.bin";}
-    else {output_path = "/spumoni_full_ref.bin";}
+    // Determine file name based on digestion technique
+    std::string file_name = (use_promotions) ? "spumoni_full_ref.bin" : "spumoni_full_ref.fa";
 
-    std::ofstream output_null_fd (output_path, std::ofstream::out);
+    // Adds a backslash to filepath when needed
+    if (p1.parent_path().string().length()) {output_path = p1.parent_path().string() + "/" + file_name;}
+    else {output_path = file_name;}
+
+    std::ofstream output_fd (output_path, std::ofstream::out);
 
     // Variables for parsing FASTA ...
     gzFile fp = gzopen(ref_file, "r");
@@ -306,12 +310,17 @@ std::string RefBuilder::digest_reference(const char* ref_file) {
 
     while (kseq_read(seq)>=0) {
         std::string curr_seq = "";
-        curr_seq = perform_minimizer_digestion(seq->seq.s, 4, 12);
-        output_null_fd << curr_seq;
+        if (use_promotions) {
+            curr_seq = perform_minimizer_digestion(seq->seq.s, k, w);
+            output_fd << curr_seq;
+        } else if (use_dna_letters) {
+            curr_seq = perform_dna_minimizer_digestion(seq->seq.s, k, w);
+            output_fd << '>' << seq->name.s << '\n' << curr_seq << '\n';
+        }
     }
     kseq_destroy(seq);
     gzclose(fp);
-    output_null_fd.close();
+    output_fd.close();
     return output_path;
 }
 

@@ -59,8 +59,8 @@ int spumoni_build_usage () {
     std::fprintf(stderr, "\t%-10sturn off minimizer digestion of sequence (default: on)\n", "-n");
     std::fprintf(stderr, "\t%-10suse alphabet-promoted minimizers\n", "-m");
     std::fprintf(stderr, "\t%-10suse DNA-letter based minimizers\n", "-t");
-    std::fprintf(stderr, "\t%-10ssmall window size (k) for finding minimizers (default: 4)\n", "-a");
-    std::fprintf(stderr, "\t%-10slarge window size (w) for finding minimizers (default: 12)\n", "-b");
+    std::fprintf(stderr, "\t%-10ssmall window size (k) for finding minimizers (default: 4)\n", "-K");
+    std::fprintf(stderr, "\t%-10slarge window size (w) for finding minimizers (default: 12)\n", "-W");
     std::fprintf(stderr, "\t%-10sbuild an index that can be used to compute MSs\n", "-M");
     std::fprintf(stderr, "\t%-10sbuild an index that can be used to compute PMLs\n", "-P");
     std::fprintf(stderr, "\t%-10sturn on verbose logging\n", "-v");
@@ -86,7 +86,7 @@ void parse_build_options(int argc, char** argv, SpumoniBuildOptions* opts) {
                     case 'v': opts->verbose = true; break;
                     case 'n': opts->use_minimizers = false; opts->is_fasta = true; break;
                     case 'm': opts->use_promotions = true; break;
-                    case 't': opts->use_dna_letters = true; break;
+                    case 't': opts->use_dna_letters = true; opts->is_fasta = true; break;
                     case 'K': opts->k = std::max(std::atoi(optarg), 1); break;
                     case 'W': opts->w = std::max(std::atoi(optarg), 1); break;
                     case 'w': opts->wind = std::max(std::atoi(optarg), 10); break;
@@ -206,32 +206,29 @@ std::string execute_cmd(const char* cmd) {
 
 std::string perform_minimizer_digestion(std::string input_query, size_t k, size_t w) {
     /* Performs minimizer digestion using alphabet promotion, and returns concatenated minimizers */
- 
     bns::RollingHasher<uint8_t> rh(k, false, bns::DNA, w);
     bool hp_compress = true;
 
     std::string mseq = "";
     std::vector<uint8_t> mseq_vec;
-    std::cout << "k = " << k << " w = " << w << std::endl;
+
     // Define lambda function to take in a DNA sequence and return minimizer sequence
     auto get_minimizer_seq = [&](std::string seq, size_t seq_length) {
                 mseq = ""; mseq_vec.clear();
                 rh.for_each_uncanon([&](auto x) { // Extracts all minimizers and stores in mseq
                 if(mseq_vec.empty() || !hp_compress || mseq_vec.back() != x) {
-                    x = (x > 2) ? x : (x + 3); // Reserves 0,1,2 for PFP
+                    // Important Note - I push onto the vector first because it is raw hash value
+                    // which we will check in the if statement. However, the real value we use in the
+                    // sequence could be changed to account for PFP's reserved characters
                     mseq_vec.push_back(x);
+                    x = (x > 2) ? x : (x + 3); // Reserves 0,1,2 for PFP
                     mseq += x;
                 }
             }, seq.data(), seq_length);
             return mseq;
     };
-    std::string result = "";
-    result = get_minimizer_seq(input_query, input_query.length());
-    std::cout << "k = " << k << " w = " << w << std::endl;
-    std::cout << "num_minimizers = " << mseq_vec.size() << std::endl;
 
-
-    return result;
+    return get_minimizer_seq(input_query, input_query.length());
 }
 
 std::string perform_dna_minimizer_digestion(std::string input_query, size_t k, size_t w) {
@@ -520,7 +517,7 @@ int build_main(int argc, char** argv) {
     if (!quick_build) {
         // Print out information describing the input files...
         if (!build_opts.input_list.length())
-            FORCE_LOG("build_main", "input: single reference file (%s)", build_opts.ref_file.data());
+            FORCE_LOG("build_main", "input: single reference file (%s)\n", build_opts.ref_file.data());
         else {
             FORCE_LOG("build_main", "input: list of files (%s)", build_opts.input_list.data());
             FORCE_LOG("build_main", "build directory: %s\n", build_opts.output_dir.data());
@@ -544,12 +541,12 @@ int build_main(int argc, char** argv) {
             null_read_file = refbuild.get_null_readfile();
         } else {
             null_read_file = RefBuilder::parse_null_reads(build_opts.ref_file.data());
-            if (build_opts.use_minimizers){
-                build_opts.ref_file = RefBuilder::digest_reference(build_opts.ref_file.data());
-            }
+            if (build_opts.use_minimizers)
+                build_opts.ref_file = RefBuilder::digest_reference(build_opts.ref_file.data(), build_opts.use_promotions,
+                                                                   build_opts.use_dna_letters, build_opts.k,
+                                                                   build_opts.w);
         }
         DONE_LOG((std::chrono::system_clock::now() - task_start));
-        std::exit(1);
 
         // Performs the parsing of the reference and builds the thresholds based on the PFP
         run_build_parse_cmd(&build_opts, &helper_bins);
@@ -567,7 +564,7 @@ int build_main(int argc, char** argv) {
         STATUS_LOG("build_main", "building the empirical null statistic database for MS");
         task_start = std::chrono::system_clock::now();
         EmpNullDatabase null_db(build_opts.ref_file.data(), null_read_file.data(), build_opts.use_minimizers, MS,
-                                build_opts.k, build_opts.w);
+                                build_opts.use_promotions, build_opts.use_dna_letters, build_opts.k, build_opts.w);
 
         std::string output_nulldb_name = build_opts.ref_file + ".msnulldb";
         std::ofstream out_stream(output_nulldb_name);
@@ -585,7 +582,7 @@ int build_main(int argc, char** argv) {
         STATUS_LOG("build_main", "building the empirical null statistic database for PML" );
         task_start = std::chrono::system_clock::now();
         EmpNullDatabase null_db(build_opts.ref_file.data(), null_read_file.data(), build_opts.use_minimizers, PML,
-                                build_opts.k, build_opts.w);
+                                build_opts.use_promotions, build_opts.use_dna_letters, build_opts.k, build_opts.w);
 
         std::string output_nulldb_name = build_opts.ref_file + ".pmlnulldb";
         std::ofstream out_stream(output_nulldb_name);
@@ -611,9 +608,12 @@ int build_main(int argc, char** argv) {
     auto total_build_time = std::chrono::duration<double>((std::chrono::system_clock::now() - total_build_process_start));
 
     std::string final_index_files = "";
-    if (build_opts.ms_index && !build_opts.pml_index) {final_index_files = "index files are saved in the *.ms, *.msnulldb, and *.slp files.";}
-    else if (!build_opts.ms_index && build_opts.pml_index) {final_index_files = "index files are saved in the *.spumoni, and *.pmlnulldb files.";}
-    else {final_index_files = "index files are saved in the  *.ms, *.spumoni, *.msnulldb, *.pmlnulldb and *.slp files.";}
+    if (build_opts.ms_index && !build_opts.pml_index) 
+        final_index_files = "index files are saved in the *.ms, *.msnulldb, and *.slp files.";
+    else if (!build_opts.ms_index && build_opts.pml_index) 
+        final_index_files = "index files are saved in the *.spumoni, and *.pmlnulldb files.";
+    else 
+        final_index_files = "index files are saved in the  *.ms, *.spumoni, *.msnulldb, *.pmlnulldb and *.slp files.";
 
     FORCE_LOG("build_main", "total elapsed time for build process (s): %.3f", total_build_time);
     FORCE_LOG("build_main", final_index_files.data());
