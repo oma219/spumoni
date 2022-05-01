@@ -52,18 +52,26 @@ int spumoni_build_usage () {
     std::fprintf(stderr, "Usage: spumoni build [options]\n\n");
 
     std::fprintf(stderr, "Options:\n");
+    std::fprintf(stderr, "%45s\n", "*** general options ***");
     std::fprintf(stderr, "\t%-10sprints this usage message\n", "-h");
+    std::fprintf(stderr, "\t%-10sturn on verbose logging\n", "-v");
+
+    std::fprintf(stderr, "\n%48s\n", "*** input data options ***");
     std::fprintf(stderr, "\t%-10spath to reference file to be indexed\n", "-r [FILE]");
     std::fprintf(stderr, "\t%-10sfile with a list of files to index\n", "-i [FILE]");
     std::fprintf(stderr, "\t%-10sbuild directory for index(es) (if using -i option)\n", "-b [DIR]");
+
+    std::fprintf(stderr, "\n%47s\n", "*** minimizer options ***");
     std::fprintf(stderr, "\t%-10sturn off minimizer digestion of sequence (default: on)\n", "-n");
     std::fprintf(stderr, "\t%-10suse alphabet-promoted minimizers\n", "-m");
     std::fprintf(stderr, "\t%-10suse DNA-letter based minimizers\n", "-t");
     std::fprintf(stderr, "\t%-10ssmall window size (k) for finding minimizers (default: 4)\n", "-K");
     std::fprintf(stderr, "\t%-10slarge window size (w) for finding minimizers (default: 12)\n", "-W");
+
+    std::fprintf(stderr, "\n%50s\n", "*** index file(s) options ***");
     std::fprintf(stderr, "\t%-10sbuild an index that can be used to compute MSs\n", "-M");
     std::fprintf(stderr, "\t%-10sbuild an index that can be used to compute PMLs\n", "-P");
-    std::fprintf(stderr, "\t%-10sturn on verbose logging\n", "-v");
+
     //std::fprintf(stderr, "\t%-10ssliding window size (default: 10)\n", "-w [arg]");
     //std::fprintf(stderr, "\t%-10shash modulus value (default: 100)\n", "-p [arg]");
     //std::fprintf(stderr, "\t%-10snumber of helper threads (default: 0)\n", "-t [arg]");
