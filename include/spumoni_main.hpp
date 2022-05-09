@@ -61,7 +61,7 @@ typedef uint64_t ulint;
 #define NUM_NULL_READS 100 // 7500 = 75 bp * 100 reads
 #define NULL_READ_BOUND 200
 #define KS_STAT_MS_THR 0.25
-#define KS_STAT_PML_THR 0.10
+#define KS_STAT_PML_THR 0.175
 
 /* Function Declarations */
 int spumoni_build_usage();
