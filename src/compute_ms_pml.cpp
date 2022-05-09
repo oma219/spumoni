@@ -827,7 +827,7 @@ protected:
 
 size_t classify_reads_pml(pml_t *pml, std::string ref_filename, std::string pattern_filename, bool use_doc, 
                           bool min_digest, bool write_report, size_t num_threads,
-                          size_t k, size_t w) {
+                          size_t k, size_t w, bool use_promotions, bool use_dna_letters) {
     // declare output file and iterator
     std::ofstream lengths_file (pattern_filename + ".pseudo_lengths");
     std::ostream_iterator<size_t> lengths_iter (lengths_file, " ");
@@ -871,7 +871,10 @@ size_t classify_reads_pml(pml_t *pml, std::string ref_filename, std::string patt
                 transform(curr_read.begin(), curr_read.end(), curr_read.begin(), ::toupper); 
 
                 // convert to minimizer-form if needed
-                if (min_digest){curr_read = perform_minimizer_digestion(curr_read, k, w);}
+                if (use_promotions)
+                    curr_read = perform_minimizer_digestion(curr_read, k, w);
+                else if (use_dna_letters)
+                    curr_read = perform_dna_minimizer_digestion(curr_read, k, w);
 
                 // grab MS and write to output file
                 std::vector<size_t> lengths, doc_nums;
@@ -940,7 +943,7 @@ size_t classify_reads_pml(pml_t *pml, std::string ref_filename, std::string patt
 
 size_t classify_reads_ms(ms_t *ms, std::string ref_filename, std::string pattern_filename, 
                          bool use_doc, bool min_digest, bool write_report, size_t num_threads,
-                         size_t k, size_t w) {
+                         size_t k, size_t w, bool use_promotions, bool use_dna_letters) {
 
     // declare output files, and output iterators
     std::ofstream lengths_file (pattern_filename + ".lengths");
@@ -987,8 +990,11 @@ size_t classify_reads_ms(ms_t *ms, std::string ref_filename, std::string pattern
                 transform(curr_read.begin(), curr_read.end(), curr_read.begin(), ::toupper); 
 
                 // convert to minimizer-form if needed
-                if (min_digest){curr_read = perform_minimizer_digestion(curr_read, k, w);}
-
+                if (use_promotions)
+                    curr_read = perform_minimizer_digestion(curr_read, k, w);
+                else if (use_dna_letters)
+                    curr_read = perform_dna_minimizer_digestion(curr_read, k, w);
+ 
                 // grab MS and write to output file
                 std::vector<size_t> lengths, pointers, doc_nums;
                 if (use_doc){
@@ -1073,13 +1079,23 @@ int run_spumoni_main(SpumoniRunOptions* run_opts){
     std::string out_filename = run_opts->pattern_file;
     std::cout << std::endl;
 
+    // Print out digestion method for input reads
+    if (run_opts->use_promotions)
+        FORCE_LOG("compute_pml", "input reads will digested using promoted minimizer alphabet (k=%d, w=%d)", 
+                  run_opts->k, run_opts->w);
+    else if (run_opts->use_dna_letters)
+        FORCE_LOG("compute_pml", "input reads will digested using DNA alphabet (k=%d, w=%d)", 
+                  run_opts->k, run_opts->w);
+    else
+        FORCE_LOG("compute_pml", "input reads will be used directly, no minimizer digestion");
+
     // Process all the reads in the input pattern file
     auto start_time = std::chrono::system_clock::now();
     STATUS_LOG("compute_pml", "processing the patterns");
     
     size_t num_reads = classify_reads_pml(&ms, run_opts->ref_file, run_opts->pattern_file, run_opts->use_doc, 
                                           run_opts->min_digest, run_opts->write_report, run_opts->threads,
-                                          run_opts->k, run_opts->w);
+                                          run_opts->k, run_opts->w, run_opts->use_promotions, run_opts->use_dna_letters);
     DONE_LOG((std::chrono::system_clock::now() - start_time));
     FORCE_LOG("compute_pml", "finished processing %d reads. results are saved in *.pseudo_lengths file.", num_reads);
     std::cout << std::endl;
@@ -1097,13 +1113,23 @@ int run_spumoni_ms_main(SpumoniRunOptions* run_opts) {
     std::string out_filename = run_opts->pattern_file;
     std::cout << std::endl;
 
+    // Print out digestion method for input reads
+    if (run_opts->use_promotions)
+        FORCE_LOG("compute_ms", "input reads will digested using promoted minimizer alphabet (k=%d, w=%d)", 
+                  run_opts->k, run_opts->w);
+    else if (run_opts->use_dna_letters)
+        FORCE_LOG("compute_ms", "input reads will digested using DNA alphabet (k=%d, w=%d)", 
+                  run_opts->k, run_opts->w);
+    else
+        FORCE_LOG("compute_ms", "input reads will be used directly, no minimizer digestion");
+
     // Determine approach to parse pattern files
     auto start_time = std::chrono::system_clock::now();
     STATUS_LOG("compute_ms", "processing the reads");
 
     size_t num_reads = classify_reads_ms(&ms, run_opts->ref_file, run_opts->pattern_file, run_opts->use_doc, 
                                          run_opts->min_digest, run_opts->write_report, run_opts->threads,
-                                         run_opts->k, run_opts->w);
+                                         run_opts->k, run_opts->w, run_opts->use_promotions, run_opts->use_dna_letters);
     DONE_LOG((std::chrono::system_clock::now() - start_time));
     FORCE_LOG("compute_ms", "finished processing %d reads. results are saved in *.lengths file.", num_reads);
     std::cout << std::endl;

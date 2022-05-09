@@ -190,12 +190,14 @@ struct SpumoniRunOptions {
   std::string pattern_file = ""; // pattern file
   bool ms_requested = false; // user wants to compute MS
   bool pml_requested = false; // user wants to compute PML
-  bool min_digest = true; // need to digest reads (default is true)
   output_type result_type = NOT_CHOSEN; // output type requested by user
   reference_type ref_type = NOT_SET; // the type of reference
   size_t threads = 1; // number of threads
   bool use_doc = false; // build the document array
   bool write_report = false; // write out the classification report
+  bool min_digest = true; // need to digest reads (default is true) 
+  bool use_promotions = false; // use alphabet promotion during promotion
+  bool use_dna_letters = false; // use DNA-letter based minimizers
   size_t k = 4; // small window size for minimizers
   size_t w = 12; // large window size for minimizers
 
@@ -211,8 +213,8 @@ public:
       bool is_fasta = (endsWith(ref_file, ".fa") || endsWith(ref_file, ".fasta") || endsWith(ref_file, ".fna"));
       bool is_min = endsWith(ref_file, ".bin");
 
-      if (is_fasta && !is_min) {ref_type = FASTA; min_digest = false;}
-      if (!is_fasta && is_min) {ref_type = MINIMIZER; min_digest = true;}
+      if (is_fasta && !is_min) {ref_type = FASTA;}
+      if (!is_fasta && is_min) {ref_type = MINIMIZER;}
   }
   
   void validate() const {
@@ -250,6 +252,15 @@ public:
       // Check the values for k and w
       if (k > 4) {FATAL_WARNING("small window size (k) cannot be larger than 4 characters.");}
       if (w < k) {FATAL_WARNING("large window size (w) should be larger than the small window size (k)");}
+
+      // Check if we choose the minimizer type correctly
+      if (min_digest) {
+        if (use_promotions && use_dna_letters) {FATAL_ERROR("Only one type of minimizer can be specified from either -m or -a.");}
+        if (!use_promotions && !use_dna_letters) {FATAL_ERROR("A minimizer type must be specified using -m or -a.");}
+      } else {
+        if (use_promotions || use_dna_letters) {FATAL_ERROR("A minimizer type should not be specified if intending not to use minimizer digestion.");}
+      }
+
   }
 };
 

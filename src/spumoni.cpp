@@ -34,15 +34,26 @@ int spumoni_run_usage () {
     std::fprintf(stderr, "Usage: spumoni run [options]\n\n");
 
     std::fprintf(stderr, "Options:\n");
+    std::fprintf(stderr, "\t*** GENERAL OPTIONS ***\n\n");
     std::fprintf(stderr, "\t%-10sprints this usage message\n", "-h");
+    std::fprintf(stderr, "\t%-10snumber of helper threads (default: 1)\n\n", "-t [arg]");
+
+    std::fprintf(stderr, "\t*** INPUT/OUTPUT OPTIONS ***\n\n");
     std::fprintf(stderr, "\t%-10spath to reference file that has index built for it\n", "-r [FILE]");
     std::fprintf(stderr, "\t%-10spath to patterns file that will be used.\n", "-p [FILE]");
     std::fprintf(stderr, "\t%-10suse index to compute MSs\n", "-M");
     std::fprintf(stderr, "\t%-10suse index to compute PMLs\n", "-P");
     //std::fprintf(stderr, "\t%-10spattern file is in fasta format (default: general text)\n", "-f");
     std::fprintf(stderr, "\t%-10suse document array to get assignments\n", "-d");
-    std::fprintf(stderr, "\t%-10swrite out the classifications in a report file\n", "-c");
-    std::fprintf(stderr, "\t%-10snumber of helper threads (default: 1)\n\n", "-t [arg]");
+    std::fprintf(stderr, "\t%-10swrite out the classifications in a report file\n\n", "-c");
+
+    std::fprintf(stderr, "\t*** MINIMIZER OPTIONS ***\n\n");
+    std::fprintf(stderr, "\t%-10sturn off minimizer digestion of reads (default: on)\n", "-n");
+    std::fprintf(stderr, "\t%-10suse alphabet-promoted minimizers\n", "-m");
+    std::fprintf(stderr, "\t%-10suse DNA-letter based minimizers\n", "-a");
+    std::fprintf(stderr, "\t%-10ssmall window size (k) for finding minimizers (default: 4)\n", "-K");
+    std::fprintf(stderr, "\t%-10slarge window size (w) for finding minimizers (default: 12)\n\n", "-W");
+
     return 0;
 }
 
@@ -52,32 +63,34 @@ int spumoni_build_usage () {
     std::fprintf(stderr, "Usage: spumoni build [options]\n\n");
 
     std::fprintf(stderr, "Options:\n");
-    std::fprintf(stderr, "%45s\n", "*** general options ***");
-    std::fprintf(stderr, "\t%-10sprints this usage message\n", "-h");
-    std::fprintf(stderr, "\t%-10sturn on verbose logging\n", "-v");
 
-    std::fprintf(stderr, "\n%48s\n", "*** input data options ***");
+    std::fprintf(stderr, "\t*** GENERAL OPTIONS ***\n\n");
+    std::fprintf(stderr, "\t%-10sprints this usage message\n", "-h");
+    std::fprintf(stderr, "\t%-10sturn on verbose logging\n\n", "-v");
+
+    std::fprintf(stderr, "\t*** INPUT DATA OPTIONS ***\n\n");
     std::fprintf(stderr, "\t%-10spath to reference file to be indexed\n", "-r [FILE]");
     std::fprintf(stderr, "\t%-10sfile with a list of files to index\n", "-i [FILE]");
-    std::fprintf(stderr, "\t%-10sbuild directory for index(es) (if using -i option)\n", "-b [DIR]");
+    std::fprintf(stderr, "\t%-10sbuild directory for index(es) (if using -i option)\n\n", "-b [DIR]");
 
-    std::fprintf(stderr, "\n%47s\n", "*** minimizer options ***");
+    std::fprintf(stderr, "\t*** MINIMIZER OPTIONS ***\n\n");
     std::fprintf(stderr, "\t%-10sturn off minimizer digestion of sequence (default: on)\n", "-n");
     std::fprintf(stderr, "\t%-10suse alphabet-promoted minimizers\n", "-m");
     std::fprintf(stderr, "\t%-10suse DNA-letter based minimizers\n", "-t");
     std::fprintf(stderr, "\t%-10ssmall window size (k) for finding minimizers (default: 4)\n", "-K");
-    std::fprintf(stderr, "\t%-10slarge window size (w) for finding minimizers (default: 12)\n", "-W");
+    std::fprintf(stderr, "\t%-10slarge window size (w) for finding minimizers (default: 12)\n\n", "-W");
 
-    std::fprintf(stderr, "\n%50s\n", "*** index file(s) options ***");
+    std::fprintf(stderr, "\t*** INDEX FILE(S) OPTIONS ***\n\n");
     std::fprintf(stderr, "\t%-10sbuild an index that can be used to compute MSs\n", "-M");
     std::fprintf(stderr, "\t%-10sbuild an index that can be used to compute PMLs\n", "-P");
+    std::fprintf(stderr, "\t%-10skeep the temporary files (default: false)\n", "-k");
+    std::fprintf(stderr, "\t%-10sbuild the document array (default: false)\n\n", "-d");   
 
     //std::fprintf(stderr, "\t%-10ssliding window size (default: 10)\n", "-w [arg]");
     //std::fprintf(stderr, "\t%-10shash modulus value (default: 100)\n", "-p [arg]");
     //std::fprintf(stderr, "\t%-10snumber of helper threads (default: 0)\n", "-t [arg]");
-    std::fprintf(stderr, "\t%-10skeep the temporary files (default: false)\n", "-k");
     //std::fprintf(stderr, "\t%-10suse when the reference file is a fasta file (default: true)\n", "-f");
-    std::fprintf(stderr, "\t%-10sbuild the document array (default: false)\n\n", "-d");
+
     return 0;
 }
 
@@ -110,14 +123,19 @@ void parse_build_options(int argc, char** argv, SpumoniBuildOptions* opts) {
 
 void parse_run_options(int argc, char** argv, SpumoniRunOptions* opts) {
     /* Parses the arguments for the build sub-command and returns a struct with arguments */
-    for(int c;(c = getopt(argc, argv, "hr:p:MPt:dc")) >= 0;) { 
+    for(int c;(c = getopt(argc, argv, "hr:p:MPt:dcnmaK:W:")) >= 0;) { 
         switch(c) {
                     case 'h': spumoni_run_usage(); std::exit(1);
                     case 'r': opts->ref_file.assign(optarg); break;
                     case 'p': opts->pattern_file.assign(optarg); break;
                     case 'M': opts->ms_requested = true; break;
                     case 'P': opts->pml_requested = true; break;
-                    case 'c': opts->write_report = true; break;
+                    case 'c': opts->write_report = true; break;   
+                    case 'm': opts->use_promotions = true; break;
+                    case 'a': opts->use_dna_letters = true; break;
+                    case 'n': opts->min_digest = false; break;
+                    case 'K': opts->k = std::max(std::atoi(optarg), 1); break;
+                    case 'W': opts->w = std::max(std::atoi(optarg), 1); break;
                     //case 'f': opts->query_fasta = true; break;
                     case 't': opts->threads = std::max(std::atoi(optarg), 1); break;
                     case 'd': opts->use_doc = true; break;
@@ -507,14 +525,19 @@ int build_main(int argc, char** argv) {
 
     // Check all needed files are already present
     std::filesystem::path p1 = build_opts.ref_file;
+    std::string build_ref_file = (build_opts.use_promotions) ? "spumoni_full_ref.bin" : "spumoni_full_ref.fa";
     std::string null_read_file = "";
 
-    if (p1.parent_path().string().length()) {null_read_file = p1.parent_path().string() + "/spumoni_null_reads.fa";}
-    else {null_read_file = "spumoni_null_reads.fa";}
+    if (p1.parent_path().string().length()) {
+        null_read_file = p1.parent_path().string() + "/spumoni_null_reads.fa";
+        build_ref_file = p1.parent_path().string() + "/" + build_ref_file;
+    } else {
+        null_read_file = "spumoni_null_reads.fa";
+    }
 
     bool quick_build = is_file(null_read_file);
     for (size_t i = 0; i < num_temp_build_files && quick_build; i++) {
-        if (!is_file(build_opts.ref_file + temp_build_files[i])) {quick_build = false;}
+        if (!is_file(build_ref_file + temp_build_files[i])) {quick_build = false;}
     }
     if (quick_build) {FORCE_LOG("build_main", "quick build is activated.");}
 
@@ -531,9 +554,7 @@ int build_main(int argc, char** argv) {
             FORCE_LOG("build_main", "build directory: %s\n", build_opts.output_dir.data());
         }
 
-        if (!build_opts.use_minimizers && !build_opts.input_list.length()) 
-            STATUS_LOG("build_main", "reference file will be used directly (%s)", build_opts.ref_file.data());
-        else if (build_opts.use_promotions) 
+        if (build_opts.use_promotions) 
             STATUS_LOG("build_main", "reference file is being generated (spumoni_full_ref.bin)");
         else 
             STATUS_LOG("build_main", "reference file is being generated (spumoni_full_ref.fa)");
@@ -549,10 +570,9 @@ int build_main(int argc, char** argv) {
             null_read_file = refbuild.get_null_readfile();
         } else {
             null_read_file = RefBuilder::parse_null_reads(build_opts.ref_file.data());
-            if (build_opts.use_minimizers)
-                build_opts.ref_file = RefBuilder::digest_reference(build_opts.ref_file.data(), build_opts.use_promotions,
-                                                                   build_opts.use_dna_letters, build_opts.k,
-                                                                   build_opts.w);
+            build_opts.ref_file = RefBuilder::build_reference(build_opts.ref_file.data(), build_opts.use_promotions,
+                                                                build_opts.use_dna_letters, build_opts.k,
+                                                                build_opts.w);
         }
         DONE_LOG((std::chrono::system_clock::now() - task_start));
 

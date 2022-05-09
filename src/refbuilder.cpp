@@ -289,9 +289,14 @@ std::string RefBuilder::parse_null_reads(const char* ref_file) {
     return output_path;
 }
 
-std::string RefBuilder::digest_reference(const char* ref_file, bool use_promotions, bool use_dna_letters,
+std::string RefBuilder::build_reference(const char* ref_file, bool use_promotions, bool use_dna_letters,
                                         size_t k, size_t w) {
-    /* Digests a singular-reference into minimizer-based reference if requested */
+    /*
+     * Builds the reference file from a single file, it could using either type
+     * of minimizer digestion: promotion or DNA. Or just use the original FASTA
+     * file but include the reverse complement.
+     */
+
     std::filesystem::path p1 = ref_file;
     std::string output_path = "";
 
@@ -310,13 +315,43 @@ std::string RefBuilder::digest_reference(const char* ref_file, bool use_promotio
 
     while (kseq_read(seq)>=0) {
         std::string curr_seq = "";
+
+        // Print out the forward seq
         if (use_promotions) {
             curr_seq = perform_minimizer_digestion(seq->seq.s, k, w);
             output_fd << curr_seq;
         } else if (use_dna_letters) {
             curr_seq = perform_dna_minimizer_digestion(seq->seq.s, k, w);
             output_fd << '>' << seq->name.s << '\n' << curr_seq << '\n';
+        } else {
+            output_fd << '>' << seq->name.s << '\n' << seq->seq.s << '\n';
         }
+        curr_seq = "";
+
+        // Get reverse complement, and print it
+        // Based on seqtk reverse complement code, that does it 
+        // in place. (https://github.com/lh3/seqtk/blob/master/seqtk.c)
+        int c0, c1;
+        for (size_t i = 0; i < seq->seq.l>>1; ++i) { // reverse complement sequence
+            c0 = comp_tab[(int)seq->seq.s[i]];
+            c1 = comp_tab[(int)seq->seq.s[seq->seq.l - 1 - i]];
+            seq->seq.s[i] = c1;
+            seq->seq.s[seq->seq.l - 1 - i] = c0;
+        }
+        if (seq->seq.l & 1) // complement the remaining base
+            seq->seq.s[seq->seq.l>>1] = comp_tab[(int)seq->seq.s[seq->seq.l>>1]];
+
+        // Print out the reverse complement sequence
+        if (use_promotions) {
+            curr_seq = perform_minimizer_digestion(seq->seq.s, k, w);
+            output_fd << curr_seq;
+        } else if (use_dna_letters) {
+            curr_seq = perform_dna_minimizer_digestion(seq->seq.s, k, w);
+            output_fd << '>' << seq->name.s << "_rev_comp" <<'\n' << curr_seq << '\n';
+        } else {
+            output_fd << '>' << seq->name.s << "_rev_comp" <<'\n' << seq->seq.s << '\n';
+        }
+
     }
     kseq_destroy(seq);
     gzclose(fp);
