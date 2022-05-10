@@ -898,7 +898,7 @@ size_t classify_reads_pml(pml_t *pml, std::string ref_filename, std::string patt
                     for (size_t i = 0; i < ks_list.size(); i++) {
                         if (ks_list[i] >= threshold) num_bin_above_thr++;
                     }
-                    bool read_found = (num_bin_above_thr/(ks_list.size()+0.0) >= 0.50);
+                    bool read_found = (num_bin_above_thr/(ks_list.size()+0.0) > 0.50);
 
                     std::for_each(ks_list.begin(), ks_list.end(), [&] (double n) {sum_ks_stats += n;});
                     status = (read_found) ? "FOUND" : "NOT_PRESENT";
@@ -1017,7 +1017,7 @@ size_t classify_reads_ms(ms_t *ms, std::string ref_filename, std::string pattern
                     for (size_t i = 0; i < ks_list.size(); i++) {
                         if (ks_list[i] >= threshold) num_bin_above_thr++;
                     }
-                    bool read_found = (num_bin_above_thr/(ks_list.size()+0.0) >= 0.50);
+                    bool read_found = (num_bin_above_thr/(ks_list.size()+0.0) > 0.50);
 
                     std::for_each(ks_list.begin(), ks_list.end(), [&] (double n) {sum_ks_stats += n;});
                     status = (read_found) ? "FOUND" : "NOT_PRESENT";
