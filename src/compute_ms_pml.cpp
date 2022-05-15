@@ -828,6 +828,10 @@ protected:
 size_t classify_reads_pml(pml_t *pml, std::string ref_filename, std::string pattern_filename, bool use_doc, 
                           bool min_digest, bool write_report, size_t num_threads,
                           size_t k, size_t w, bool use_promotions, bool use_dna_letters) {
+
+    // Added for debugging ....
+    std::ofstream ks_stat_file (pattern_filename + ".ks_stats");
+
     // declare output file and iterator
     std::ofstream lengths_file (pattern_filename + ".pseudo_lengths");
     std::ostream_iterator<size_t> lengths_iter (lengths_file, " ");
@@ -897,6 +901,10 @@ size_t classify_reads_pml(pml_t *pml, std::string ref_filename, std::string patt
                     double threshold = sig_test.get_threshold();
                     for (size_t i = 0; i < ks_list.size(); i++) {
                         if (ks_list[i] >= threshold) num_bin_above_thr++;
+
+                        // Added for debugging ....
+                        ks_stat_file.precision(3);
+                        ks_stat_file << ((i+1.0)/ks_list.size()) << "," << ks_list[i] << "\n";
                     }
                     bool read_found = (num_bin_above_thr/(ks_list.size()+0.0) > 0.50);
 
@@ -935,6 +943,8 @@ size_t classify_reads_pml(pml_t *pml, std::string ref_filename, std::string patt
 
     lengths_file.close();
     input_file.close();
+
+    ks_stat_file.close();
 
     if (use_doc) {doc_file.close();}
     if (write_report) {report_file.close();}
