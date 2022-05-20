@@ -428,7 +428,7 @@ void run_build_parse_cmd(SpumoniBuildOptions* build_opts, SpumoniHelperPrograms*
 size_t run_build_ms_cmd(SpumoniBuildOptions* build_opts, SpumoniHelperPrograms* helper_bins) {
     /* Runs the constructor for generating the final index for computing MS */
     STATUS_LOG("build_ms", "building the index for computing MS");
-    
+
     size_t length = 0, num_runs = 0;
     auto start = std::chrono::system_clock::now();  
     std::tie(length, num_runs) = build_spumoni_ms_main(build_opts->ref_file);
@@ -539,7 +539,22 @@ int build_main(int argc, char** argv) {
     for (size_t i = 0; i < num_temp_build_files && quick_build; i++) {
         if (!is_file(build_ref_file + temp_build_files[i])) {quick_build = false;}
     }
-    if (quick_build) {FORCE_LOG("build_main", "quick build is activated.");}
+    if (quick_build) {
+        FORCE_LOG("build_main", "quick build is activated.");
+
+        // Determine reference file path
+        std::string base_path = "";
+        if (build_opts.use_promotions) base_path = "spumoni_full_ref.bin";
+        else base_path = "spumoni_full_ref.fa";
+
+        // Load the ref_file variable
+        char ch;
+        std::string build_folder (build_opts.output_dir);
+        if (build_opts.input_list.length()){ 
+            if ((ch = build_folder.back()) != '/') {build_folder += "/";}
+        }
+        build_opts.ref_file = build_folder + base_path;
+    }
 
     // Start of build process ...
     auto total_build_process_start = std::chrono::system_clock::now();
