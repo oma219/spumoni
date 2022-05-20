@@ -527,11 +527,17 @@ int build_main(int argc, char** argv) {
     std::filesystem::path p1 = build_opts.ref_file;
     std::string build_ref_file = (build_opts.use_promotions) ? "spumoni_full_ref.bin" : "spumoni_full_ref.fa";
     std::string null_read_file = "";
-
-    if (p1.parent_path().string().length()) {
+    
+    char ch;
+    if (build_opts.input_list.length()){ // using a file-list
+        std::string build_dir(build_opts.output_dir);
+        if ((ch = build_dir.back()) != '/') {build_dir += "/";}
+        null_read_file = build_dir + "spumoni_null_reads.fa";
+        build_ref_file = build_dir + build_ref_file;
+    } else if (p1.parent_path().string().length()) { // using single file not in current dir
         null_read_file = p1.parent_path().string() + "/spumoni_null_reads.fa";
         build_ref_file = p1.parent_path().string() + "/" + build_ref_file;
-    } else {
+    } else { // using single file in current directory
         null_read_file = "spumoni_null_reads.fa";
     }
 
@@ -541,19 +547,7 @@ int build_main(int argc, char** argv) {
     }
     if (quick_build) {
         FORCE_LOG("build_main", "quick build is activated.");
-
-        // Determine reference file path
-        std::string base_path = "";
-        if (build_opts.use_promotions) base_path = "spumoni_full_ref.bin";
-        else base_path = "spumoni_full_ref.fa";
-
-        // Load the ref_file variable
-        char ch;
-        std::string build_folder (build_opts.output_dir);
-        if (build_opts.input_list.length()){ 
-            if ((ch = build_folder.back()) != '/') {build_folder += "/";}
-        }
-        build_opts.ref_file = build_folder + base_path;
+        build_opts.ref_file = build_ref_file;
     }
 
     // Start of build process ...
