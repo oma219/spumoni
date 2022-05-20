@@ -58,8 +58,8 @@ typedef uint64_t ulint;
 #define THRBYTES 5 
 #define SSABYTES 5 
 #define NULL_READ_CHUNK 150
-#define NUM_NULL_READS 100 // 7500 = 75 bp * 100 reads
-#define NULL_READ_BOUND 200
+#define NUM_NULL_READS 800 // 150,000 = 150 bp * 1000 reads
+#define NULL_READ_BOUND 1000
 #define KS_STAT_MS_THR 0.25
 #define KS_STAT_PML_THR 0.10
 

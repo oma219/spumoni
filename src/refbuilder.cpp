@@ -136,7 +136,7 @@ RefBuilder::RefBuilder(const char* ref_file, const char* list_file, const char* 
 				seq->seq.s[i] = std::toupper(seq->seq.s[i]);
 
             // Extract some reads for null database generation
-            size_t reads_to_grab = (curr_total_null_reads >= NUM_NULL_READS) ? 5 : 25; // downsample if done
+            size_t reads_to_grab = (curr_total_null_reads >= NUM_NULL_READS) ? 25 : 100; // downsample if done
             bool go_for_extraction = (curr_total_null_reads < NULL_READ_BOUND);
 
             for (size_t i = 0; i < reads_to_grab && go_for_extraction && (seq->seq.l > NULL_READ_CHUNK); i++) {
@@ -264,7 +264,7 @@ std::string RefBuilder::parse_null_reads(const char* ref_file) {
     // Go through FASTA file, and extract reads until done
     bool go_for_extraction = (curr_total_null_reads < NULL_READ_BOUND);
     while (kseq_read(seq)>=0 && go_for_extraction) {
-        size_t reads_to_grab = (curr_total_null_reads >= NUM_NULL_READS) ? 5 : 25; // downsample if done
+        size_t reads_to_grab = (curr_total_null_reads >= NUM_NULL_READS) ? 25 : 100; // downsample if done
         
         for (size_t i = 0; i < reads_to_grab && go_for_extraction && (seq->seq.l > NULL_READ_CHUNK); i++) {
             size_t random_index = rand() % (seq->seq.l-75);

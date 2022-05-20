@@ -879,7 +879,7 @@ size_t classify_reads_pml(pml_t *pml, std::string ref_filename, std::string patt
                     curr_read = perform_minimizer_digestion(curr_read, k, w);
                 else if (use_dna_letters)
                     curr_read = perform_dna_minimizer_digestion(curr_read, k, w);
-
+                
                 // grab MS and write to output file
                 std::vector<size_t> lengths, doc_nums;
                 if (use_doc){
