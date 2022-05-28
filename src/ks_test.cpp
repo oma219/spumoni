@@ -38,6 +38,10 @@ KSTest::KSTest(std::string ref_file, output_type result_type, bool write_report,
         << std::setw(12) << std::left << "below thr:" << std::endl;
 }
 
+KSTest::KSTest(EmpNullDatabase& null_db, output_type result_type): bin_size(75), stat_type(result_type), null_db(null_db) {
+    /* Constructor used when determining the threshold */
+}
+
 double KSTest::get_threshold() {
     return (this->stat_type == MS) ? KS_STAT_MS_THR : KS_STAT_PML_THR;
 }
@@ -91,23 +95,24 @@ std::vector<double> KSTest::run_kstest(std::vector<size_t> pos_stats) {
     std::vector<double> ks_list;
 
     while (curr_start_pos < pos_stats.size()) {
-        // choose a random section of null database
-        size_t null_pos = rand() % (this->null_db.num_values - this->bin_size);
+        // choose a random section of null database (2 accounts for partial windows at end)
+        size_t null_pos = rand() % (this->null_db.num_values - (2 * this->bin_size));
 
         // build the two vectors: positive statistics and null statistics
         std::vector<size_t> curr_pos_bin, curr_null_bin;
-        size_t end = (curr_start_pos + this->bin_size < pos_stats.size()) ? (curr_start_pos+this->bin_size) : pos_stats.size();
+        size_t end = (curr_start_pos + this->bin_size <= (pos_stats.size() - this->bin_size)) ? (curr_start_pos+this->bin_size) : pos_stats.size();
+        if (pos_stats.size() < this->bin_size) end = pos_stats.size();
         curr_pos_bin.assign(pos_stats.begin()+curr_start_pos, pos_stats.begin()+end);
 
         size_t region_size = end - curr_start_pos;
         for (size_t i = null_pos; i < (null_pos + region_size); i++){
             curr_null_bin.push_back(this->null_db.null_stats[i]);
         }
-
+        std::cout << "region_size = " << region_size << std::endl;
         // run ks-stat for this region of read
         double curr_ks_stat = this->run_test(curr_pos_bin, curr_null_bin);
         ks_list.push_back(curr_ks_stat);
-        curr_start_pos += this->bin_size;
+        curr_start_pos += region_size;
     }
     return ks_list;
 }
