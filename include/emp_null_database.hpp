@@ -20,6 +20,7 @@ public:
     size_t num_values = 0; // number of entries in the database
     output_type stat_type = NOT_CHOSEN; // either MS or PML
     sdsl::int_vector<> null_stats; // empirical null statistics
+    double ks_stat_threshold = 0.0; // threshold used for classification
     
     EmpNullDatabase(){} // constructor used for loading
     EmpNullDatabase(const char* ref_file, const char* null_reads, bool use_minimizers, output_type stat_type,

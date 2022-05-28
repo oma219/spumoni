@@ -22,7 +22,8 @@ public:
     EmpNullDatabase null_db;
 
     KSTest(std::string ref_file, output_type result_type, bool write_report, std::ofstream& out);
-
+    KSTest(EmpNullDatabase& null_db, output_type result_type);
+    
     double run_test(std::vector<size_t> pos_stats, std::vector<size_t> null_stats);
     static inline std::vector<double> compute_cdf(std::vector<size_t> stats, size_t max_stat);
     std::vector<double> run_kstest(std::vector<size_t> pos_stats);

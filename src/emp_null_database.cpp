@@ -57,6 +57,10 @@ size_t EmpNullDatabase::serialize(std::ostream &out, sdsl::structure_tree_node *
 
     out.write((char *)&this->num_values, sizeof(this->num_values));
     written_bytes += sizeof(this->num_values);
+
+    out.write((char *)&this->ks_stat_threshold, sizeof(this->ks_stat_threshold));
+    written_bytes += sizeof(this->ks_stat_threshold);
+
     written_bytes += this->null_stats.serialize(out, child, "null_stats");
     sdsl::structure_tree::add_size(child, written_bytes);
     return written_bytes;
@@ -65,5 +69,6 @@ size_t EmpNullDatabase::serialize(std::ostream &out, sdsl::structure_tree_node *
 void EmpNullDatabase::load(std::istream& in) {
     /* loads the serialized empirical null database */
     in.read((char *)&this->num_values, sizeof(this->num_values));
+    in.read((char *)&this->ks_stat_threshold, sizeof(this->ks_stat_threshold));
     null_stats.load(in);
 }

@@ -620,6 +620,10 @@ int build_main(int argc, char** argv) {
         task_start = std::chrono::system_clock::now();
         EmpNullDatabase null_db(build_opts.ref_file.data(), null_read_file.data(), build_opts.use_minimizers, PML,
                                 build_opts.use_promotions, build_opts.use_dna_letters, build_opts.k, build_opts.w);
+        
+        find_threshold_based_on_null_distribution(build_opts.ref_file.data(), null_read_file.data(), 
+                                                  build_opts.use_minimizers, PML, build_opts.use_promotions, 
+                                                  build_opts.use_dna_letters, build_opts.k, build_opts.w, null_db);
 
         std::string output_nulldb_name = build_opts.ref_file + ".pmlnulldb";
         std::ofstream out_stream(output_nulldb_name);

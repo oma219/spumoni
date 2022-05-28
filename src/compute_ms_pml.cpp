@@ -1237,3 +1237,61 @@ void generate_null_pml_statistics(std::string ref_file, std::string pattern_file
     kseq_destroy(seq);
     gzclose(fp);
 }
+
+void find_threshold_based_on_null_distribution(const char* ref_file, const char* null_reads, bool use_minimizers, output_type stat_type,
+                                                bool use_promotions, bool use_dna_letters, size_t k, size_t w, EmpNullDatabase& null_db) {
+
+    /* Generates a distribution of KS-stats from null reads to determine the optimal threshold */
+
+    // Load the indexes, and needed variables
+    pml_t pml_index(ref_file, false);
+    gzFile fp = gzopen(null_reads, "r");
+    kseq_t* seq = kseq_init(fp);
+
+    // Iterates through null reads, and generates PML 
+    KSTest sig_test(null_db, PML);
+    std::vector<size_t> pml_stats;
+    std::vector <double> ks_list;
+    double ks_stat_sum = 0.0;
+
+    while (kseq_read(seq)>=0) {
+        //Make sure all characters are upper-case
+        std::string curr_read = std::string(seq->seq.s);
+        transform(curr_read.begin(), curr_read.end(), curr_read.begin(), ::toupper); 
+
+        // Reverse string to make it a null read
+        std::reverse(curr_read.begin(), curr_read.end());
+
+        // Convert to minimizer-form if needed
+        if (use_promotions)
+            curr_read = perform_minimizer_digestion(curr_read, k, w);
+        else if (use_dna_letters)
+            curr_read = perform_dna_minimizer_digestion(curr_read, k, w);
+
+        // Generate the null PML
+        std::vector<size_t> lengths;
+        pml_index.matching_statistics(curr_read.c_str(), curr_read.length(), lengths);
+        pml_stats.insert(pml_stats.end(), lengths.begin(), lengths.end());
+
+        // Generate the KS-statistics
+        std::vector<double> curr_ks_list;
+        curr_ks_list = sig_test.run_kstest(lengths);
+        ks_list.insert(ks_list.end(), curr_ks_list.begin(), curr_ks_list.end());
+        std::for_each(curr_ks_list.begin(), curr_ks_list.end(), [&] (double x) {ks_stat_sum += x;});
+    }
+    kseq_destroy(seq);
+    gzclose(fp);
+
+    // find the variance of the ks-statistics
+    double sum = 0.0;
+    double mean = ks_stat_sum/ks_list.size();
+
+    for (size_t i = 0; i < ks_list.size(); i++){
+        sum += std::pow(ks_list[i] - mean, 2);
+    }
+    double std_dev = std::sqrt(sum/ks_list.size());
+
+    // set the threshold as 3 std. deviations above mean
+    null_db.ks_stat_threshold = mean + (3 * std_dev);
+    std::cout << null_db.ks_stat_threshold << std::endl;
+}

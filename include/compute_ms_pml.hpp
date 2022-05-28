@@ -9,6 +9,8 @@
 #ifndef COMPUTE_MS_PML_H
 #define COMPUTE_MS_PML_H
 
+#include <emp_null_database.hpp>
+
 /* Function Declarations */
 int run_spumoni_ms_main(SpumoniRunOptions* run_opts);
 int run_spumoni_main(SpumoniRunOptions* run_opts);
@@ -18,6 +20,8 @@ void generate_null_ms_statistics(std::string ref_file, std::string pattern_file,
                                  bool min_digest, bool use_promotions, bool use_dna_letters, size_t k, size_t w);
 void generate_null_pml_statistics(std::string ref_file, std::string pattern_file, std::vector<size_t>& pml_stats,
                                   bool min_digest, bool use_promotions, bool use_dna_letters, size_t k, size_t w);
+void find_threshold_based_on_null_distribution(const char* ref_file, const char* null_reads, bool use_minimizers, output_type stat_type,
+                                                bool use_promotions, bool use_dna_letters, size_t k, size_t w, EmpNullDatabase& null_db);
 std::pair<ulint, ulint> get_bwt_stats(std::string ref_file, size_t type);
 
 #endif /* End of include of COMPUTE_MS_PML_H */
