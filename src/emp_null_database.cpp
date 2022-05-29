@@ -58,6 +58,8 @@ size_t EmpNullDatabase::serialize(std::ostream &out, sdsl::structure_tree_node *
     out.write((char *)&this->num_values, sizeof(this->num_values));
     written_bytes += sizeof(this->num_values);
 
+    std::cout << "writing the threshold .... " << this->ks_stat_threshold << std::endl;
+
     out.write((char *)&this->ks_stat_threshold, sizeof(this->ks_stat_threshold));
     written_bytes += sizeof(this->ks_stat_threshold);
 

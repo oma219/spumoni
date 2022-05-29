@@ -43,7 +43,8 @@ KSTest::KSTest(EmpNullDatabase& null_db, output_type result_type): bin_size(75),
 }
 
 double KSTest::get_threshold() {
-    return (this->stat_type == MS) ? KS_STAT_MS_THR : KS_STAT_PML_THR;
+    //return (this->stat_type == MS) ? KS_STAT_MS_THR : KS_STAT_PML_THR;
+    return null_db.ks_stat_threshold;
 }
 
 std::vector<double> KSTest::compute_cdf(std::vector<size_t> stats, size_t max_stat) {
@@ -108,7 +109,7 @@ std::vector<double> KSTest::run_kstest(std::vector<size_t> pos_stats) {
         for (size_t i = null_pos; i < (null_pos + region_size); i++){
             curr_null_bin.push_back(this->null_db.null_stats[i]);
         }
-        std::cout << "region_size = " << region_size << std::endl;
+
         // run ks-stat for this region of read
         double curr_ks_stat = this->run_test(curr_pos_bin, curr_null_bin);
         ks_list.push_back(curr_ks_stat);
