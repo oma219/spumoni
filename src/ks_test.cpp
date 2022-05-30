@@ -31,9 +31,12 @@ KSTest::KSTest(std::string ref_file, output_type result_type, bool write_report,
     mean_null_stat = sum_stat/null_db.num_values;
 
     // write out the header columns to report
+    out.precision(4);
     out << std::setw(20) << std::left << "read id:"
         << std::setw(15) << std::left << "status:" 
-        << std::setw(15) << std::left << "avg ks-stat:" 
+        << std::setw(17) << std::left << "avg ks-stat (thr=" 
+        << std::setw(6) << std::left << null_db.ks_stat_threshold 
+        << std::setw(5) << std::left << "):" 
         << std::setw(12) << std::left << "above thr:"
         << std::setw(12) << std::left << "below thr:" << std::endl;
 }

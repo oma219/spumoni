@@ -899,13 +899,12 @@ size_t classify_reads_pml(pml_t *pml, std::string ref_filename, std::string patt
                 
                     // classify the based on ks-statistics
                     double threshold = sig_test.get_threshold();
-                    std::cout << "threshold = " << threshold << std::endl;
                     for (size_t i = 0; i < ks_list.size(); i++) {
                         if (ks_list[i] >= threshold) num_bin_above_thr++;
 
                         // Added for debugging ....
                         ks_stat_file.precision(3);
-                        ks_stat_file << ((i+1.0)/ks_list.size()) << "," << ks_list[i] << "\n";
+                        ks_stat_file << ((i+1.0)/ks_list.size()) << "," << ks_list[i] << "," << threshold << "\n";
                     }
                     bool read_found = (num_bin_above_thr/(ks_list.size()+0.0) > 0.50);
 
@@ -932,7 +931,7 @@ size_t classify_reads_pml(pml_t *pml, std::string ref_filename, std::string patt
                         report_file.precision(3);
                         report_file << std::setw(20) << std::left << read_struct.id
                                     << std::setw(15) << std::left << status 
-                                    << std::setw(15) << std::left << (sum_ks_stats/ks_list.size()) 
+                                    << std::setw(28) << std::left << (sum_ks_stats/ks_list.size()) 
                                     << std::setw(12) << std::left << num_bin_above_thr
                                     << std::setw(12) << std::left << (ks_list.size() - num_bin_above_thr)
                                     << std::endl;
@@ -1025,7 +1024,6 @@ size_t classify_reads_ms(ms_t *ms, std::string ref_filename, std::string pattern
                 
                     // classify the based on ks-statistics
                     double threshold = sig_test.get_threshold();
-                    std::cout << "threshold = " << threshold << std::endl;
                     for (size_t i = 0; i < ks_list.size(); i++) {
                         if (ks_list[i] >= threshold) num_bin_above_thr++;
                     }
@@ -1057,7 +1055,7 @@ size_t classify_reads_ms(ms_t *ms, std::string ref_filename, std::string pattern
                         report_file.precision(3);
                         report_file << std::setw(20) << std::left << read_struct.id
                                     << std::setw(15) << std::left << status 
-                                    << std::setw(15) << std::left << (sum_ks_stats/ks_list.size()) 
+                                    << std::setw(28) << std::left << (sum_ks_stats/ks_list.size()) 
                                     << std::setw(12) << std::left << num_bin_above_thr
                                     << std::setw(12) << std::left << (ks_list.size() - num_bin_above_thr)
                                     << std::endl;
