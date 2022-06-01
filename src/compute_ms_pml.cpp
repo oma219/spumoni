@@ -827,7 +827,7 @@ protected:
 
 size_t classify_reads_pml(pml_t *pml, std::string ref_filename, std::string pattern_filename, bool use_doc, 
                           bool min_digest, bool write_report, size_t num_threads,
-                          size_t k, size_t w, bool use_promotions, bool use_dna_letters) {
+                          size_t k, size_t w, bool use_promotions, bool use_dna_letters, size_t bin_width) {
 
     // Added for debugging ....
     std::ofstream ks_stat_file (pattern_filename + ".ks_stats");
@@ -841,7 +841,7 @@ size_t classify_reads_pml(pml_t *pml, std::string ref_filename, std::string patt
 
     if (use_doc) {doc_file.open(pattern_filename + ".doc_numbers");}
     if (write_report) {report_file.open(pattern_filename + ".report", std::ofstream::out);}
-    KSTest sig_test (ref_filename.data(), PML, write_report, report_file);
+    KSTest sig_test (ref_filename.data(), PML, write_report, report_file, bin_width);
 
     // open query file, and start to classify
     std::ifstream input_file (pattern_filename.c_str());
@@ -953,7 +953,7 @@ size_t classify_reads_pml(pml_t *pml, std::string ref_filename, std::string patt
 
 size_t classify_reads_ms(ms_t *ms, std::string ref_filename, std::string pattern_filename, 
                          bool use_doc, bool min_digest, bool write_report, size_t num_threads,
-                         size_t k, size_t w, bool use_promotions, bool use_dna_letters) {
+                         size_t k, size_t w, bool use_promotions, bool use_dna_letters, size_t bin_width) {
 
     // declare output files, and output iterators
     std::ofstream lengths_file (pattern_filename + ".lengths");
@@ -966,7 +966,7 @@ size_t classify_reads_ms(ms_t *ms, std::string ref_filename, std::string pattern
 
     if (use_doc) {doc_file.open(pattern_filename + ".doc_numbers", std::ofstream::out);}
     if (write_report) {report_file.open(pattern_filename + ".report", std::ofstream::out);}
-    KSTest sig_test(ref_filename.data(), MS, write_report, report_file);
+    KSTest sig_test(ref_filename.data(), MS, write_report, report_file, bin_width);
 
     // open query file, and start to classify
     std::ifstream input_file (pattern_filename.c_str());
@@ -1105,7 +1105,8 @@ int run_spumoni_main(SpumoniRunOptions* run_opts){
     
     size_t num_reads = classify_reads_pml(&ms, run_opts->ref_file, run_opts->pattern_file, run_opts->use_doc, 
                                           run_opts->min_digest, run_opts->write_report, run_opts->threads,
-                                          run_opts->k, run_opts->w, run_opts->use_promotions, run_opts->use_dna_letters);
+                                          run_opts->k, run_opts->w, run_opts->use_promotions, 
+                                          run_opts->use_dna_letters, run_opts->bin_size);
     DONE_LOG((std::chrono::system_clock::now() - start_time));
     FORCE_LOG("compute_pml", "finished processing %d reads. results are saved in *.pseudo_lengths file.", num_reads);
     std::cout << std::endl;
@@ -1139,7 +1140,9 @@ int run_spumoni_ms_main(SpumoniRunOptions* run_opts) {
 
     size_t num_reads = classify_reads_ms(&ms, run_opts->ref_file, run_opts->pattern_file, run_opts->use_doc, 
                                          run_opts->min_digest, run_opts->write_report, run_opts->threads,
-                                         run_opts->k, run_opts->w, run_opts->use_promotions, run_opts->use_dna_letters);
+                                         run_opts->k, run_opts->w, run_opts->use_promotions, 
+                                         run_opts->use_dna_letters, run_opts->bin_size);
+
     DONE_LOG((std::chrono::system_clock::now() - start_time));
     FORCE_LOG("compute_ms", "finished processing %d reads. results are saved in *.lengths file.", num_reads);
     std::cout << std::endl;
@@ -1239,7 +1242,7 @@ void generate_null_pml_statistics(std::string ref_file, std::string pattern_file
 }
 
 void find_threshold_based_on_null_pml_distribution(const char* ref_file, const char* null_reads, bool use_minimizers,
-                                                   bool use_promotions, bool use_dna_letters, size_t k, size_t w, EmpNullDatabase& null_db) {
+                                                   bool use_promotions, bool use_dna_letters, size_t k, size_t w, EmpNullDatabase& null_db, size_t bin_width) {
 
     /* Generates a distribution of KS-stats from null reads to determine the optimal threshold */
 
@@ -1249,7 +1252,7 @@ void find_threshold_based_on_null_pml_distribution(const char* ref_file, const c
     kseq_t* seq = kseq_init(fp);
 
     // Iterates through null reads, and generates PML 
-    KSTest sig_test(null_db, PML);
+    KSTest sig_test(null_db, PML, bin_width);
     std::vector<size_t> pml_stats;
     std::vector <double> ks_list;
     double ks_stat_sum = 0.0;
@@ -1296,7 +1299,7 @@ void find_threshold_based_on_null_pml_distribution(const char* ref_file, const c
 }
 
 void find_threshold_based_on_null_ms_distribution(const char* ref_file, const char* null_reads, bool use_minimizers,
-                                                   bool use_promotions, bool use_dna_letters, size_t k, size_t w, EmpNullDatabase& null_db) {
+                                                   bool use_promotions, bool use_dna_letters, size_t k, size_t w, EmpNullDatabase& null_db, size_t bin_width) {
 
     /* Generates a distribution of KS-stats from null reads to determine the optimal threshold */
 
@@ -1306,7 +1309,7 @@ void find_threshold_based_on_null_ms_distribution(const char* ref_file, const ch
     kseq_t* seq = kseq_init(fp);
 
     // Iterates through null reads, and generates MS
-    KSTest sig_test(null_db, MS);
+    KSTest sig_test(null_db, MS, bin_width);
     std::vector<size_t> ms_stats;
     std::vector <double> ks_list;
     double ks_stat_sum = 0.0;

@@ -15,7 +15,7 @@
 #include <stdlib.h>
 
 /* Commonly Used MACROS */
-#define SPUMONI_VERSION "1.2.0"
+#define SPUMONI_VERSION "1.3.0"
 #define NOT_IMPL(x) do { std::fprintf(stderr, "%s is not implemented: %s\n", __func__, x); std::exit(1);} while (0)
 #define THROW_EXCEPTION(x) do { throw x;} while (0)
 #define FATAL_WARNING(x) do {std::fprintf(stderr, "Warning: %s\n\n", x); std::exit(1);} while (0)
@@ -148,6 +148,7 @@ struct SpumoniBuildOptions {
   bool use_dna_letters = false; // use DNA-letter based minimizers
   size_t k = 4; // small window size for minimizers
   size_t w = 12; // large window size for minimizers
+  size_t bin_size = 75; // size of bins used for KS-test (for finding threshold during build)
 
 public:
   void validate() {
@@ -182,6 +183,9 @@ public:
       // Check the values for k and w
       if (k > 4) {FATAL_WARNING("small window size (k) cannot be larger than 4 characters.");}
       if (w < k) {FATAL_WARNING("large window size (w) should be larger than the small window size (k)");}
+
+      // Check the values of bin size
+      if (bin_size < 50 || bin_size > 150) {FATAL_WARNING("the bin size provided is not optimal, re-run using a value between 50 and 150.");}
   }
 };
 
@@ -200,6 +204,7 @@ struct SpumoniRunOptions {
   bool use_dna_letters = false; // use DNA-letter based minimizers
   size_t k = 4; // small window size for minimizers
   size_t w = 12; // large window size for minimizers
+  size_t bin_size = 75; // size of region used for KS-test for classification
 
 public:
   void populate_types() {
@@ -260,6 +265,9 @@ public:
       } else {
         if (use_promotions || use_dna_letters) {FATAL_ERROR("A minimizer type should not be specified if intending not to use minimizer digestion.");}
       }
+
+      // Check the size of KS-test region
+      if (bin_size < 50 || bin_size > 150) {FATAL_WARNING("the bin size used is not optimal. Re-run using a value between 50 and 150.");}
 
   }
 };

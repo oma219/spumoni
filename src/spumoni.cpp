@@ -34,25 +34,26 @@ int spumoni_run_usage () {
     std::fprintf(stderr, "Usage: spumoni run [options]\n\n");
 
     std::fprintf(stderr, "Options:\n");
-    std::fprintf(stderr, "\t*** GENERAL OPTIONS ***\n\n");
+    std::fprintf(stderr, "\tGeneral options:\n");
     std::fprintf(stderr, "\t%-10sprints this usage message\n", "-h");
     std::fprintf(stderr, "\t%-10snumber of helper threads (default: 1)\n\n", "-t [arg]");
 
-    std::fprintf(stderr, "\t*** INPUT/OUTPUT OPTIONS ***\n\n");
+    std::fprintf(stderr, "\tInput/output options:\n");
     std::fprintf(stderr, "\t%-10spath to reference file that has index built for it\n", "-r [FILE]");
     std::fprintf(stderr, "\t%-10spath to patterns file that will be used.\n", "-p [FILE]");
     std::fprintf(stderr, "\t%-10suse index to compute MSs\n", "-M");
     std::fprintf(stderr, "\t%-10suse index to compute PMLs\n", "-P");
     //std::fprintf(stderr, "\t%-10spattern file is in fasta format (default: general text)\n", "-f");
     std::fprintf(stderr, "\t%-10suse document array to get assignments\n", "-d");
-    std::fprintf(stderr, "\t%-10swrite out the classifications in a report file\n\n", "-c");
+    std::fprintf(stderr, "\t%-10swrite out the classifications in a report file\n", "-c");
+    std::fprintf(stderr, "\t%-10ssize of region in bp for KS-test (default: 75)\n\n", "-w [INT]");
 
-    std::fprintf(stderr, "\t*** MINIMIZER OPTIONS ***\n\n");
+    std::fprintf(stderr, "\tMinimizer options:\n");
     std::fprintf(stderr, "\t%-10sturn off minimizer digestion of reads (default: on)\n", "-n");
     std::fprintf(stderr, "\t%-10suse alphabet-promoted minimizers\n", "-m");
     std::fprintf(stderr, "\t%-10suse DNA-letter based minimizers\n", "-a");
-    std::fprintf(stderr, "\t%-10ssmall window size (k) for finding minimizers (default: 4)\n", "-K");
-    std::fprintf(stderr, "\t%-10slarge window size (w) for finding minimizers (default: 12)\n\n", "-W");
+    std::fprintf(stderr, "\t%-10ssmall window size (k) for finding minimizers (default: 4)\n", "-K [INT]");
+    std::fprintf(stderr, "\t%-10slarge window size (w) for finding minimizers (default: 12)\n\n", "-W [INT]");
 
     return 0;
 }
@@ -64,27 +65,28 @@ int spumoni_build_usage () {
 
     std::fprintf(stderr, "Options:\n");
 
-    std::fprintf(stderr, "\t*** GENERAL OPTIONS ***\n\n");
+    std::fprintf(stderr, "\tGeneral options:\n");
     std::fprintf(stderr, "\t%-10sprints this usage message\n", "-h");
     std::fprintf(stderr, "\t%-10sturn on verbose logging\n\n", "-v");
 
-    std::fprintf(stderr, "\t*** INPUT DATA OPTIONS ***\n\n");
+    std::fprintf(stderr, "\tInput data options:\n");
     std::fprintf(stderr, "\t%-10spath to reference file to be indexed\n", "-r [FILE]");
     std::fprintf(stderr, "\t%-10sfile with a list of files to index\n", "-i [FILE]");
     std::fprintf(stderr, "\t%-10sbuild directory for index(es) (if using -i option)\n\n", "-b [DIR]");
 
-    std::fprintf(stderr, "\t*** MINIMIZER OPTIONS ***\n\n");
+    std::fprintf(stderr, "\tMinimizer options:\n");
     std::fprintf(stderr, "\t%-10sturn off minimizer digestion of sequence (default: on)\n", "-n");
     std::fprintf(stderr, "\t%-10suse alphabet-promoted minimizers\n", "-m");
     std::fprintf(stderr, "\t%-10suse DNA-letter based minimizers\n", "-t");
-    std::fprintf(stderr, "\t%-10ssmall window size (k) for finding minimizers (default: 4)\n", "-K");
-    std::fprintf(stderr, "\t%-10slarge window size (w) for finding minimizers (default: 12)\n\n", "-W");
+    std::fprintf(stderr, "\t%-10ssmall window size (k) for finding minimizers (default: 4)\n", "-K [INT]");
+    std::fprintf(stderr, "\t%-10slarge window size (w) for finding minimizers (default: 12)\n\n", "-W [INT]");
 
-    std::fprintf(stderr, "\t*** INDEX FILE(S) OPTIONS ***\n\n");
+    std::fprintf(stderr, "\tIndex file(s) options:\n");
     std::fprintf(stderr, "\t%-10sbuild an index that can be used to compute MSs\n", "-M");
     std::fprintf(stderr, "\t%-10sbuild an index that can be used to compute PMLs\n", "-P");
     std::fprintf(stderr, "\t%-10skeep the temporary files (default: false)\n", "-k");
-    std::fprintf(stderr, "\t%-10sbuild the document array (default: false)\n\n", "-d");   
+    std::fprintf(stderr, "\t%-10sbuild the document array (default: false)\n", "-d");
+    std::fprintf(stderr, "\t%-10ssize of windows in bp for KS-test (default: 75)\n\n", "-w [INT]");   
 
     //std::fprintf(stderr, "\t%-10ssliding window size (default: 10)\n", "-w [arg]");
     //std::fprintf(stderr, "\t%-10shash modulus value (default: 100)\n", "-p [arg]");
@@ -96,7 +98,7 @@ int spumoni_build_usage () {
 
 void parse_build_options(int argc, char** argv, SpumoniBuildOptions* opts) {
     /* Parses the arguments for the build sub-command and returns a struct with arguments */
-    for(int c;(c = getopt(argc, argv, "hr:MPw:p:kdi:b:nvmtK:W:")) >= 0;) { 
+    for(int c;(c = getopt(argc, argv, "hr:MPw:kdi:b:nvmK:W:")) >= 0;) { 
         switch(c) {
                     case 'h': spumoni_build_usage(); std::exit(1);
                     case 'r': opts->ref_file.assign(optarg); break;
@@ -110,8 +112,9 @@ void parse_build_options(int argc, char** argv, SpumoniBuildOptions* opts) {
                     case 't': opts->use_dna_letters = true; opts->is_fasta = true; break;
                     case 'K': opts->k = std::max(std::atoi(optarg), 1); break;
                     case 'W': opts->w = std::max(std::atoi(optarg), 1); break;
-                    case 'w': opts->wind = std::max(std::atoi(optarg), 10); break;
-                    case 'p': opts->hash_mod = std::max(std::atoi(optarg), 1); break;
+                    case 'w': opts->bin_size = std::max(std::atoi(optarg), 1); break;
+                    //case 'w': opts->wind = std::max(std::atoi(optarg), 10); break;
+                    //case 'p': opts->hash_mod = std::max(std::atoi(optarg), 1); break;
                     //case 't': opts->threads = std::max(std::atoi(optarg), 1); break;
                     case 'k': opts->keep_files = true; break;
                     //case 'f': opts->is_fasta = true; break;
@@ -123,7 +126,7 @@ void parse_build_options(int argc, char** argv, SpumoniBuildOptions* opts) {
 
 void parse_run_options(int argc, char** argv, SpumoniRunOptions* opts) {
     /* Parses the arguments for the build sub-command and returns a struct with arguments */
-    for(int c;(c = getopt(argc, argv, "hr:p:MPt:dcnmaK:W:")) >= 0;) { 
+    for(int c;(c = getopt(argc, argv, "hr:p:MPt:dcnmaK:W:w:")) >= 0;) { 
         switch(c) {
                     case 'h': spumoni_run_usage(); std::exit(1);
                     case 'r': opts->ref_file.assign(optarg); break;
@@ -136,6 +139,7 @@ void parse_run_options(int argc, char** argv, SpumoniRunOptions* opts) {
                     case 'n': opts->min_digest = false; break;
                     case 'K': opts->k = std::max(std::atoi(optarg), 1); break;
                     case 'W': opts->w = std::max(std::atoi(optarg), 1); break;
+                    case 'w': opts->bin_size = std::max(std::atoi(optarg), 1); break;
                     //case 'f': opts->query_fasta = true; break;
                     case 't': opts->threads = std::max(std::atoi(optarg), 1); break;
                     case 'd': opts->use_doc = true; break;
@@ -606,7 +610,8 @@ int build_main(int argc, char** argv) {
         // Find null distribution of KS-stats to find threshold
         find_threshold_based_on_null_ms_distribution(build_opts.ref_file.data(), null_read_file.data(), 
                                                       build_opts.use_minimizers, build_opts.use_promotions, 
-                                                      build_opts.use_dna_letters, build_opts.k, build_opts.w, null_db);
+                                                      build_opts.use_dna_letters, build_opts.k, build_opts.w, 
+                                                      null_db, build_opts.bin_size);
 
         std::string output_nulldb_name = build_opts.ref_file + ".msnulldb";
         std::ofstream out_stream(output_nulldb_name);
@@ -629,7 +634,8 @@ int build_main(int argc, char** argv) {
         // Find null distribution of KS-stats to find threshold
         find_threshold_based_on_null_pml_distribution(build_opts.ref_file.data(), null_read_file.data(), 
                                                       build_opts.use_minimizers, build_opts.use_promotions, 
-                                                      build_opts.use_dna_letters, build_opts.k, build_opts.w, null_db);
+                                                      build_opts.use_dna_letters, build_opts.k, build_opts.w, 
+                                                      null_db, build_opts.bin_size);
 
         std::string output_nulldb_name = build_opts.ref_file + ".pmlnulldb";
         std::ofstream out_stream(output_nulldb_name);

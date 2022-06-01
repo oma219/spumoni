@@ -21,8 +21,8 @@ public:
     output_type stat_type;
     EmpNullDatabase null_db;
 
-    KSTest(std::string ref_file, output_type result_type, bool write_report, std::ofstream& out);
-    KSTest(EmpNullDatabase& null_db, output_type result_type);
+    KSTest(std::string ref_file, output_type result_type, bool write_report, std::ofstream& out, size_t bin_width);
+    KSTest(EmpNullDatabase& null_db, output_type result_type, size_t bin_width);
     
     double run_test(std::vector<size_t> pos_stats, std::vector<size_t> null_stats);
     static inline std::vector<double> compute_cdf(std::vector<size_t> stats, size_t max_stat);

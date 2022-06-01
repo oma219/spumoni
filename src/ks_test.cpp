@@ -12,7 +12,7 @@
 #include <algorithm>
 #include <emp_null_database.hpp>
 
-KSTest::KSTest(std::string ref_file, output_type result_type, bool write_report, std::ofstream& out): bin_size(75), stat_type(result_type) {
+KSTest::KSTest(std::string ref_file, output_type result_type, bool write_report, std::ofstream& out, size_t bin_width): bin_size(bin_width), stat_type(result_type) {
     /* main constructor for KSTest object */
     if (!write_report) return;
 
@@ -41,7 +41,7 @@ KSTest::KSTest(std::string ref_file, output_type result_type, bool write_report,
         << std::setw(12) << std::left << "below thr:" << std::endl;
 }
 
-KSTest::KSTest(EmpNullDatabase& null_db, output_type result_type): bin_size(75), stat_type(result_type), null_db(null_db) {
+KSTest::KSTest(EmpNullDatabase& null_db, output_type result_type, size_t bin_width): bin_size(bin_width), stat_type(result_type), null_db(null_db) {
     /* Constructor used when determining the threshold */
 }
 
