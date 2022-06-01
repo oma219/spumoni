@@ -826,7 +826,12 @@ protected:
  */
 
 size_t classify_reads_pml(pml_t *pml, std::string ref_filename, std::string pattern_filename, bool use_doc, 
-                          bool min_digest, bool write_report, size_t num_threads) {
+                          bool min_digest, bool write_report, size_t num_threads,
+                          size_t k, size_t w, bool use_promotions, bool use_dna_letters, size_t bin_width) {
+
+    // Added for debugging ....
+    std::ofstream ks_stat_file (pattern_filename + ".ks_stats");
+
     // declare output file and iterator
     std::ofstream lengths_file (pattern_filename + ".pseudo_lengths");
     std::ostream_iterator<size_t> lengths_iter (lengths_file, " ");
@@ -836,7 +841,7 @@ size_t classify_reads_pml(pml_t *pml, std::string ref_filename, std::string patt
 
     if (use_doc) {doc_file.open(pattern_filename + ".doc_numbers");}
     if (write_report) {report_file.open(pattern_filename + ".report", std::ofstream::out);}
-    KSTest sig_test (ref_filename.data(), PML, write_report, report_file);
+    KSTest sig_test (ref_filename.data(), PML, write_report, report_file, bin_width);
 
     // open query file, and start to classify
     std::ifstream input_file (pattern_filename.c_str());
@@ -870,8 +875,11 @@ size_t classify_reads_pml(pml_t *pml, std::string ref_filename, std::string patt
                 transform(curr_read.begin(), curr_read.end(), curr_read.begin(), ::toupper); 
 
                 // convert to minimizer-form if needed
-                if (min_digest){curr_read = perform_minimizer_digestion(curr_read);}
-
+                if (use_promotions)
+                    curr_read = perform_minimizer_digestion(curr_read, k, w);
+                else if (use_dna_letters)
+                    curr_read = perform_dna_minimizer_digestion(curr_read, k, w);
+                
                 // grab MS and write to output file
                 std::vector<size_t> lengths, doc_nums;
                 if (use_doc){
@@ -893,8 +901,12 @@ size_t classify_reads_pml(pml_t *pml, std::string ref_filename, std::string patt
                     double threshold = sig_test.get_threshold();
                     for (size_t i = 0; i < ks_list.size(); i++) {
                         if (ks_list[i] >= threshold) num_bin_above_thr++;
+
+                        // Added for debugging ....
+                        ks_stat_file.precision(3);
+                        ks_stat_file << ((i+1.0)/ks_list.size()) << "," << ks_list[i] << "," << threshold << "\n";
                     }
-                    bool read_found = (num_bin_above_thr/(ks_list.size()+0.0) >= 0.50);
+                    bool read_found = (num_bin_above_thr/(ks_list.size()+0.0) > 0.50);
 
                     std::for_each(ks_list.begin(), ks_list.end(), [&] (double n) {sum_ks_stats += n;});
                     status = (read_found) ? "FOUND" : "NOT_PRESENT";
@@ -919,7 +931,7 @@ size_t classify_reads_pml(pml_t *pml, std::string ref_filename, std::string patt
                         report_file.precision(3);
                         report_file << std::setw(20) << std::left << read_struct.id
                                     << std::setw(15) << std::left << status 
-                                    << std::setw(15) << std::left << (sum_ks_stats/ks_list.size()) 
+                                    << std::setw(28) << std::left << (sum_ks_stats/ks_list.size()) 
                                     << std::setw(12) << std::left << num_bin_above_thr
                                     << std::setw(12) << std::left << (ks_list.size() - num_bin_above_thr)
                                     << std::endl;
@@ -932,13 +944,16 @@ size_t classify_reads_pml(pml_t *pml, std::string ref_filename, std::string patt
     lengths_file.close();
     input_file.close();
 
+    ks_stat_file.close();
+
     if (use_doc) {doc_file.close();}
     if (write_report) {report_file.close();}
     return num_reads;
 }
 
 size_t classify_reads_ms(ms_t *ms, std::string ref_filename, std::string pattern_filename, 
-                         bool use_doc, bool min_digest, bool write_report, size_t num_threads) {
+                         bool use_doc, bool min_digest, bool write_report, size_t num_threads,
+                         size_t k, size_t w, bool use_promotions, bool use_dna_letters, size_t bin_width) {
 
     // declare output files, and output iterators
     std::ofstream lengths_file (pattern_filename + ".lengths");
@@ -951,7 +966,7 @@ size_t classify_reads_ms(ms_t *ms, std::string ref_filename, std::string pattern
 
     if (use_doc) {doc_file.open(pattern_filename + ".doc_numbers", std::ofstream::out);}
     if (write_report) {report_file.open(pattern_filename + ".report", std::ofstream::out);}
-    KSTest sig_test(ref_filename.data(), MS, write_report, report_file);
+    KSTest sig_test(ref_filename.data(), MS, write_report, report_file, bin_width);
 
     // open query file, and start to classify
     std::ifstream input_file (pattern_filename.c_str());
@@ -985,8 +1000,11 @@ size_t classify_reads_ms(ms_t *ms, std::string ref_filename, std::string pattern
                 transform(curr_read.begin(), curr_read.end(), curr_read.begin(), ::toupper); 
 
                 // convert to minimizer-form if needed
-                if (min_digest){curr_read = perform_minimizer_digestion(curr_read);}
-
+                if (use_promotions)
+                    curr_read = perform_minimizer_digestion(curr_read, k, w);
+                else if (use_dna_letters)
+                    curr_read = perform_dna_minimizer_digestion(curr_read, k, w);
+ 
                 // grab MS and write to output file
                 std::vector<size_t> lengths, pointers, doc_nums;
                 if (use_doc){
@@ -1009,7 +1027,7 @@ size_t classify_reads_ms(ms_t *ms, std::string ref_filename, std::string pattern
                     for (size_t i = 0; i < ks_list.size(); i++) {
                         if (ks_list[i] >= threshold) num_bin_above_thr++;
                     }
-                    bool read_found = (num_bin_above_thr/(ks_list.size()+0.0) >= 0.50);
+                    bool read_found = (num_bin_above_thr/(ks_list.size()+0.0) > 0.50);
 
                     std::for_each(ks_list.begin(), ks_list.end(), [&] (double n) {sum_ks_stats += n;});
                     status = (read_found) ? "FOUND" : "NOT_PRESENT";
@@ -1037,7 +1055,7 @@ size_t classify_reads_ms(ms_t *ms, std::string ref_filename, std::string pattern
                         report_file.precision(3);
                         report_file << std::setw(20) << std::left << read_struct.id
                                     << std::setw(15) << std::left << status 
-                                    << std::setw(15) << std::left << (sum_ks_stats/ks_list.size()) 
+                                    << std::setw(28) << std::left << (sum_ks_stats/ks_list.size()) 
                                     << std::setw(12) << std::left << num_bin_above_thr
                                     << std::setw(12) << std::left << (ks_list.size() - num_bin_above_thr)
                                     << std::endl;
@@ -1071,12 +1089,24 @@ int run_spumoni_main(SpumoniRunOptions* run_opts){
     std::string out_filename = run_opts->pattern_file;
     std::cout << std::endl;
 
+    // Print out digestion method for input reads
+    if (run_opts->use_promotions)
+        FORCE_LOG("compute_pml", "input reads will digested using promoted minimizer alphabet (k=%d, w=%d)", 
+                  run_opts->k, run_opts->w);
+    else if (run_opts->use_dna_letters)
+        FORCE_LOG("compute_pml", "input reads will digested using DNA alphabet (k=%d, w=%d)", 
+                  run_opts->k, run_opts->w);
+    else
+        FORCE_LOG("compute_pml", "input reads will be used directly, no minimizer digestion");
+
     // Process all the reads in the input pattern file
     auto start_time = std::chrono::system_clock::now();
     STATUS_LOG("compute_pml", "processing the patterns");
     
     size_t num_reads = classify_reads_pml(&ms, run_opts->ref_file, run_opts->pattern_file, run_opts->use_doc, 
-                                          run_opts->min_digest, run_opts->write_report, run_opts->threads);
+                                          run_opts->min_digest, run_opts->write_report, run_opts->threads,
+                                          run_opts->k, run_opts->w, run_opts->use_promotions, 
+                                          run_opts->use_dna_letters, run_opts->bin_size);
     DONE_LOG((std::chrono::system_clock::now() - start_time));
     FORCE_LOG("compute_pml", "finished processing %d reads. results are saved in *.pseudo_lengths file.", num_reads);
     std::cout << std::endl;
@@ -1094,12 +1124,25 @@ int run_spumoni_ms_main(SpumoniRunOptions* run_opts) {
     std::string out_filename = run_opts->pattern_file;
     std::cout << std::endl;
 
+    // Print out digestion method for input reads
+    if (run_opts->use_promotions)
+        FORCE_LOG("compute_ms", "input reads will digested using promoted minimizer alphabet (k=%d, w=%d)", 
+                  run_opts->k, run_opts->w);
+    else if (run_opts->use_dna_letters)
+        FORCE_LOG("compute_ms", "input reads will digested using DNA alphabet (k=%d, w=%d)", 
+                  run_opts->k, run_opts->w);
+    else
+        FORCE_LOG("compute_ms", "input reads will be used directly, no minimizer digestion");
+
     // Determine approach to parse pattern files
     auto start_time = std::chrono::system_clock::now();
     STATUS_LOG("compute_ms", "processing the reads");
 
     size_t num_reads = classify_reads_ms(&ms, run_opts->ref_file, run_opts->pattern_file, run_opts->use_doc, 
-                                         run_opts->min_digest, run_opts->write_report, run_opts->threads);
+                                         run_opts->min_digest, run_opts->write_report, run_opts->threads,
+                                         run_opts->k, run_opts->w, run_opts->use_promotions, 
+                                         run_opts->use_dna_letters, run_opts->bin_size);
+
     DONE_LOG((std::chrono::system_clock::now() - start_time));
     FORCE_LOG("compute_ms", "finished processing %d reads. results are saved in *.lengths file.", num_reads);
     std::cout << std::endl;
@@ -1133,7 +1176,7 @@ std::pair<size_t, size_t> build_spumoni_main(std::string ref_file) {
 }
 
 void generate_null_ms_statistics(std::string ref_file, std::string pattern_file, std::vector<size_t>& ms_stats,
-                                 bool min_digest) {
+                                 bool min_digest, bool use_promotions, bool use_dna_letters, size_t k, size_t w) {
     /* Generates the null ms statistics and returns them to be saved */
 
     // Loads the index, and needed variables
@@ -1151,8 +1194,11 @@ void generate_null_ms_statistics(std::string ref_file, std::string pattern_file,
         std::reverse(curr_read.begin(), curr_read.end());
         
         // Convert to minimizer-form if needed
-        if (min_digest){curr_read = perform_minimizer_digestion(curr_read);}
-
+        if (use_promotions)
+            curr_read = perform_minimizer_digestion(curr_read, k, w);
+        else if (use_dna_letters)
+            curr_read = perform_dna_minimizer_digestion(curr_read, k, w);
+        
         // Generate the null MS
         std::vector<size_t> lengths, pointers;
         ms_index.matching_statistics(curr_read.c_str(), curr_read.length(), lengths, pointers);
@@ -1163,7 +1209,7 @@ void generate_null_ms_statistics(std::string ref_file, std::string pattern_file,
 }
 
 void generate_null_pml_statistics(std::string ref_file, std::string pattern_file, std::vector<size_t>& pml_stats,
-                                 bool min_digest) {
+                                 bool min_digest, bool use_promotions, bool use_dna_letters, size_t k, size_t w) {
     /* Generates the null pml statistics and returns them to be saved */
 
     // Load the indexes, and needed variables
@@ -1181,7 +1227,10 @@ void generate_null_pml_statistics(std::string ref_file, std::string pattern_file
         std::reverse(curr_read.begin(), curr_read.end());
 
         // Convert to minimizer-form if needed
-        if (min_digest){curr_read = perform_minimizer_digestion(curr_read);}
+        if (use_promotions)
+            curr_read = perform_minimizer_digestion(curr_read, k, w);
+        else if (use_dna_letters)
+            curr_read = perform_dna_minimizer_digestion(curr_read, k, w);
 
         // Generate the null PML
         std::vector<size_t> lengths;
@@ -1190,4 +1239,118 @@ void generate_null_pml_statistics(std::string ref_file, std::string pattern_file
     }
     kseq_destroy(seq);
     gzclose(fp);
+}
+
+void find_threshold_based_on_null_pml_distribution(const char* ref_file, const char* null_reads, bool use_minimizers,
+                                                   bool use_promotions, bool use_dna_letters, size_t k, size_t w, EmpNullDatabase& null_db, size_t bin_width) {
+
+    /* Generates a distribution of KS-stats from null reads to determine the optimal threshold */
+
+    // Load the indexes, and needed variables
+    pml_t pml_index(ref_file, false);
+    gzFile fp = gzopen(null_reads, "r");
+    kseq_t* seq = kseq_init(fp);
+
+    // Iterates through null reads, and generates PML 
+    KSTest sig_test(null_db, PML, bin_width);
+    std::vector<size_t> pml_stats;
+    std::vector <double> ks_list;
+    double ks_stat_sum = 0.0;
+
+    while (kseq_read(seq)>=0) {
+        //Make sure all characters are upper-case
+        std::string curr_read = std::string(seq->seq.s);
+        transform(curr_read.begin(), curr_read.end(), curr_read.begin(), ::toupper); 
+
+        // Reverse string to make it a null read
+        std::reverse(curr_read.begin(), curr_read.end());
+
+        // Convert to minimizer-form if needed
+        if (use_promotions)
+            curr_read = perform_minimizer_digestion(curr_read, k, w);
+        else if (use_dna_letters)
+            curr_read = perform_dna_minimizer_digestion(curr_read, k, w);
+
+        // Generate the null PML
+        std::vector<size_t> lengths;
+        pml_index.matching_statistics(curr_read.c_str(), curr_read.length(), lengths);
+        pml_stats.insert(pml_stats.end(), lengths.begin(), lengths.end());
+
+        // Generate the KS-statistics
+        std::vector<double> curr_ks_list;
+        curr_ks_list = sig_test.run_kstest(lengths);
+        ks_list.insert(ks_list.end(), curr_ks_list.begin(), curr_ks_list.end());
+        std::for_each(curr_ks_list.begin(), curr_ks_list.end(), [&] (double x) {ks_stat_sum += x;});
+    }
+    kseq_destroy(seq);
+    gzclose(fp);
+
+    // find the variance of the ks-statistics
+    double sum = 0.0;
+    double mean = ks_stat_sum/ks_list.size();
+
+    for (size_t i = 0; i < ks_list.size(); i++){
+        sum += std::pow(ks_list[i] - mean, 2);
+    }
+    double std_dev = std::sqrt(sum/ks_list.size());
+
+    // set the threshold as 3 std. deviations above mean
+    null_db.ks_stat_threshold = mean + (3 * std_dev);
+}
+
+void find_threshold_based_on_null_ms_distribution(const char* ref_file, const char* null_reads, bool use_minimizers,
+                                                   bool use_promotions, bool use_dna_letters, size_t k, size_t w, EmpNullDatabase& null_db, size_t bin_width) {
+
+    /* Generates a distribution of KS-stats from null reads to determine the optimal threshold */
+
+    // Load the indexes, and needed variables
+    ms_t ms_index(ref_file, false);
+    gzFile fp = gzopen(null_reads, "r");
+    kseq_t* seq = kseq_init(fp);
+
+    // Iterates through null reads, and generates MS
+    KSTest sig_test(null_db, MS, bin_width);
+    std::vector<size_t> ms_stats;
+    std::vector <double> ks_list;
+    double ks_stat_sum = 0.0;
+
+    while (kseq_read(seq)>=0) {
+        //Make sure all characters are upper-case
+        std::string curr_read = std::string(seq->seq.s);
+        transform(curr_read.begin(), curr_read.end(), curr_read.begin(), ::toupper); 
+
+        // Reverse string to make it a null read
+        std::reverse(curr_read.begin(), curr_read.end());
+
+        // Convert to minimizer-form if needed
+        if (use_promotions)
+            curr_read = perform_minimizer_digestion(curr_read, k, w);
+        else if (use_dna_letters)
+            curr_read = perform_dna_minimizer_digestion(curr_read, k, w);
+
+        // Generate the null PML
+        std::vector<size_t> lengths, pointers;
+        ms_index.matching_statistics(curr_read.c_str(), curr_read.length(), lengths, pointers);
+        ms_stats.insert(ms_stats.end(), lengths.begin(), lengths.end());
+
+        // Generate the KS-statistics
+        std::vector<double> curr_ks_list;
+        curr_ks_list = sig_test.run_kstest(lengths);
+        ks_list.insert(ks_list.end(), curr_ks_list.begin(), curr_ks_list.end());
+        std::for_each(curr_ks_list.begin(), curr_ks_list.end(), [&] (double x) {ks_stat_sum += x;});
+    }
+    kseq_destroy(seq);
+    gzclose(fp);
+
+    // find the variance of the ks-statistics
+    double sum = 0.0;
+    double mean = ks_stat_sum/ks_list.size();
+
+    for (size_t i = 0; i < ks_list.size(); i++){
+        sum += std::pow(ks_list[i] - mean, 2);
+    }
+    double std_dev = std::sqrt(sum/ks_list.size());
+
+    // set the threshold as 3 std. deviations above mean
+    null_db.ks_stat_threshold = mean + (3 * std_dev);
 }

@@ -1,4 +1,4 @@
-# SPUMONI :ice_cream:
+# SPUMONI :ice_cream: ![GitHub release (latest by date)](https://img.shields.io/github/v/release/oma219/spumoni) ![GitHub](https://img.shields.io/github/license/oma219/spumoni?color=green)
 
 
 SPUMONI is a software tool for performing rapid binary classifications on sequencing reads using a read's matching statistics (or a related quantity called pseudo-matching lengths). The potential use-cases can be scanning the prefix of nanopore reads to quickly make targeting decisions (application discussed in iScience paper below), performing host-depletion on a read set, as well as detecting for potential pathogens.

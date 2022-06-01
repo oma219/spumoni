@@ -15,7 +15,7 @@
 #include <stdlib.h>
 
 /* Commonly Used MACROS */
-#define SPUMONI_VERSION "1.2.0"
+#define SPUMONI_VERSION "1.3.0"
 #define NOT_IMPL(x) do { std::fprintf(stderr, "%s is not implemented: %s\n", __func__, x); std::exit(1);} while (0)
 #define THROW_EXCEPTION(x) do { throw x;} while (0)
 #define FATAL_WARNING(x) do {std::fprintf(stderr, "Warning: %s\n\n", x); std::exit(1);} while (0)
@@ -58,8 +58,8 @@ typedef uint64_t ulint;
 #define THRBYTES 5 
 #define SSABYTES 5 
 #define NULL_READ_CHUNK 150
-#define NUM_NULL_READS 100 // 7500 = 75 bp * 100 reads
-#define NULL_READ_BOUND 200
+#define NUM_NULL_READS 800 // 150,000 = 150 bp * 1000 reads
+#define NULL_READ_BOUND 1000
 #define KS_STAT_MS_THR 0.25
 #define KS_STAT_PML_THR 0.10
 
@@ -76,7 +76,8 @@ bool endsWith(const std::string& str, const std::string& suffix);
 std::string execute_cmd(const char* cmd);
 size_t get_avail_phy_mem();
 int spumoni_run_usage ();
-std::string perform_minimizer_digestion(std::string input_query);
+std::string perform_minimizer_digestion(std::string input_query, size_t k, size_t w);
+std::string perform_dna_minimizer_digestion(std::string input_query, size_t k, size_t w);
 
 struct SpumoniHelperPrograms {
   /* Contains paths to run helper programs */
@@ -143,6 +144,11 @@ struct SpumoniBuildOptions {
                          // we use minimizers by default (default: true)
   bool build_doc = false; // build the document array
   bool use_minimizers = true; // digest sequences into minimizers
+  bool use_promotions = false; // use alphabet promotion during promotion
+  bool use_dna_letters = false; // use DNA-letter based minimizers
+  size_t k = 4; // small window size for minimizers
+  size_t w = 12; // large window size for minimizers
+  size_t bin_size = 75; // size of bins used for KS-test (for finding threshold during build)
 
 public:
   void validate() {
@@ -162,6 +168,24 @@ public:
       }
       if (build_doc && ref_file.length()) {
         FATAL_ERROR("Cannot build a document array if you are indexing a single file.");}
+      
+      // Check if we only set one type minimizers
+      if (use_minimizers) {
+        if (use_promotions && use_dna_letters) {FATAL_ERROR("Only one type of minimizer can be specified.");}
+        if (!use_promotions && !use_dna_letters) {FATAL_ERROR("A minimizer type must be specified.");}
+      } else {
+        if (use_promotions || use_dna_letters) {FATAL_ERROR("A minimizer type should not be specified if intending not to use minimizer digestion.");}
+      }
+
+      // Makes sure that at least one index type is chosen ...
+      if (!ms_index && !pml_index) {FATAL_ERROR("At least one index type (-M or -P) must be specified for build.");}
+
+      // Check the values for k and w
+      if (k > 4) {FATAL_WARNING("small window size (k) cannot be larger than 4 characters.");}
+      if (w < k) {FATAL_WARNING("large window size (w) should be larger than the small window size (k)");}
+
+      // Check the values of bin size
+      if (bin_size < 50 || bin_size > 150) {FATAL_WARNING("the bin size provided is not optimal, re-run using a value between 50 and 150.");}
   }
 };
 
@@ -170,12 +194,17 @@ struct SpumoniRunOptions {
   std::string pattern_file = ""; // pattern file
   bool ms_requested = false; // user wants to compute MS
   bool pml_requested = false; // user wants to compute PML
-  bool min_digest = true; // need to digest reads (default is true)
   output_type result_type = NOT_CHOSEN; // output type requested by user
   reference_type ref_type = NOT_SET; // the type of reference
   size_t threads = 1; // number of threads
   bool use_doc = false; // build the document array
   bool write_report = false; // write out the classification report
+  bool min_digest = true; // need to digest reads (default is true) 
+  bool use_promotions = false; // use alphabet promotion during promotion
+  bool use_dna_letters = false; // use DNA-letter based minimizers
+  size_t k = 4; // small window size for minimizers
+  size_t w = 12; // large window size for minimizers
+  size_t bin_size = 75; // size of region used for KS-test for classification
 
 public:
   void populate_types() {
@@ -189,8 +218,8 @@ public:
       bool is_fasta = (endsWith(ref_file, ".fa") || endsWith(ref_file, ".fasta") || endsWith(ref_file, ".fna"));
       bool is_min = endsWith(ref_file, ".bin");
 
-      if (is_fasta && !is_min) {ref_type = FASTA; min_digest = false;}
-      if (!is_fasta && is_min) {ref_type = MINIMIZER; min_digest = true;}
+      if (is_fasta && !is_min) {ref_type = FASTA;}
+      if (!is_fasta && is_min) {ref_type = MINIMIZER;}
   }
   
   void validate() const {
@@ -224,6 +253,22 @@ public:
         default:
             FATAL_WARNING("An output type with -M or -P must be specified, only one can be used at a time."); break;
       }
+
+      // Check the values for k and w
+      if (k > 4) {FATAL_WARNING("small window size (k) cannot be larger than 4 characters.");}
+      if (w < k) {FATAL_WARNING("large window size (w) should be larger than the small window size (k)");}
+
+      // Check if we choose the minimizer type correctly
+      if (min_digest) {
+        if (use_promotions && use_dna_letters) {FATAL_ERROR("Only one type of minimizer can be specified from either -m or -a.");}
+        if (!use_promotions && !use_dna_letters) {FATAL_ERROR("A minimizer type must be specified using -m or -a.");}
+      } else {
+        if (use_promotions || use_dna_letters) {FATAL_ERROR("A minimizer type should not be specified if intending not to use minimizer digestion.");}
+      }
+
+      // Check the size of KS-test region
+      if (bin_size < 50 || bin_size > 150) {FATAL_WARNING("the bin size used is not optimal. Re-run using a value between 50 and 150.");}
+
   }
 };
 
