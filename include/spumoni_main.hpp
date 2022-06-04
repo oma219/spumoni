@@ -185,7 +185,7 @@ public:
       if (w < k) {FATAL_WARNING("large window size (w) should be larger than the small window size (k)");}
 
       // Check the values of bin size
-      if (bin_size < 50 || bin_size > 150) {FATAL_WARNING("the bin size provided is not optimal, re-run using a value between 50 and 150.");}
+      if (bin_size < 50 || bin_size > 400) {FATAL_WARNING("the bin size provided is not optimal, re-run using a value between 50 and 400.");}
   }
 };
 
@@ -267,7 +267,7 @@ public:
       }
 
       // Check the size of KS-test region
-      if (bin_size < 50 || bin_size > 150) {FATAL_WARNING("the bin size used is not optimal. Re-run using a value between 50 and 150.");}
+      if (bin_size < 50 || bin_size > 400) {FATAL_WARNING("the bin size used is not optimal. Re-run using a value between 50 and 400.");}
 
   }
 };
