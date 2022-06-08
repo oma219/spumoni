@@ -46,14 +46,14 @@ int spumoni_run_usage () {
     //std::fprintf(stderr, "\t%-10spattern file is in fasta format (default: general text)\n", "-f");
     std::fprintf(stderr, "\t%-10suse document array to get assignments\n", "-d");
     std::fprintf(stderr, "\t%-10swrite out the classifications in a report file\n", "-c");
-    std::fprintf(stderr, "\t%-10ssize of region in bp for KS-test (default: 75)\n\n", "-w [INT]");
+    std::fprintf(stderr, "\t%-10ssize of region in bp for KS-test (default: 150)\n\n", "-w [INT]");
 
     std::fprintf(stderr, "\tMinimizer options:\n");
     std::fprintf(stderr, "\t%-10sturn off minimizer digestion of reads (default: on)\n", "-n");
     std::fprintf(stderr, "\t%-10suse alphabet-promoted minimizers\n", "-m");
     std::fprintf(stderr, "\t%-10suse DNA-letter based minimizers\n", "-a");
     std::fprintf(stderr, "\t%-10ssmall window size (k) for finding minimizers (default: 4)\n", "-K [INT]");
-    std::fprintf(stderr, "\t%-10slarge window size (w) for finding minimizers (default: 12)\n\n", "-W [INT]");
+    std::fprintf(stderr, "\t%-10slarge window size (w) for finding minimizers (default: 11)\n\n", "-W [INT]");
 
     return 0;
 }
@@ -79,14 +79,14 @@ int spumoni_build_usage () {
     std::fprintf(stderr, "\t%-10suse alphabet-promoted minimizers\n", "-m");
     std::fprintf(stderr, "\t%-10suse DNA-letter based minimizers\n", "-t");
     std::fprintf(stderr, "\t%-10ssmall window size (k) for finding minimizers (default: 4)\n", "-K [INT]");
-    std::fprintf(stderr, "\t%-10slarge window size (w) for finding minimizers (default: 12)\n\n", "-W [INT]");
+    std::fprintf(stderr, "\t%-10slarge window size (w) for finding minimizers (default: 11)\n\n", "-W [INT]");
 
     std::fprintf(stderr, "\tIndex file(s) options:\n");
     std::fprintf(stderr, "\t%-10sbuild an index that can be used to compute MSs\n", "-M");
     std::fprintf(stderr, "\t%-10sbuild an index that can be used to compute PMLs\n", "-P");
     std::fprintf(stderr, "\t%-10skeep the temporary files (default: false)\n", "-k");
     std::fprintf(stderr, "\t%-10sbuild the document array (default: false)\n", "-d");
-    std::fprintf(stderr, "\t%-10ssize of windows in bp for KS-test (default: 75)\n\n", "-w [INT]");   
+    std::fprintf(stderr, "\t%-10ssize of windows in bp for KS-test (default: 150)\n\n", "-w [INT]");   
 
     //std::fprintf(stderr, "\t%-10ssliding window size (default: 10)\n", "-w [arg]");
     //std::fprintf(stderr, "\t%-10shash modulus value (default: 100)\n", "-p [arg]");
@@ -98,7 +98,7 @@ int spumoni_build_usage () {
 
 void parse_build_options(int argc, char** argv, SpumoniBuildOptions* opts) {
     /* Parses the arguments for the build sub-command and returns a struct with arguments */
-    for(int c;(c = getopt(argc, argv, "hr:MPw:kdi:b:nvmK:W:")) >= 0;) { 
+    for(int c;(c = getopt(argc, argv, "hr:MPw:kdi:b:nvmK:W:t")) >= 0;) { 
         switch(c) {
                     case 'h': spumoni_build_usage(); std::exit(1);
                     case 'r': opts->ref_file.assign(optarg); break;
