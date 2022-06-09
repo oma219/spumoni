@@ -63,6 +63,8 @@ set(klib_SOURCE_DIR "${CMAKE_BINARY_DIR}/_deps/klib-src")
 # ${bigbwt_SOURCE_DIR}/xerrors.c
 # "${bigbwt_SOURCE_DIR}"
 
+set(CMAKE_VERBOSE_MAKEFILE ON)
+
 add_executable(spumoni spumoni.cpp  compute_ms_pml.cpp doc_array.cpp 
                         refbuilder.cpp emp_null_database.cpp 
                         ks_test.cpp batch_loader.cpp)
