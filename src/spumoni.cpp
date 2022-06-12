@@ -439,7 +439,7 @@ size_t run_build_ms_cmd(SpumoniBuildOptions* build_opts, SpumoniHelperPrograms* 
     
     double average_run_size = (length + 0.0)/num_runs;
     DONE_LOG((std::chrono::system_clock::now() - start));
-    FORCE_LOG("build_ms", "bwt statistics: r = %d, n = %d, n/r = %.3f", num_runs, length, average_run_size);
+    FORCE_LOG("build_ms", "bwt statistics: r = %ld, n = %ld, n/r = %.3f", num_runs, length, average_run_size);
     return num_runs;
 }
 
@@ -453,7 +453,7 @@ size_t run_build_pml_cmd(SpumoniBuildOptions* build_opts, SpumoniHelperPrograms*
 
     double average_run_size = (length + 0.0)/num_runs;
     DONE_LOG((std::chrono::system_clock::now() - start));
-    FORCE_LOG("build_pml", "bwt statistics: r = %d, n = %d, n/r = %.3f", num_runs, length, average_run_size);
+    FORCE_LOG("build_pml", "bwt statistics: r = %ld, n = %ld, n/r = %.3f", num_runs, length, average_run_size);
     return num_runs;
 }
 
