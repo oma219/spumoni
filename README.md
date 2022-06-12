@@ -1,7 +1,7 @@
 # SPUMONI :ice_cream: ![GitHub release (latest by date)](https://img.shields.io/github/v/release/oma219/spumoni) ![GitHub](https://img.shields.io/github/license/oma219/spumoni?color=green)
 
 
-SPUMONI is a software tool for **performing rapid read lassifications on sequencing reads using a read's matching statistics (or a related quantity called pseudo-matching lengths).** 
+SPUMONI is a software tool for **performing rapid read classifications on sequencing reads using a read's matching statistics (or a related quantity called pseudo-matching lengths).** 
 
 SPUMONI is based on another software tool called [MONI](https://github.com/maxrossi91/moni) which is a MEM-finder and aligner for pan-genomes. `MONI` uses prefix-free parsing of the text [2][3] to build the Burrows-Wheeler Transform (BWT) of the reference collection, the suffix array (SA) samples at the beginning and end of each run, and the threshold positions[1]. 
 
