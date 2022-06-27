@@ -132,8 +132,9 @@ RefBuilder::RefBuilder(const char* ref_file, const char* list_file, const char* 
 
         while (kseq_read(seq)>=0) {
             // Get forward seq, and print it
-			for (size_t i = 0; i < seq->seq.l; ++i)
+			for (size_t i = 0; i < seq->seq.l; ++i) {
 				seq->seq.s[i] = std::toupper(seq->seq.s[i]);
+            }
 
             // Extract some reads for null database generation
             size_t reads_to_grab = (curr_total_null_reads >= NUM_NULL_READS) ? 25 : 100; // downsample if done
@@ -315,6 +316,11 @@ std::string RefBuilder::build_reference(const char* ref_file, bool use_promotion
 
     while (kseq_read(seq)>=0) {
         std::string curr_seq = "";
+
+        // Upper-case all the letters in the sequence
+        for (size_t i = 0; i < seq->seq.l; ++i) {
+            seq->seq.s[i] = std::toupper(seq->seq.s[i]);
+        }
 
         // Print out the forward seq
         if (use_promotions) {
