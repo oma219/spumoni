@@ -899,6 +899,7 @@ size_t classify_reads_pml(pml_t *pml, std::string ref_filename, std::string patt
                 
                     // classify the based on ks-statistics
                     double threshold = sig_test.get_threshold();
+                    //threshold = 0.09;
                     for (size_t i = 0; i < ks_list.size(); i++) {
                         if (ks_list[i] >= threshold) num_bin_above_thr++;
 
