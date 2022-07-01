@@ -20,6 +20,8 @@ void generate_null_ms_statistics(std::string ref_file, std::string pattern_file,
                                  bool min_digest, bool use_promotions, bool use_dna_letters, size_t k, size_t w);
 void generate_null_pml_statistics(std::string ref_file, std::string pattern_file, std::vector<size_t>& pml_stats,
                                   bool min_digest, bool use_promotions, bool use_dna_letters, size_t k, size_t w);
+void generate_null_ms_statistics_for_general_text(std::string ref_file, std::string pattern_file, std::vector<size_t>& ms_stats);
+void generate_null_pml_statistics_for_general_text(std::string ref_file, std::string pattern_file, std::vector<size_t>& pml_stats);
 void find_threshold_based_on_null_pml_distribution(const char* ref_file, const char* null_reads, bool use_minimizers,
                                                    bool use_promotions, bool use_dna_letters, size_t k, size_t w, 
                                                    EmpNullDatabase& null_db, size_t bin_width);

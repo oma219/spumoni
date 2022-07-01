@@ -81,28 +81,8 @@ RefBuilder::RefBuilder(const char* ref_file, const char* list_file, const char* 
             FATAL_WARNING("If you only have one class ID, you should not build a document array.");}
     }
 
-    // Define variables needed for minimizer digest
-    //bns::RollingHasher<uint8_t> rh(4, false, bns::DNA, 12);
     std::ofstream output_fd (output_path, std::ofstream::out);
-    //bool hp_compress = true;
-
     std::string mseq = "";
-    //std::vector<uint8_t> mseq_vec;
-
-    // Define lambda function to take in a DNA sequence and return minimizer sequence
-    /*
-    auto get_minimizer_seq = [&](std::string seq, size_t seq_length) {
-                mseq = ""; mseq_vec.clear();
-                rh.for_each_uncanon([&](auto x) { // Extracts all minimizers and stores in mseq
-                if(mseq_vec.empty() || !hp_compress || mseq_vec.back() != x) {
-                    x = (x > 2) ? x : (x + 3);
-                    mseq_vec.push_back(x);
-                    mseq += x;
-                }
-            }, seq.data(), seq_length);
-            return mseq;
-    };
-    */
 
     // Initialize variables needs for over-sampling of reads for null database
     srand(0);
@@ -267,7 +247,7 @@ std::string RefBuilder::parse_null_reads(const char* ref_file) {
         size_t reads_to_grab = (curr_total_null_reads >= NUM_NULL_READS) ? 25 : 100; // downsample if done
         
         for (size_t i = 0; i < reads_to_grab && go_for_extraction && (seq->seq.l > NULL_READ_CHUNK); i++) {
-            size_t random_index = rand() % (seq->seq.l-75);
+            size_t random_index = rand() % (seq->seq.l-NULL_READ_CHUNK);
             std::strncpy(grabbed_seq, (seq->seq.s+random_index), NULL_READ_CHUNK);
 
             output_null_fd << ">read_" << curr_total_null_reads << "\n";
@@ -286,6 +266,54 @@ std::string RefBuilder::parse_null_reads(const char* ref_file) {
     kseq_destroy(seq);
     gzclose(fp);
     output_null_fd.close();
+    return output_path;
+}
+
+std::string RefBuilder::parse_null_reads_from_general_text(const char* ref_file) {
+    /* Parses null reads from general text input reference */
+    std::filesystem::path p1 = ref_file;
+    std::string output_path = "";
+
+    // Adds a backslash to filepath when needed
+    if (p1.parent_path().string().length()) {output_path = p1.parent_path().string() + "/spumoni_null_reads.bin";}
+    else {output_path = "spumoni_null_reads.bin";}
+
+    // Open the reference file, and output file for null reads
+    std::ofstream output_fd (output_path, std::ofstream::out);
+    gzFile fp = gzopen(ref_file, "r");
+
+    // Variables to help with parsing out null reads
+    srand(0);
+    size_t batch_size = 10000;
+    char grabbed_seq[batch_size+1];
+    grabbed_seq[batch_size] = '\0';
+
+    char curr_chunk[NULL_READ_CHUNK+1];
+    curr_chunk[NULL_READ_CHUNK] = '\0';
+
+    size_t chunks_written = 0;
+    size_t len = 0;
+
+    while (len = gzread(fp, grabbed_seq, batch_size)) {
+        // At the end of file
+        if (len <= NULL_READ_CHUNK) {
+            output_fd << grabbed_seq;
+            chunks_written++;
+        } else {
+            for (size_t i = 0; i < 10 && chunks_written < NULL_READ_BOUND; i++) {
+                size_t random_index = rand() % (len-NULL_READ_CHUNK);
+                std::strncpy(curr_chunk, (grabbed_seq+random_index), NULL_READ_CHUNK);
+                
+                output_fd << curr_chunk;
+                chunks_written++;
+            }
+        }
+        // Break out of loop if hit bound
+        if (chunks_written >= NULL_READ_BOUND)
+            break;
+    }
+    gzclose(fp);
+    output_fd.close();
     return output_path;
 }
 
@@ -315,6 +343,10 @@ std::string RefBuilder::build_reference(const char* ref_file, bool use_promotion
 
     while (kseq_read(seq)>=0) {
         std::string curr_seq = "";
+
+        // Upper-case every letter in the sequence
+		for (size_t i = 0; i < seq->seq.l; ++i)
+			seq->seq.s[i] = std::toupper(seq->seq.s[i]);
 
         // Print out the forward seq
         if (use_promotions) {

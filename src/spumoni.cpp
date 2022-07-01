@@ -70,9 +70,10 @@ int spumoni_build_usage () {
     std::fprintf(stderr, "\t%-10sturn on verbose logging\n\n", "-v");
 
     std::fprintf(stderr, "\tInput data options:\n");
-    std::fprintf(stderr, "\t%-10spath to reference file to be indexed\n", "-r [FILE]");
-    std::fprintf(stderr, "\t%-10sfile with a list of files to index\n", "-i [FILE]");
-    std::fprintf(stderr, "\t%-10sbuild directory for index(es) (if using -i option)\n\n", "-b [DIR]");
+    std::fprintf(stderr, "\t%-10spath to reference file to be indexed (default: FASTA)\n", "-r [FILE]");
+    std::fprintf(stderr, "\t%-10sfile with a list of FASTA files to index\n", "-i [FILE]");
+    std::fprintf(stderr, "\t%-10sbuild directory for index(es) (if using -i option)\n", "-b [DIR]");
+    std::fprintf(stderr, "\t%-10suse with -r option if input file is general text (default: false)\n\n", "-g");
 
     std::fprintf(stderr, "\tMinimizer options:\n");
     std::fprintf(stderr, "\t%-10sturn off minimizer digestion of sequence (default: on)\n", "-n");
@@ -98,7 +99,7 @@ int spumoni_build_usage () {
 
 void parse_build_options(int argc, char** argv, SpumoniBuildOptions* opts) {
     /* Parses the arguments for the build sub-command and returns a struct with arguments */
-    for(int c;(c = getopt(argc, argv, "hr:MPw:kdi:b:nvmK:W:t")) >= 0;) { 
+    for(int c;(c = getopt(argc, argv, "hr:MPw:kdi:b:nvmK:W:tg")) >= 0;) { 
         switch(c) {
                     case 'h': spumoni_build_usage(); std::exit(1);
                     case 'r': opts->ref_file.assign(optarg); break;
@@ -110,6 +111,7 @@ void parse_build_options(int argc, char** argv, SpumoniBuildOptions* opts) {
                     case 'n': opts->use_minimizers = false; opts->is_fasta = true; break;
                     case 'm': opts->use_promotions = true; break;
                     case 't': opts->use_dna_letters = true; opts->is_fasta = true; break;
+                    case 'g': opts->is_general_text = true; opts->is_fasta = false; break;
                     case 'K': opts->k = std::max(std::atoi(optarg), 1); break;
                     case 'W': opts->w = std::max(std::atoi(optarg), 1); break;
                     case 'w': opts->bin_size = std::max(std::atoi(optarg), 1); break;
@@ -545,6 +547,11 @@ int build_main(int argc, char** argv) {
         null_read_file = "spumoni_null_reads.fa";
     }
 
+    // If it is general text file, just use it directly for parse.
+    if (build_opts.is_general_text)
+        build_ref_file = build_opts.ref_file;
+
+
     bool quick_build = is_file(null_read_file);
     for (size_t i = 0; i < num_temp_build_files && quick_build; i++) {
         if (!is_file(build_ref_file + temp_build_files[i])) {quick_build = false;}
@@ -569,23 +576,27 @@ int build_main(int argc, char** argv) {
 
         if (build_opts.use_promotions) 
             STATUS_LOG("build_main", "reference file is being generated (spumoni_full_ref.bin)");
-        else 
+        else if (!build_opts.is_general_text)
             STATUS_LOG("build_main", "reference file is being generated (spumoni_full_ref.fa)");
+        else
+            STATUS_LOG("build_main", "reference file with be used directly, null reads will be parsed out");
         task_start = std::chrono::system_clock::now();
 
         // Perform needed operations to input file(s) prior to building index
-        if (build_opts.input_list.length()){         
+        if (build_opts.input_list.length()){        
             RefBuilder refbuild (build_opts.ref_file.data(), build_opts.input_list.data(), build_opts.output_dir.data(),
                                 build_opts.build_doc, build_opts.input_list.length(), build_opts.use_minimizers,
                                 build_opts.use_promotions, build_opts.use_dna_letters,
                                 build_opts.k, build_opts.w);
             build_opts.ref_file = refbuild.get_ref_path();
             null_read_file = refbuild.get_null_readfile();
-        } else {
+        } else if (!build_opts.is_general_text) { // FASTA reference
             null_read_file = RefBuilder::parse_null_reads(build_opts.ref_file.data());
             build_opts.ref_file = RefBuilder::build_reference(build_opts.ref_file.data(), build_opts.use_promotions,
                                                                 build_opts.use_dna_letters, build_opts.k,
                                                                 build_opts.w);
+        } else if (build_opts.is_general_text) { // General text reference
+            null_read_file = RefBuilder::parse_null_reads_from_general_text(build_opts.ref_file.data());
         }
         DONE_LOG((std::chrono::system_clock::now() - task_start));
 
@@ -605,13 +616,18 @@ int build_main(int argc, char** argv) {
         STATUS_LOG("build_main", "building the empirical null statistic database for MS");
         task_start = std::chrono::system_clock::now();
         EmpNullDatabase null_db(build_opts.ref_file.data(), null_read_file.data(), build_opts.use_minimizers, MS,
-                                build_opts.use_promotions, build_opts.use_dna_letters, build_opts.k, build_opts.w);
-        
+                                build_opts.use_promotions, build_opts.use_dna_letters, build_opts.k, build_opts.w, 
+                                build_opts.is_general_text);
+
         // Find null distribution of KS-stats to find threshold
-        find_threshold_based_on_null_ms_distribution(build_opts.ref_file.data(), null_read_file.data(), 
-                                                      build_opts.use_minimizers, build_opts.use_promotions, 
-                                                      build_opts.use_dna_letters, build_opts.k, build_opts.w, 
-                                                      null_db, build_opts.bin_size);
+        if (!build_opts.is_general_text) {
+            find_threshold_based_on_null_ms_distribution(build_opts.ref_file.data(), null_read_file.data(), 
+                                                         build_opts.use_minimizers, build_opts.use_promotions, 
+                                                         build_opts.use_dna_letters, build_opts.k, build_opts.w, 
+                                                         null_db, build_opts.bin_size);
+        } else {
+            null_db.ks_stat_threshold = 0.10;
+        }
 
         std::string output_nulldb_name = build_opts.ref_file + ".msnulldb";
         std::ofstream out_stream(output_nulldb_name);
@@ -629,13 +645,18 @@ int build_main(int argc, char** argv) {
         STATUS_LOG("build_main", "building the empirical null statistic database for PML" );
         task_start = std::chrono::system_clock::now();
         EmpNullDatabase null_db(build_opts.ref_file.data(), null_read_file.data(), build_opts.use_minimizers, PML,
-                                build_opts.use_promotions, build_opts.use_dna_letters, build_opts.k, build_opts.w);
+                                build_opts.use_promotions, build_opts.use_dna_letters, build_opts.k, build_opts.w, 
+                                build_opts.is_general_text);
         
         // Find null distribution of KS-stats to find threshold
-        find_threshold_based_on_null_pml_distribution(build_opts.ref_file.data(), null_read_file.data(), 
-                                                      build_opts.use_minimizers, build_opts.use_promotions, 
-                                                      build_opts.use_dna_letters, build_opts.k, build_opts.w, 
-                                                      null_db, build_opts.bin_size);
+        if (!build_opts.is_general_text) {
+            find_threshold_based_on_null_pml_distribution(build_opts.ref_file.data(), null_read_file.data(), 
+                                                          build_opts.use_minimizers, build_opts.use_promotions, 
+                                                          build_opts.use_dna_letters, build_opts.k, build_opts.w, 
+                                                          null_db, build_opts.bin_size);
+        } else {
+            null_db.ks_stat_threshold = 0.10;
+        }
 
         std::string output_nulldb_name = build_opts.ref_file + ".pmlnulldb";
         std::ofstream out_stream(output_nulldb_name);

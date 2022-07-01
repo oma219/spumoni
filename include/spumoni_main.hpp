@@ -137,7 +137,6 @@ struct SpumoniBuildOptions {
   bool ms_index = false; // want ms index
   bool pml_index = false; // want pml index
   bool verbose = false;
-  //output_type index_type = NOT_CHOSEN; // the actual index that will be build
   bool stop_after_parse = false; // stop build after build parse
   bool compress_parse = false; // compress parse
   bool is_fasta = false; // reference is binary by default, since 
@@ -146,6 +145,7 @@ struct SpumoniBuildOptions {
   bool use_minimizers = true; // digest sequences into minimizers
   bool use_promotions = false; // use alphabet promotion during promotion
   bool use_dna_letters = false; // use DNA-letter based minimizers
+  bool is_general_text = false; // if input is general text (assuming it is FASTA)
   size_t k = 4; // small window size for minimizers
   size_t w = 11; // large window size for minimizers
   size_t bin_size = 150; // size of bins used for KS-test (for finding threshold during build)
@@ -156,36 +156,52 @@ public:
 
       // Check based on approach used: file-list or single reference file
       if (ref_file.length()){
-          if (!is_file(ref_file)) {FATAL_ERROR("The following path is not valid: %s", ref_file.data());}  
-          if (output_dir.length()){FATAL_ERROR("The -b option should not be set when using a single file.");}
+          if (!is_file(ref_file))
+            FATAL_ERROR("The following path is not valid: %s", ref_file.data());
+          if (output_dir.length())
+            FATAL_ERROR("The -b option should not be set when using a single file.");
           if (!endsWith(ref_file, ".fa") && !endsWith(ref_file, ".fasta") && !endsWith(ref_file, ".fna")){
                  FATAL_ERROR("The reference file provided does not appear to be a FASTA\n" 
                              "       file, please convert to FASTA and re-run.");}  
       } else {
-          if (!is_file(input_list)) {FATAL_ERROR("The following path is not valid: %s", input_list.data());} 
-          if (!output_dir.length()) {FATAL_ERROR("You must specify an output directory with -b option when using filelist.");}
-          if (!is_dir(output_dir)){FATAL_ERROR("The output directory for the index is not valid.");}
+          if (!is_file(input_list)) 
+            FATAL_ERROR("The following path is not valid: %s", input_list.data());
+          if (!output_dir.length()) 
+            FATAL_ERROR("You must specify an output directory with -b option when using filelist.");
+          if (!is_dir(output_dir))
+            FATAL_ERROR("The output directory for the index is not valid.");
       }
       if (build_doc && ref_file.length()) {
         FATAL_ERROR("Cannot build a document array if you are indexing a single file.");}
       
       // Check if we only set one type minimizers
       if (use_minimizers) {
-        if (use_promotions && use_dna_letters) {FATAL_ERROR("Only one type of minimizer can be specified.");}
-        if (!use_promotions && !use_dna_letters) {FATAL_ERROR("A minimizer type must be specified.");}
+        if (use_promotions && use_dna_letters)
+          FATAL_ERROR("Only one type of minimizer can be specified.");
+        if (!use_promotions && !use_dna_letters) 
+          FATAL_ERROR("A minimizer type must be specified.");
       } else {
-        if (use_promotions || use_dna_letters) {FATAL_ERROR("A minimizer type should not be specified if intending not to use minimizer digestion.");}
+        if (use_promotions || use_dna_letters)
+          FATAL_ERROR("A minimizer type should not be specified if intending not to use minimizer digestion.");
+      }
+
+      // Check if we are using general text input, that we don't use minimizers
+      if (is_general_text) {
+        if (use_promotions || use_dna_letters) 
+          FATAL_ERROR("No minimizer type should be chosen when using general text input.");
       }
 
       // Makes sure that at least one index type is chosen ...
-      if (!ms_index && !pml_index) {FATAL_ERROR("At least one index type (-M or -P) must be specified for build.");}
+      if (!ms_index && !pml_index) 
+        FATAL_ERROR("At least one index type (-M or -P) must be specified for build.");
 
       // Check the values for k and w
       if (k > 4) {FATAL_WARNING("small window size (k) cannot be larger than 4 characters.");}
       if (w < k) {FATAL_WARNING("large window size (w) should be larger than the small window size (k)");}
 
       // Check the values of bin size
-      if (bin_size < 50 || bin_size > 400) {FATAL_WARNING("the bin size provided is not optimal, re-run using a value between 50 and 400.");}
+      if (bin_size < 50 || bin_size > 400) 
+        FATAL_WARNING("the bin size provided is not optimal, re-run using a value between 50 and 400.");
   }
 };
 

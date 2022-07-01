@@ -1241,6 +1241,67 @@ void generate_null_pml_statistics(std::string ref_file, std::string pattern_file
     gzclose(fp);
 }
 
+void generate_null_ms_statistics_for_general_text(std::string ref_file, std::string pattern_file, std::vector<size_t>& ms_stats) {
+    /* 
+     * Generate null ms by reversing stretches of sequence from database 
+     * and querying against database
+     */
+    
+    // load in sequence to use for query
+    gzFile fp = gzopen(pattern_file.data(), "r");
+    std::string input_read = "";
+
+    size_t chunk_size = 10000, len = 0;
+    char buf[chunk_size+1];
+    buf[chunk_size] = '\0';
+
+    while (len = gzread(fp, buf, chunk_size)) {
+        buf[len] = '\0';
+        input_read += buf;
+    }
+    gzclose(fp);
+
+    // make it a null read by reversing
+    std::reverse(input_read.begin(), input_read.end());
+
+    // loads the index, and compute ms
+    ms_t ms_index(ref_file, false);
+
+    std::vector<size_t> lengths, pointers;
+    ms_index.matching_statistics(input_read.c_str(), input_read.length(), lengths, pointers);
+    ms_stats.insert(ms_stats.end(), lengths.begin(), lengths.end());
+}
+
+void generate_null_pml_statistics_for_general_text(std::string ref_file, std::string pattern_file, std::vector<size_t>& pml_stats) {
+    /* 
+     * Generate null ms by reversing stretches of sequence from database 
+     * and querying against database
+     */
+    // load in sequence to use for query
+    gzFile fp = gzopen(pattern_file.data(), "r");
+    std::string input_read = "";
+
+    size_t chunk_size = 10000, len = 0;
+    char buf[chunk_size+1];
+    buf[chunk_size] = '\0';
+
+    while (len = gzread(fp, buf, chunk_size)) {
+        buf[len] = '\0';
+        input_read += buf;
+    }
+    gzclose(fp);
+
+    // make it a null read by reversing
+    std::reverse(input_read.begin(), input_read.end());
+
+    // loads the index, and compute ms
+    pml_t pml_index(ref_file, false);
+
+    std::vector<size_t> lengths;
+    pml_index.matching_statistics(input_read.c_str(), input_read.length(), lengths);
+    pml_stats.insert(pml_stats.end(), lengths.begin(), lengths.end());
+}
+
 void find_threshold_based_on_null_pml_distribution(const char* ref_file, const char* null_reads, bool use_minimizers,
                                                    bool use_promotions, bool use_dna_letters, size_t k, size_t w, EmpNullDatabase& null_db, size_t bin_width) {
 
@@ -1307,12 +1368,13 @@ void find_threshold_based_on_null_ms_distribution(const char* ref_file, const ch
     ms_t ms_index(ref_file, false);
     gzFile fp = gzopen(null_reads, "r");
     kseq_t* seq = kseq_init(fp);
-
+    
     // Iterates through null reads, and generates MS
     KSTest sig_test(null_db, MS, bin_width);
+    double ks_stat_sum = 0.0;
+
     std::vector<size_t> ms_stats;
     std::vector <double> ks_list;
-    double ks_stat_sum = 0.0;
 
     while (kseq_read(seq)>=0) {
         //Make sure all characters are upper-case
@@ -1336,6 +1398,7 @@ void find_threshold_based_on_null_ms_distribution(const char* ref_file, const ch
         // Generate the KS-statistics
         std::vector<double> curr_ks_list;
         curr_ks_list = sig_test.run_kstest(lengths);
+
         ks_list.insert(ks_list.end(), curr_ks_list.begin(), curr_ks_list.end());
         std::for_each(curr_ks_list.begin(), curr_ks_list.end(), [&] (double x) {ks_stat_sum += x;});
     }
