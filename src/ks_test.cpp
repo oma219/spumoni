@@ -101,6 +101,8 @@ std::vector<double> KSTest::run_kstest(std::vector<size_t> pos_stats) {
     while (curr_start_pos < pos_stats.size()) {
         // choose a random section of null database (2 accounts for partial windows at end)
         size_t null_pos = rand() % (this->null_db.num_values - (2 * this->bin_size));
+        if (this->null_db.num_values < (2 * this->bin_size))
+            null_pos = 0;
 
         // build the two vectors: positive statistics and null statistics
         std::vector<size_t> curr_pos_bin, curr_null_bin;
