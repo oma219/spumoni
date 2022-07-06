@@ -160,7 +160,7 @@ public:
             FATAL_ERROR("The following path is not valid: %s", ref_file.data());
           if (output_dir.length())
             FATAL_ERROR("The -b option should not be set when using a single file.");
-          if (!endsWith(ref_file, ".fa") && !endsWith(ref_file, ".fasta") && !endsWith(ref_file, ".fna")){
+          if (is_fasta && !endsWith(ref_file, ".fa") && !endsWith(ref_file, ".fasta") && !endsWith(ref_file, ".fna")){
                  FATAL_ERROR("The reference file provided does not appear to be a FASTA\n" 
                              "       file, please convert to FASTA and re-run.");}  
       } else {
