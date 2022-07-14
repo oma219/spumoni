@@ -851,9 +851,7 @@ size_t classify_reads_pml(pml_t *pml, std::string ref_filename, std::string patt
     null_db.load(in);
     in.close();
 
-    size_t max_value_thr = null_db.percentile_value; 
-    if (max_value_thr == 0)
-        max_value_thr++;
+    size_t max_value_thr = std::max(null_db.percentile_value, 3.0); 
 
     if (write_report) {    
         report_file.precision(4);
