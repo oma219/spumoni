@@ -77,4 +77,18 @@ void EmpNullDatabase::load(std::istream& in) {
     in.read((char *)&this->num_values, sizeof(this->num_values));
     in.read((char *)&this->ks_stat_threshold, sizeof(this->ks_stat_threshold));
     null_stats.load(in);
+
+    // Move to constructor later on .... (Omar on July 14, 2022)
+    double sum_values = 0.0;
+    std::vector<size_t> all_null_values;
+    for (size_t i = 0; i < num_values; i++) {
+        sum_values += null_stats[i];
+        all_null_values.push_back(null_stats[i]);
+    }
+    mean_null_stat = sum_values/num_values;
+
+    // sort the values, and find the xth percentile
+    std::sort(all_null_values.begin(), all_null_values.end());
+    size_t percentile_index = num_values * 1.0;
+    percentile_value = all_null_values[percentile_index-1];
 }

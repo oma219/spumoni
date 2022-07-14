@@ -21,6 +21,8 @@ public:
     output_type stat_type = NOT_CHOSEN; // either MS or PML
     sdsl::int_vector<> null_stats; // empirical null statistics
     double ks_stat_threshold = 0.0; // threshold used for classification
+    double mean_null_stat = 0.0;
+    double percentile_value = 0.0;
     
     EmpNullDatabase(){} // constructor used for loading
     EmpNullDatabase(const char* ref_file, const char* null_reads, bool use_minimizers, output_type stat_type,
