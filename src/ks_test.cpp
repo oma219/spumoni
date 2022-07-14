@@ -27,7 +27,13 @@ KSTest::KSTest(std::string ref_file, output_type result_type, bool write_report,
 
     // find the average null statistic
     size_t sum_stat = 0;
-    for (size_t i = 0; i < null_db.num_values; i++) {sum_stat += null_db.null_stats[i];}
+    max_null_stat = 0;
+    for (size_t i = 0; i < null_db.num_values; i++) {
+        sum_stat += null_db.null_stats[i];
+        
+        size_t curr_val = null_db.null_stats[i];
+        max_null_stat = std::max(max_null_stat, curr_val);
+    }
     mean_null_stat = sum_stat/null_db.num_values;
 
     // write out the header columns to report
@@ -87,7 +93,11 @@ double KSTest::run_test(std::vector<size_t> pos_stats, std::vector<size_t> null_
     double ks_stat = 0.0;
     auto null_it = null_cdf.begin();
     for (auto pos_it = pos_cdf.begin(); pos_it < pos_cdf.end(); pos_it++, null_it++) {
-        ks_stat =std::max(std::abs(*pos_it - *null_it), ks_stat);
+        // IMPORTANT: this ks-test is modified to only care about cases where
+        //            positive distribution is shifted to the right, so that is
+        //            why we take null_cdf - pos_cdf and keep the maximum value.
+        //            A true KS-test would be ks_stat = max(abs(null-pos), ks_stat).
+        ks_stat = std::max(*null_it - *pos_it, ks_stat);
         if (*pos_it >= 1.0 || *null_it >= 1.0) break;
     }
     return ks_stat;
