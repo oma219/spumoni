@@ -18,7 +18,9 @@
 #define SPUMONI_VERSION "1.3.2"
 #define NOT_IMPL(x) do { std::fprintf(stderr, "%s is not implemented: %s\n", __func__, x); std::exit(1);} while (0)
 #define THROW_EXCEPTION(x) do { throw x;} while (0)
-#define FATAL_WARNING(x) do {std::fprintf(stderr, "Warning: %s\n\n", x); std::exit(1);} while (0)
+//#define FATAL_WARNING(x) do {std::fprintf(stderr, "Warning: %s\n\n", x); std::exit(1);} while (0)
+#define FATAL_WARNING(...) do {std::fprintf(stderr, "Warning: "); std::fprintf(stderr, __VA_ARGS__);\
+                              std::fprintf(stderr, "\n\n"); std::exit(1);} while(0)
 #define FATAL_ERROR(...) do {std::fprintf(stderr, "Error: "); std::fprintf(stderr, __VA_ARGS__);\
                               std::fprintf(stderr, "\n\n"); std::exit(1);} while(0)
 #define SPUMONI_LOG(...) do{std::fprintf(stderr, "[spumoni] "); std::fprintf(stderr, __VA_ARGS__);\
