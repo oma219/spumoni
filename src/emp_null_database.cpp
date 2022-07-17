@@ -87,8 +87,22 @@ void EmpNullDatabase::load(std::istream& in) {
     }
     mean_null_stat = sum_values/num_values;
 
-    // sort the values, and find the xth percentile
+    // sort the values, and find the largest value that occurs at least 5 times
     std::sort(all_null_values.begin(), all_null_values.end());
-    size_t percentile_index = num_values * 1.0;
-    percentile_value = all_null_values[percentile_index-1];
+
+    size_t largest_val = 0, curr_val = all_null_values[0];
+    size_t num_occs = 0;
+    for (auto x: all_null_values) {
+        if (x == curr_val)
+            num_occs++;
+        else {
+            if (num_occs >= 5)
+                largest_val = curr_val;
+            curr_val = x;
+            num_occs = 1;
+        }
+    }
+    if (num_occs >= 5)
+        largest_val = curr_val;
+    percentile_value = largest_val;
 }

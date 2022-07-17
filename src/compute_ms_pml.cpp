@@ -852,6 +852,8 @@ size_t classify_reads_pml(pml_t *pml, std::string ref_filename, std::string patt
     in.close();
 
     size_t max_value_thr = std::max(null_db.percentile_value, 3.0); 
+    if (use_dna_letters)
+        max_value_thr++;
 
     if (write_report) {    
         report_file.precision(4);
@@ -901,6 +903,14 @@ size_t classify_reads_pml(pml_t *pml, std::string ref_filename, std::string patt
                 else if (use_dna_letters)
                     curr_read = perform_dna_minimizer_digestion(curr_read, k, w);
                 
+                // verify the read is not empty after digestion (special case)
+                if (curr_read.length() == 0){
+                    std::cout << "\n\n";
+                    FATAL_WARNING("%s was empty after digestion, commonly due to reads "
+                                  "consisting of mostly non-ACGT characters. Please remove " 
+                                  "read or run SPUMONI without minimizer digestion.", read_struct.id.data());
+                }
+
                 // grab MS and write to output file
                 std::vector<size_t> lengths, doc_nums;
                 if (use_doc){
@@ -977,12 +987,12 @@ size_t classify_reads_pml(pml_t *pml, std::string ref_filename, std::string patt
                     lengths_file << '>' << read_struct.id << '\n';
                     std::copy(lengths.begin(), lengths.end(), lengths_iter);
                     lengths_file << '\n'; 
-
+                    
                     if (write_report) {
                         report_file.precision(3);
                         report_file << std::setw(30) << std::left << read_struct.id
                                     << std::setw(15) << std::left << status 
-                                    << std::setw(26) << std::left <<  sum_max_bin_values/bins_max_value.size() // (sum_ks_stats/ks_list.size()) 
+                                    << std::setw(26) << std::left <<  (sum_max_bin_values+0.0)/bins_max_value.size() // (sum_ks_stats/ks_list.size()) 
                                     << std::setw(12) << std::left <<  bins_above // num_bin_above_thr
                                     << std::setw(12) << std::left <<  bins_below // (ks_list.size() - num_bin_above_thr)
                                     << std::endl;
@@ -1017,7 +1027,30 @@ size_t classify_reads_ms(ms_t *ms, std::string ref_filename, std::string pattern
 
     if (use_doc) {doc_file.open(pattern_filename + ".doc_numbers", std::ofstream::out);}
     if (write_report) {report_file.open(pattern_filename + ".report", std::ofstream::out);}
-    KSTest sig_test(ref_filename.data(), MS, write_report, report_file, bin_width);
+    //KSTest sig_test(ref_filename.data(), MS, write_report, report_file, bin_width);
+
+    // load empirical null pml database, and prepare output report if requested
+    EmpNullDatabase null_db;
+    std::string null_db_path = ref_filename + ".pmlnulldb";
+
+    std::ifstream in(null_db_path);
+    null_db.load(in);
+    in.close();
+
+    size_t max_value_thr = std::max(null_db.percentile_value, 3.0); 
+    if (use_dna_letters)
+        max_value_thr++;
+
+    if (write_report) {    
+        report_file.precision(4);
+        report_file << std::setw(30) << std::left << "read id:"
+                    << std::setw(15) << std::left << "status:" 
+                    << std::setw(19) << std::left << "avg max-value (thr=" 
+                    << std::setw(2) << std::left << max_value_thr
+                    << std::setw(5) << std::left << "):" 
+                    << std::setw(12) << std::left << "above thr:"
+                    << std::setw(12) << std::left << "below thr:" << std::endl;
+    }
 
     // open query file, and start to classify
     std::ifstream input_file (pattern_filename.c_str());
@@ -1055,7 +1088,15 @@ size_t classify_reads_ms(ms_t *ms, std::string ref_filename, std::string pattern
                     curr_read = perform_minimizer_digestion(curr_read, k, w);
                 else if (use_dna_letters)
                     curr_read = perform_dna_minimizer_digestion(curr_read, k, w);
- 
+
+                // verify the read is not empty after digestion (special case)
+                if (curr_read.length() == 0){
+                    std::cout << "\n\n";
+                    FATAL_WARNING("%s was empty after digestion, commonly due to reads "
+                                  "consisting of mostly non-ACGT characters. Please remove " 
+                                  "read or run SPUMONI without minimizer digestion.", read_struct.id.data());
+                } 
+
                 // grab MS and write to output file
                 std::vector<size_t> lengths, pointers, doc_nums;
                 if (use_doc){
@@ -1063,6 +1104,7 @@ size_t classify_reads_ms(ms_t *ms, std::string ref_filename, std::string pattern
                 }
                 else {ms->matching_statistics(curr_read.c_str(), curr_read.size(), lengths, pointers);}
 
+                /*
                 // perform the KS-test
                 std::vector<double> ks_list;
                 std::string status = "";
@@ -1081,6 +1123,34 @@ size_t classify_reads_ms(ms_t *ms, std::string ref_filename, std::string pattern
                     bool read_found = (num_bin_above_thr/(ks_list.size()+0.0) > 0.50);
 
                     std::for_each(ks_list.begin(), ks_list.end(), [&] (double n) {sum_ks_stats += n;});
+                    status = (read_found) ? "FOUND" : "NOT_PRESENT";
+                }*/
+
+                std::vector<size_t> bins_max_value;
+                std::string status = "";
+                size_t sum_max_bin_values = 0.0;
+                size_t bins_above = 0, bins_below = 0;
+                size_t start_pos = 0, end_pos = 0;
+
+                if (write_report) {
+                    while (start_pos < lengths.size()) {
+                        end_pos = (start_pos + bin_width < lengths.size()) ? start_pos + bin_width : lengths.size();
+                        
+                        // avoids small regions at the end of read
+                        if (lengths.size() - end_pos < bin_width)
+                            end_pos = lengths.size();
+
+                        // grab maximum value in this region and update variables
+                        auto max_val = *std::max_element(lengths.begin()+start_pos, lengths.begin()+end_pos);
+                        if (max_val >= max_value_thr)
+                            bins_above++;
+                        else
+                            bins_below++;
+                        bins_max_value.push_back(max_val);
+                        start_pos += (end_pos - start_pos);
+                    }
+                    std::for_each(bins_max_value.begin(), bins_max_value.end(), [&] (double n) {sum_max_bin_values += n;});
+                    bool read_found = (bins_above/(bins_above+bins_below+0.0) > 0.50);
                     status = (read_found) ? "FOUND" : "NOT_PRESENT";
                 }
 
@@ -1104,11 +1174,11 @@ size_t classify_reads_ms(ms_t *ms, std::string ref_filename, std::string pattern
 
                     if (write_report) {
                         report_file.precision(3);
-                        report_file << std::setw(20) << std::left << read_struct.id
+                        report_file << std::setw(30) << std::left << read_struct.id
                                     << std::setw(15) << std::left << status 
-                                    << std::setw(28) << std::left << (sum_ks_stats/ks_list.size()) 
-                                    << std::setw(12) << std::left << num_bin_above_thr
-                                    << std::setw(12) << std::left << (ks_list.size() - num_bin_above_thr)
+                                    << std::setw(26) << std::left << (sum_max_bin_values+0.0)/bins_max_value.size() //(sum_ks_stats/ks_list.size()) 
+                                    << std::setw(12) << std::left << bins_above //num_bin_above_thr
+                                    << std::setw(12) << std::left << bins_below //(ks_list.size() - num_bin_above_thr)
                                     << std::endl;
                     }
                 }
