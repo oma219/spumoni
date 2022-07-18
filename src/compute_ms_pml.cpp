@@ -1031,7 +1031,7 @@ size_t classify_reads_ms(ms_t *ms, std::string ref_filename, std::string pattern
 
     // load empirical null pml database, and prepare output report if requested
     EmpNullDatabase null_db;
-    std::string null_db_path = ref_filename + ".pmlnulldb";
+    std::string null_db_path = ref_filename + ".msnulldb";
 
     std::ifstream in(null_db_path);
     null_db.load(in);
