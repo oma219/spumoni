@@ -1195,6 +1195,85 @@ size_t classify_reads_ms(ms_t *ms, std::string ref_filename, std::string pattern
     return num_reads;
 }
 
+size_t classify_general_reads_ms(ms_t *ms, std::string ref_filename, std::string pattern_filename) {
+    /* generates the MS for general-text reads against a general text reference */
+
+    // declare output files, and output iterators
+    std::ofstream lengths_file (pattern_filename + ".lengths");
+    std::ofstream pointers_file (pattern_filename + ".pointers");
+
+    std::ostream_iterator<size_t> length_iter (lengths_file, " ");
+    std::ostream_iterator<size_t> pointers_iter (pointers_file, " ");
+    
+    // open pattern file, and get ready to stat reading
+    std::vector<size_t> lengths, pointers;
+    std::ifstream pattern_fd (pattern_filename, std::ifstream::in | std::ifstream::binary);
+
+    char ch = pattern_fd.get();
+    std::string read = "";
+    size_t num_reads = 0;
+
+    // read the pattern file, and compute MS as we find each read
+    while (pattern_fd.good()) {
+        lengths.clear(); pointers.clear();
+
+        // found a separator character
+        if (ch == '\x01') {
+            ms->matching_statistics(read.c_str(), read.size(), lengths, pointers);
+
+            lengths_file << ">read_" << num_reads << '\n';
+            pointers_file << ">read_" << num_reads << '\n';
+
+            std::copy(lengths.begin(), lengths.end(), length_iter);
+            std::copy(pointers.begin(), pointers.end(), pointers_iter);
+            lengths_file << '\n'; pointers_file << '\n';
+
+            read="";
+            num_reads++;
+        }
+        else {read += ch;}
+        ch = pattern_fd.get();
+    }
+    pattern_fd.close();
+    return num_reads;
+}
+
+size_t classify_general_reads_pml(pml_t *pml, std::string ref_filename, std::string pattern_filename) {
+    /* generates the PML for general-text reads against a general text reference */
+
+    // declare output files/iterator
+    std::ofstream lengths_file (pattern_filename + ".pseudo_lengths");
+    std::ostream_iterator<size_t> length_iter (lengths_file, " ");
+
+    // open pattern file, and get ready to stat reading
+    std::vector<size_t> lengths;
+    std::ifstream pattern_fd (pattern_filename, std::ifstream::in | std::ifstream::binary);
+
+    char ch = pattern_fd.get();
+    std::string read = "";
+    size_t num_reads = 0;
+
+    // read the pattern file, and compute MS as we find each read
+    while (pattern_fd.good()) {
+        lengths.clear();
+
+        // found a separator character
+        if (ch == '\x01') {
+            pml->matching_statistics(read.c_str(), read.size(), lengths);
+
+            lengths_file << ">read_" << num_reads << '\n';
+            std::copy(lengths.begin(), lengths.end(), length_iter);
+            lengths_file << '\n';
+
+            read="";
+            num_reads++;
+        }
+        else {read += ch;}
+        ch = pattern_fd.get();
+    }
+    pattern_fd.close();
+    return num_reads;
+}
 
 /*
  * This section contains the "main" methods for the running process where
@@ -1215,7 +1294,7 @@ int run_spumoni_main(SpumoniRunOptions* run_opts){
         FORCE_LOG("compute_pml", "input reads will digested using promoted minimizer alphabet (k=%d, w=%d)", 
                   run_opts->k, run_opts->w);
     else if (run_opts->use_dna_letters)
-        FORCE_LOG("compute_pml", "input reads will digested using DNA alphabet (k=%d, w=%d)", 
+        FORCE_LOG("compute_pml", "input reads will digested using DNA minimizer alphabet (k=%d, w=%d)", 
                   run_opts->k, run_opts->w);
     else
         FORCE_LOG("compute_pml", "input reads will be used directly, no minimizer digestion");
@@ -1224,10 +1303,16 @@ int run_spumoni_main(SpumoniRunOptions* run_opts){
     auto start_time = std::chrono::system_clock::now();
     STATUS_LOG("compute_pml", "processing the patterns");
     
-    size_t num_reads = classify_reads_pml(&ms, run_opts->ref_file, run_opts->pattern_file, run_opts->use_doc, 
-                                          run_opts->min_digest, run_opts->write_report, run_opts->threads,
-                                          run_opts->k, run_opts->w, run_opts->use_promotions, 
-                                          run_opts->use_dna_letters, run_opts->bin_size);
+    size_t num_reads = 0;
+    if (!run_opts->is_general_text) {
+        num_reads = classify_reads_pml(&ms, run_opts->ref_file, run_opts->pattern_file, run_opts->use_doc, 
+                                       run_opts->min_digest, run_opts->write_report, run_opts->threads,
+                                       run_opts->k, run_opts->w, run_opts->use_promotions, 
+                                       run_opts->use_dna_letters, run_opts->bin_size);
+    } else {
+        num_reads = classify_general_reads_pml(&ms, run_opts->ref_file, run_opts->pattern_file);
+    }
+
     DONE_LOG((std::chrono::system_clock::now() - start_time));
     FORCE_LOG("compute_pml", "finished processing %d reads. results are saved in *.pseudo_lengths file.", num_reads);
     std::cout << std::endl;
@@ -1250,7 +1335,7 @@ int run_spumoni_ms_main(SpumoniRunOptions* run_opts) {
         FORCE_LOG("compute_ms", "input reads will digested using promoted minimizer alphabet (k=%d, w=%d)", 
                   run_opts->k, run_opts->w);
     else if (run_opts->use_dna_letters)
-        FORCE_LOG("compute_ms", "input reads will digested using DNA alphabet (k=%d, w=%d)", 
+        FORCE_LOG("compute_ms", "input reads will digested using DNA minimizer alphabet (k=%d, w=%d)", 
                   run_opts->k, run_opts->w);
     else
         FORCE_LOG("compute_ms", "input reads will be used directly, no minimizer digestion");
@@ -1259,10 +1344,15 @@ int run_spumoni_ms_main(SpumoniRunOptions* run_opts) {
     auto start_time = std::chrono::system_clock::now();
     STATUS_LOG("compute_ms", "processing the reads");
 
-    size_t num_reads = classify_reads_ms(&ms, run_opts->ref_file, run_opts->pattern_file, run_opts->use_doc, 
-                                         run_opts->min_digest, run_opts->write_report, run_opts->threads,
-                                         run_opts->k, run_opts->w, run_opts->use_promotions, 
-                                         run_opts->use_dna_letters, run_opts->bin_size);
+    size_t num_reads = 0;
+    if (!run_opts->is_general_text) {
+        num_reads = classify_reads_ms(&ms, run_opts->ref_file, run_opts->pattern_file, run_opts->use_doc, 
+                                      run_opts->min_digest, run_opts->write_report, run_opts->threads,
+                                      run_opts->k, run_opts->w, run_opts->use_promotions, 
+                                      run_opts->use_dna_letters, run_opts->bin_size);
+    } else {
+        num_reads = classify_general_reads_ms(&ms, run_opts->ref_file, run_opts->pattern_file);
+    }
 
     DONE_LOG((std::chrono::system_clock::now() - start_time));
     FORCE_LOG("compute_ms", "finished processing %d reads. results are saved in *.lengths file.", num_reads);

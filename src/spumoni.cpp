@@ -43,7 +43,7 @@ int spumoni_run_usage () {
     std::fprintf(stderr, "\t%-10spath to patterns file that will be used.\n", "-p [FILE]");
     std::fprintf(stderr, "\t%-10suse index to compute MSs\n", "-M");
     std::fprintf(stderr, "\t%-10suse index to compute PMLs\n", "-P");
-    //std::fprintf(stderr, "\t%-10spattern file is in fasta format (default: general text)\n", "-f");
+    std::fprintf(stderr, "\t%-10spattern file is general text (default: FASTA)\n", "-g");
     std::fprintf(stderr, "\t%-10suse document array to get assignments\n", "-d");
     std::fprintf(stderr, "\t%-10swrite out the classifications in a report file\n", "-c");
     std::fprintf(stderr, "\t%-10ssize of region in bp for KS-test (default: 150)\n\n", "-w [INT]");
@@ -128,7 +128,7 @@ void parse_build_options(int argc, char** argv, SpumoniBuildOptions* opts) {
 
 void parse_run_options(int argc, char** argv, SpumoniRunOptions* opts) {
     /* Parses the arguments for the build sub-command and returns a struct with arguments */
-    for(int c;(c = getopt(argc, argv, "hr:p:MPt:dcnmaK:W:w:")) >= 0;) { 
+    for(int c;(c = getopt(argc, argv, "hr:p:MPt:dcnmaK:W:w:g")) >= 0;) { 
         switch(c) {
                     case 'h': spumoni_run_usage(); std::exit(1);
                     case 'r': opts->ref_file.assign(optarg); break;
@@ -142,7 +142,7 @@ void parse_run_options(int argc, char** argv, SpumoniRunOptions* opts) {
                     case 'K': opts->k = std::max(std::atoi(optarg), 1); break;
                     case 'W': opts->w = std::max(std::atoi(optarg), 1); break;
                     case 'w': opts->bin_size = std::max(std::atoi(optarg), 1); break;
-                    //case 'f': opts->query_fasta = true; break;
+                    case 'g': opts->is_general_text = true; break;
                     case 't': opts->threads = std::max(std::atoi(optarg), 1); break;
                     case 'd': opts->use_doc = true; break;
                     default: spumoni_run_usage(); std::exit(1);

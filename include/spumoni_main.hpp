@@ -156,6 +156,10 @@ public:
   void validate() {
       /* Checks if the parse arguments are valid for continuing the execution */
 
+      // Turn off FASTA if using general text
+      if (is_general_text)
+        is_fasta = false;
+
       // Check based on approach used: file-list or single reference file
       if (ref_file.length()){
           if (!is_file(ref_file))
@@ -220,6 +224,7 @@ struct SpumoniRunOptions {
   bool min_digest = true; // need to digest reads (default is true) 
   bool use_promotions = false; // use alphabet promotion during promotion
   bool use_dna_letters = false; // use DNA-letter based minimizers
+  bool is_general_text = false; // query is general text
   size_t k = 4; // small window size for minimizers
   size_t w = 11; // large window size for minimizers
   size_t bin_size = 150; // size of region used for KS-test for classification
@@ -250,13 +255,21 @@ public:
       if (!is_file(pattern_file)) {FATAL_ERROR("The following path is not valid: %s", pattern_file.data());}
 
       // Make sure reference file is a valid type
-      if (ref_type == NOT_SET) {FATAL_ERROR("Reference file is an unrecognized type. It needs to be a\n"
-                                            "       FASTA file or binary file produced by spumoni build.");}
+      if (!is_general_text && ref_type == NOT_SET) {FATAL_ERROR("Reference file is an unrecognized type. It needs to be a\n"
+                                                    "       FASTA file or binary file produced by spumoni build.");}
 
-      // Make sure query file is a FASTA file                                     
-      if (!endsWith(pattern_file, ".fa") && !endsWith(pattern_file, ".fasta") && !endsWith(pattern_file, ".fna")){
+      // Make sure query file is a FASTA file (if not general text)                                    
+      if (!is_general_text && !endsWith(pattern_file, ".fa") && !endsWith(pattern_file, ".fasta") && !endsWith(pattern_file, ".fna")){
           FATAL_ERROR("The pattern file provided does not appear to be a FASTA\n" 
                       "       file, please convert to FASTA and re-run.");}
+      
+      // Make sure if we are using general text querying, no minimizer digestion and no multi-threading
+      if (is_general_text && min_digest)
+          FATAL_WARNING("For general-text querying, minimizer digestion must be turned off with -n.");
+      if (is_general_text && threads > 1)
+          FATAL_WARNING("For general-text querying, multi-threading is not available.");
+      if (is_general_text && write_report)
+          FATAL_WARNING("For general-text querying, classification is not available.");
       
       // Verify doc array is available, if needed
       if (use_doc && !is_file(ref_file + ".doc")) {FATAL_WARNING("*.doc file is not present, so it cannot be used");}
@@ -286,7 +299,6 @@ public:
 
       // Check the size of KS-test region
       if (bin_size < 50 || bin_size > 400) {FATAL_WARNING("the bin size used is not optimal. Re-run using a value between 50 and 400.");}
-
   }
 };
 
