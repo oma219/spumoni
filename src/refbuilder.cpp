@@ -1,5 +1,5 @@
 /*
- * File: refbuilder.hpp
+ * File: refbuilder.cpp
  * Description: Implementation of RefBuilder class
  *              which handles the generation of fasta index, 
  *              and digestion of the input files.
@@ -124,10 +124,13 @@ RefBuilder::RefBuilder(const char* ref_file, const char* list_file, const char* 
                 size_t random_index = rand() % (seq->seq.l-NULL_READ_CHUNK);
                 std::strncpy(grabbed_seq, (seq->seq.s+random_index), NULL_READ_CHUNK);
 
-                output_null_fd << ">read_" << curr_total_null_reads << "\n";
-                output_null_fd << grabbed_seq << "\n";
-                curr_total_null_reads++;
-                go_for_extraction = (curr_total_null_reads < NULL_READ_BOUND);
+                // Make sure we don't extract reads of Ns
+                if (std::string(grabbed_seq).find("N") == std::string::npos) {
+                    output_null_fd << ">read_" << curr_total_null_reads << "\n";
+                    output_null_fd << grabbed_seq << "\n";
+                    curr_total_null_reads++;
+                    go_for_extraction = (curr_total_null_reads < NULL_READ_BOUND);
+                }
             }
 
             // Special case when FASTA sequence is less than or equal to 150 bp
@@ -251,10 +254,13 @@ std::string RefBuilder::parse_null_reads(const char* ref_file) {
             size_t random_index = rand() % (seq->seq.l-NULL_READ_CHUNK);
             std::strncpy(grabbed_seq, (seq->seq.s+random_index), NULL_READ_CHUNK);
 
-            output_null_fd << ">read_" << curr_total_null_reads << "\n";
-            output_null_fd << grabbed_seq << "\n";
-            curr_total_null_reads++;
-            go_for_extraction = (curr_total_null_reads < NULL_READ_BOUND);
+            // Make sure we don't extract reads of Ns
+            if (std::string(grabbed_seq).find("N") == std::string::npos) {
+                output_null_fd << ">read_" << curr_total_null_reads << "\n";
+                output_null_fd << grabbed_seq << "\n";
+                curr_total_null_reads++;
+                go_for_extraction = (curr_total_null_reads < NULL_READ_BOUND);
+            }
         }
     
         // Special case - if sequence is less than or equal to 150 bp 
