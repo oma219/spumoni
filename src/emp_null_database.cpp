@@ -50,10 +50,33 @@ EmpNullDatabase::EmpNullDatabase(const char* ref_file, const char* null_reads, b
     this->num_values = output_stats.size();
     this->null_stats = sdsl::int_vector<> (this->num_values, 0, max_stat_width);
 
-    // Separated the loops in case we only build one index
+    // Initialize int vector, and compute mean null statistic
+    double sum_values = 0.0;
     for (size_t i = 0; i < output_stats.size(); i++) {
+        sum_values += output_stats[i];
         this->null_stats[i] = output_stats[i];
     }
+    mean_null_stat = sum_values/output_stats.size();
+
+    // Sort values, and find the largest "common" null statistic to
+    // use as a threshold
+    std::sort(output_stats.begin(), output_stats.end());
+
+    size_t largest_val = 0, curr_val = output_stats[0];
+    size_t num_occs = 0;
+    for (auto x: output_stats) {
+        if (x == curr_val)
+            num_occs++;
+        else {
+            if (num_occs >= 5)
+                largest_val = curr_val;
+            curr_val = x;
+            num_occs = 1;
+        }
+    }
+    if (num_occs >= 5)
+        largest_val = curr_val;
+    percentile_value = largest_val;
 }
 
 size_t EmpNullDatabase::serialize(std::ostream &out, sdsl::structure_tree_node *v, std::string name) {
@@ -67,6 +90,12 @@ size_t EmpNullDatabase::serialize(std::ostream &out, sdsl::structure_tree_node *
     out.write((char *)&this->ks_stat_threshold, sizeof(this->ks_stat_threshold));
     written_bytes += sizeof(this->ks_stat_threshold);
 
+    out.write((char *)&this->mean_null_stat, sizeof(this->mean_null_stat));
+    written_bytes += sizeof(this->mean_null_stat);
+
+    out.write((char *)&this->percentile_value, sizeof(this->percentile_value));
+    written_bytes += sizeof(this->percentile_value);
+
     written_bytes += this->null_stats.serialize(out, child, "null_stats");
     sdsl::structure_tree::add_size(child, written_bytes);
     return written_bytes;
@@ -76,9 +105,12 @@ void EmpNullDatabase::load(std::istream& in) {
     /* loads the serialized empirical null database */
     in.read((char *)&this->num_values, sizeof(this->num_values));
     in.read((char *)&this->ks_stat_threshold, sizeof(this->ks_stat_threshold));
+    in.read((char *)&this->mean_null_stat, sizeof(this->mean_null_stat));
+    in.read((char *)&this->percentile_value, sizeof(this->percentile_value));
     null_stats.load(in);
 
     // Move to constructor later on .... (Omar on July 14, 2022)
+    /*
     double sum_values = 0.0;
     std::vector<size_t> all_null_values;
     for (size_t i = 0; i < num_values; i++) {
@@ -105,4 +137,5 @@ void EmpNullDatabase::load(std::istream& in) {
     if (num_occs >= 5)
         largest_val = curr_val;
     percentile_value = largest_val;
+    */
 }

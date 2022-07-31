@@ -854,6 +854,8 @@ size_t classify_reads_pml(pml_t *pml, std::string ref_filename, std::string patt
     size_t max_value_thr = std::max(null_db.percentile_value, 3.0); 
     if (use_dna_letters)
         max_value_thr++;
+    else if (!use_dna_letters && !use_promotions)
+        max_value_thr += 4;
 
     if (write_report) {    
         report_file.precision(4);
