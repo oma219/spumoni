@@ -109,8 +109,8 @@ void EmpNullDatabase::load(std::istream& in) {
     in.read((char *)&this->percentile_value, sizeof(this->percentile_value));
     null_stats.load(in);
 
-    // Move to constructor later on .... (Omar on July 14, 2022)
     /*
+    // Old code that has been moved to constructor
     double sum_values = 0.0;
     std::vector<size_t> all_null_values;
     for (size_t i = 0; i < num_values; i++) {

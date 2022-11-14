@@ -920,8 +920,9 @@ size_t classify_reads_pml(pml_t *pml, std::string ref_filename, std::string patt
                 }
                 else {pml->matching_statistics(curr_read.c_str(), curr_read.size(), lengths);}
 
-                /*
+                
                 // perform the KS-test
+                /*
                 std::vector<double> ks_list;
                 std::string status = "";
                 size_t num_bin_above_thr = 0;
@@ -932,8 +933,8 @@ size_t classify_reads_pml(pml_t *pml, std::string ref_filename, std::string patt
                     ks_list = sig_test.run_kstest(lengths);
                 
                     // classify the based on ks-statistics
-                    double threshold = sig_test.get_threshold() - 0.01;
-                    //threshold = 0.11;
+                    double threshold = sig_test.get_threshold();
+                    threshold = 0.10;
                     for (size_t i = 0; i < ks_list.size(); i++) {
                         if (ks_list[i] >= threshold) num_bin_above_thr++;
 
@@ -945,7 +946,8 @@ size_t classify_reads_pml(pml_t *pml, std::string ref_filename, std::string patt
 
                     std::for_each(ks_list.begin(), ks_list.end(), [&] (double n) {sum_ks_stats += n;});
                     status = (read_found) ? "FOUND" : "NOT_PRESENT";
-                } */
+                } 
+                */
 
                 std::vector<size_t> bins_max_value;
                 std::string status = "";
