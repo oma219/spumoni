@@ -21,6 +21,7 @@
 #include <refbuilder.hpp>
 #include <encoder.h>
 #include <emp_null_database.hpp>
+#include <getopt.h>
 
 /*
  * Section 1: 
@@ -35,25 +36,25 @@ int spumoni_run_usage () {
 
     std::fprintf(stderr, "Options:\n");
     std::fprintf(stderr, "\tGeneral options:\n");
-    std::fprintf(stderr, "\t%-10sprints this usage message\n", "-h");
-    std::fprintf(stderr, "\t%-10snumber of helper threads (default: 1)\n\n", "-t [arg]");
+    std::fprintf(stderr, "\t%-35sprints this usage message\n", "-h, --help");
+    std::fprintf(stderr, "\t%-25s%-10snumber of helper threads (default: 1)\n\n", "-t, --threads", "[INT]");
 
     std::fprintf(stderr, "\tInput/output options:\n");
-    std::fprintf(stderr, "\t%-10spath to reference file that has index built for it\n", "-r [FILE]");
-    std::fprintf(stderr, "\t%-10spath to patterns file that will be used.\n", "-p [FILE]");
-    std::fprintf(stderr, "\t%-10suse index to compute MSs\n", "-M");
-    std::fprintf(stderr, "\t%-10suse index to compute PMLs\n", "-P");
-    std::fprintf(stderr, "\t%-10spattern file is general text (default: FASTA)\n", "-g");
-    std::fprintf(stderr, "\t%-10suse document array to get assignments\n", "-d");
-    std::fprintf(stderr, "\t%-10swrite out the classifications in a report file\n", "-c");
-    std::fprintf(stderr, "\t%-10ssize of region in bp for classification (default: 150)\n\n", "-w [INT]");
+    std::fprintf(stderr, "\t%-25s%-10spath to reference file that has index built for it\n", "-r, --ref", "[FILE]");
+    std::fprintf(stderr, "\t%-25s%-10spath to patterns file that will be used.\n", "-p, --pattern", "[FILE]");
+    std::fprintf(stderr, "\t%-25s%-10suse index to compute MSs\n", "-M, --MS", "");
+    std::fprintf(stderr, "\t%-25s%-10suse index to compute PMLs\n", "-P, --PML", "");
+    std::fprintf(stderr, "\t%-25s%-10spattern file is general text (default: FASTA)\n", "-g, --general", "");
+    std::fprintf(stderr, "\t%-25s%-10suse document array to get assignments\n", "-d, --doc-array", "");
+    std::fprintf(stderr, "\t%-25s%-10swrite out the classifications in a report file\n", "-c, --classify", "");
+    std::fprintf(stderr, "\t%-25s%-10ssize of region in bp for classification (default: 150)\n\n", "-w, --window", "[INT]");
 
     std::fprintf(stderr, "\tMinimizer options:\n");
-    std::fprintf(stderr, "\t%-10sturn off minimizer digestion of reads (default: on)\n", "-n");
-    std::fprintf(stderr, "\t%-10suse alphabet-promoted minimizers\n", "-m");
-    std::fprintf(stderr, "\t%-10suse DNA-letter based minimizers\n", "-a");
-    std::fprintf(stderr, "\t%-10ssmall window size (k) for finding minimizers (default: 4)\n", "-K [INT]");
-    std::fprintf(stderr, "\t%-10slarge window size (w) for finding minimizers (default: 11)\n\n", "-W [INT]");
+    std::fprintf(stderr, "\t%-25s%-10sturn off minimizer digestion of reads (default: on)\n", "-n, --no-digest", "");
+    std::fprintf(stderr, "\t%-25s%-10suse alphabet-promoted minimizers\n", "-m, --minimizer-alphabet", "");
+    std::fprintf(stderr, "\t%-25s%-10suse DNA-letter based minimizers\n", "-a, --dna-minimizer", "");
+    std::fprintf(stderr, "\t%-25s%-10ssmall window size (k) for finding minimizers (default: 4)\n", "-K, --small-window",  "[INT]");
+    std::fprintf(stderr, "\t%-25s%-10slarge window size (w) for finding minimizers (default: 11)\n\n", "-W, --large-window", "[INT]");
 
     return 0;
 }
@@ -66,28 +67,28 @@ int spumoni_build_usage () {
     std::fprintf(stderr, "Options:\n");
 
     std::fprintf(stderr, "\tGeneral options:\n");
-    std::fprintf(stderr, "\t%-10sprints this usage message\n", "-h");
-    std::fprintf(stderr, "\t%-10sturn on verbose logging\n\n", "-v");
+    std::fprintf(stderr, "\t%-35sprints this usage message\n", "-h, --help");
+    std::fprintf(stderr, "\t%-35sturn on verbose logging\n\n", "-v, --verbose");
 
     std::fprintf(stderr, "\tInput data options:\n");
-    std::fprintf(stderr, "\t%-10spath to reference file to be indexed (default: FASTA)\n", "-r [FILE]");
-    std::fprintf(stderr, "\t%-10sfile with a list of FASTA files to index\n", "-i [FILE]");
-    std::fprintf(stderr, "\t%-10sbuild directory for index(es) (if using -i option)\n", "-b [DIR]");
-    std::fprintf(stderr, "\t%-10suse with -r option if input file is general text (default: false)\n\n", "-g");
+    std::fprintf(stderr, "\t%-25s%-10spath to reference file to be indexed (default: FASTA)\n", "-r, --ref", "[FILE]");
+    std::fprintf(stderr, "\t%-25s%-10sfile with a list of FASTA files to index\n", "-i, --filelist", "[FILE]");
+    std::fprintf(stderr, "\t%-25s%-10sbuild directory for index(es) (if using -i option)\n", "-b, --build-dir", "[DIR]");
+    std::fprintf(stderr, "\t%-25s%-10suse with -r option if input file is general text (default: false)\n\n", "-g, --general-text", "");
 
     std::fprintf(stderr, "\tMinimizer options:\n");
-    std::fprintf(stderr, "\t%-10sturn off minimizer digestion of sequence (default: on)\n", "-n");
-    std::fprintf(stderr, "\t%-10suse alphabet-promoted minimizers\n", "-m");
-    std::fprintf(stderr, "\t%-10suse DNA-letter based minimizers\n", "-t");
-    std::fprintf(stderr, "\t%-10ssmall window size (k) for finding minimizers (default: 4)\n", "-K [INT]");
-    std::fprintf(stderr, "\t%-10slarge window size (w) for finding minimizers (default: 11)\n\n", "-W [INT]");
+    std::fprintf(stderr, "\t%-25s%-10sturn off minimizer digestion of sequence (default: on)\n", "-n, --no-digest", "");
+    std::fprintf(stderr, "\t%-25s%-10suse alphabet-promoted minimizers\n", "-m, --minimizer-alphabet", "");
+    std::fprintf(stderr, "\t%-25s%-10suse DNA-letter based minimizers\n", "-t, --dna-minimizer", "");
+    std::fprintf(stderr, "\t%-25s%-10ssmall window size (k) for finding minimizers (default: 4)\n", "-K, --small-window", "[INT]");
+    std::fprintf(stderr, "\t%-25s%-10slarge window size (w) for finding minimizers (default: 11)\n\n", "-W, --large-window", "[INT]");
 
     std::fprintf(stderr, "\tIndex file(s) options:\n");
-    std::fprintf(stderr, "\t%-10sbuild an index that can be used to compute MSs\n", "-M");
-    std::fprintf(stderr, "\t%-10sbuild an index that can be used to compute PMLs\n", "-P");
-    std::fprintf(stderr, "\t%-10skeep the temporary files (default: false)\n", "-k");
-    std::fprintf(stderr, "\t%-10sbuild the document array (default: false)\n", "-d");
-    std::fprintf(stderr, "\t%-10ssize of windows in bp for classification (default: 150)\n\n", "-w [INT]");   
+    std::fprintf(stderr, "\t%-25s%-10sbuild an index that can be used to compute MSs\n", "-M, --MS", "");
+    std::fprintf(stderr, "\t%-25s%-10sbuild an index that can be used to compute PMLs\n", "-P, --PML", "");
+    std::fprintf(stderr, "\t%-25s%-10skeep the temporary files (default: false)\n", "-k, --keep", "");
+    std::fprintf(stderr, "\t%-25s%-10sbuild the document array (default: false)\n", "-d, --doc-array", "");
+    std::fprintf(stderr, "\t%-25s%-10ssize of windows in bp for classification (default: 150)\n\n", "-w, --window", "[INT]");   
 
     //std::fprintf(stderr, "\t%-10ssliding window size (default: 10)\n", "-w [arg]");
     //std::fprintf(stderr, "\t%-10shash modulus value (default: 100)\n", "-p [arg]");
@@ -99,7 +100,29 @@ int spumoni_build_usage () {
 
 void parse_build_options(int argc, char** argv, SpumoniBuildOptions* opts) {
     /* Parses the arguments for the build sub-command and returns a struct with arguments */
-    for(int c;(c = getopt(argc, argv, "hr:MPw:kdi:b:nvmK:W:tg")) >= 0;) { 
+
+    static struct option long_options[] = {
+        {"help",      no_argument, NULL,  'h'},
+        {"verbose",   no_argument, NULL,  'v'},
+        {"ref",       required_argument, NULL,  'r'},
+        {"filelist",  required_argument, NULL,  'i'},
+        {"build-dir",  required_argument, NULL,  'b'},
+        {"general-text",   no_argument, NULL,  'g'},
+        {"no-digest",   no_argument, NULL,  'n'},
+        {"minimizer-alphabet",   no_argument, NULL,  'm'},
+        {"dna-minimizer",   no_argument, NULL,  't'},
+        {"small-window",  required_argument, NULL,  'K'},
+        {"large-window",  required_argument, NULL,  'W'},
+        {"MS",   no_argument, NULL,  'M'},
+        {"PML",   no_argument, NULL,  'P'},
+        {"keep",   no_argument, NULL,  'k'},
+        {"doc-array",   no_argument, NULL,  'd'},
+        {"window",  required_argument, NULL,  'w'},
+        {0, 0, 0,  0}
+    };
+
+    int long_index = 0;
+    for(int c;(c = getopt_long(argc, argv, "hr:MPw:kdi:b:nvmK:W:tg", long_options, &long_index)) >= 0;) { 
         switch(c) {
                     case 'h': spumoni_build_usage(); std::exit(1);
                     case 'r': opts->ref_file.assign(optarg); break;
@@ -128,7 +151,28 @@ void parse_build_options(int argc, char** argv, SpumoniBuildOptions* opts) {
 
 void parse_run_options(int argc, char** argv, SpumoniRunOptions* opts) {
     /* Parses the arguments for the build sub-command and returns a struct with arguments */
-    for(int c;(c = getopt(argc, argv, "hr:p:MPt:dcnmaK:W:w:g")) >= 0;) { 
+
+    static struct option long_options[] = {
+        {"help",      no_argument, NULL,  'h'},
+        {"threads",   required_argument, NULL,  't'},
+        {"ref",       required_argument, NULL,  'r'},
+        {"pattern",       required_argument, NULL,  'p'},
+        {"MS",   no_argument, NULL,  'M'},
+        {"PML",   no_argument, NULL,  'P'},
+        {"general-text",   no_argument, NULL,  'g'},
+        {"doc-array",   no_argument, NULL,  'd'},
+        {"classify",   no_argument, NULL,  'c'},
+        {"window",  required_argument, NULL,  'w'},
+        {"no-digest",   no_argument, NULL,  'n'},
+        {"minimizer-alphabet",   no_argument, NULL,  'm'},
+        {"dna-minimizer",   no_argument, NULL,  't'},
+        {"small-window",  required_argument, NULL,  'K'},
+        {"large-window",  required_argument, NULL,  'W'},
+        {0, 0, 0,  0}
+    };
+
+    int long_index = 0;
+    for(int c;(c = getopt_long(argc, argv, "hr:p:MPt:dcnmaK:W:w:g", long_options, &long_index)) >= 0;) { 
         switch(c) {
                     case 'h': spumoni_run_usage(); std::exit(1);
                     case 'r': opts->ref_file.assign(optarg); break;
