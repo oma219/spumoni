@@ -30,17 +30,20 @@ char comp_tab[] = {
 	'p', 'q', 'y', 's', 'a', 'a', 'b', 'w', 'x', 'r', 'z', 123, 124, 125, 126, 127
 };
 
-RefBuilder::RefBuilder(const char* ref_file, const char* list_file, const char* output_dir, 
+RefBuilder::RefBuilder(const char* ref_file, const char* list_file, const char* output_file, const char* null_reads,  
                        bool build_doc, bool file_list, bool use_minimizers,
                        bool use_promotions, bool use_dna_letters, 
                        size_t k, size_t w): using_doc(build_doc), using_list(file_list) {
     /* Performs the needed operations to generate a single input file. */
+
+    /*
     char ch;
     std::string output_path(output_dir);
 
     if ((ch = output_path.back()) != '/') {output_path += "/";}
     if (use_promotions) output_path += "spumoni_full_ref.bin";
     else output_path += "spumoni_full_ref.fa";
+    */
 
     // Verify every file in the list is valid 
     std::string line = "";
@@ -81,7 +84,8 @@ RefBuilder::RefBuilder(const char* ref_file, const char* list_file, const char* 
             FATAL_WARNING("If you only have one class ID, you should not build a document array.");}
     }
 
-    std::ofstream output_fd (output_path, std::ofstream::out);
+    // Open file to write all the sequences to
+    std::ofstream output_fd (output_file, std::ofstream::out);
     std::string mseq = "";
 
     // Initialize variables needs for over-sampling of reads for null database
@@ -90,12 +94,14 @@ RefBuilder::RefBuilder(const char* ref_file, const char* list_file, const char* 
     char grabbed_seq[NULL_READ_CHUNK+1];
     grabbed_seq[NULL_READ_CHUNK] = '\0';
 
+    /*
     std::string output_null_path(output_dir);
     if ((ch = output_null_path.back()) != '/') {output_null_path += "/";}
-
     output_null_path += "spumoni_null_reads.fa";
-    std::ofstream output_null_fd (output_null_path, std::ofstream::out);
-    null_read_file = output_null_path;
+    */
+
+    std::ofstream output_null_fd (null_reads, std::ofstream::out);
+    null_read_file = null_reads;
 
     // Process each input file, and store it forward + reverse complement sequence
     gzFile fp;
@@ -201,12 +207,12 @@ RefBuilder::RefBuilder(const char* ref_file, const char* list_file, const char* 
     output_null_fd.close();
     
     // Assign the full reference to the attribute
-    input_file = output_path;
+    input_file = output_file;
     if (!using_doc) return;
     ASSERT((curr_id == document_ids.back()), "Issue with building the FASTA document index.");
 
     // Write out the FASTA document index
-    std::ofstream output_fdi (output_path + ".fdi", std::ofstream::out);
+    std::ofstream output_fdi (input_file + ".fdi", std::ofstream::out);
     for (auto iter = seq_lengths.begin(); iter != seq_lengths.end(); ++iter) {
         size_t iter_index = iter - seq_lengths.begin() + 1;
         output_fdi << "group_" << iter_index << '\t' << *iter << '\n';
@@ -324,7 +330,7 @@ std::string RefBuilder::parse_null_reads_from_general_text(const char* ref_file)
     return output_path;
 }
 
-std::string RefBuilder::build_reference(const char* ref_file, bool use_promotions, bool use_dna_letters,
+std::string RefBuilder::build_reference(const char* ref_file, const char* output_path,bool use_promotions, bool use_dna_letters,
                                         size_t k, size_t w) {
     /*
      * Builds the reference file from a single file, it could using either type
@@ -332,6 +338,7 @@ std::string RefBuilder::build_reference(const char* ref_file, bool use_promotion
      * file but include the reverse complement.
      */
 
+    /*
     std::filesystem::path p1 = ref_file;
     std::string output_path = "";
 
@@ -341,7 +348,8 @@ std::string RefBuilder::build_reference(const char* ref_file, bool use_promotion
     // Adds a backslash to filepath when needed
     if (p1.parent_path().string().length()) {output_path = p1.parent_path().string() + "/" + file_name;}
     else {output_path = file_name;}
-
+    */
+    
     std::ofstream output_fd (output_path, std::ofstream::out);
 
     // Variables for parsing FASTA ...

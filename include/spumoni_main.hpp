@@ -129,6 +129,7 @@ enum reference_type {FASTA, MINIMIZER, NOT_SET};
 enum query_input_type {FA, FQ, NOT_CLEAR};
 
 struct SpumoniBuildOptions {
+  std::string output_prefix = "";
   std::string ref_file = "";
   std::string input_list = "";
   std::string output_dir = "";
@@ -172,10 +173,10 @@ public:
       } else {
           if (!is_file(input_list)) 
             FATAL_ERROR("The following path is not valid: %s", input_list.data());
-          if (!output_dir.length()) 
-            FATAL_ERROR("You must specify an output directory with -b option when using filelist.");
-          if (!is_dir(output_dir))
-            FATAL_ERROR("The output directory for the index is not valid.");
+          //if (!output_dir.length()) 
+            //FATAL_ERROR("You must specify an output directory with -b option when using filelist.");
+          //if (!is_dir(output_dir))
+            //FATAL_ERROR("The output directory for the index is not valid.");
       }
       if (build_doc && ref_file.length()) {
         FATAL_ERROR("Cannot build a document array if you are indexing a single file.");}
@@ -195,6 +196,11 @@ public:
       if (is_general_text) {
         if (use_promotions || use_dna_letters) 
           FATAL_ERROR("No minimizer type should be chosen when using general text input.");
+      }
+
+      // Make sure an output prefix is specified ...
+      if (!output_prefix.length()) {
+        FATAL_ERROR("Need to specify an output prefix for the index files.");
       }
 
       // Makes sure that at least one index type is chosen ...
@@ -238,8 +244,8 @@ public:
       if (!ms_requested && pml_requested) {result_type = PML;}
 
       // Specify the input database type
-      bool is_fasta = (endsWith(ref_file, ".fa") || endsWith(ref_file, ".fasta") || endsWith(ref_file, ".fna"));
-      bool is_min = endsWith(ref_file, ".bin");
+      bool is_fasta = (is_file(ref_file+".fa") || is_file(ref_file+".fasta") || is_file(ref_file+".fna"));
+      bool is_min = is_file(ref_file+".bin");
 
       if (is_fasta && !is_min) {ref_type = FASTA;}
       if (!is_fasta && is_min) {ref_type = MINIMIZER;}
@@ -249,9 +255,16 @@ public:
       /* Checks the options for the run command, and makes sure it has everything it needs */
       if (ref_file == "" || pattern_file == ""){FATAL_WARNING("Both a reference file (-r) and pattern file (-p) must be provided.");}
       if (result_type == NOT_CHOSEN) {FATAL_WARNING("An output type with -M or -P must be specified, only one can be used at a time.");}
+
+      // Add extension to ref file based on minimizer digestion
+      std::string extension = "";
+      if (use_promotions)
+        extension = ".bin";
+      else
+        extension = ".fa";
       
       // Make sure provided files are valid
-      if (!is_file(ref_file)) {FATAL_ERROR("The following path is not valid: %s", ref_file.data());}
+      if (!is_file(ref_file + extension)) {FATAL_ERROR("The following path is not valid: %s", ref_file.data());}
       if (!is_file(pattern_file)) {FATAL_ERROR("The following path is not valid: %s", pattern_file.data());}
 
       // Make sure reference file is a valid type
@@ -276,10 +289,10 @@ public:
       
       switch (result_type) {
         case MS: 
-            if (!is_file(ref_file+".thrbv.ms")) 
+            if (!is_file(ref_file+extension+".thrbv.ms")) 
             {FATAL_WARNING("The index required for this computation is not available, please use spumoni build.");} break;
         case PML:
-            if (!is_file(ref_file+".thrbv.spumoni")) 
+            if (!is_file(ref_file+extension+".thrbv.spumoni")) 
             {FATAL_WARNING("The index required for this computation is not available, please use spumoni build.");} break;
         default:
             FATAL_WARNING("An output type with -M or -P must be specified, only one can be used at a time."); break;

@@ -62,7 +62,7 @@ int spumoni_run_usage () {
 int spumoni_build_usage () {
     /* prints out the usage information for the spumoni build sub-command */
     std::fprintf(stderr, "spumoni build - builds the ms/pml index for a specified reference file.\n");
-    std::fprintf(stderr, "Usage: spumoni build [options]\n\n");
+    std::fprintf(stderr, "Usage: spumoni build [options]\n");
 
     std::fprintf(stderr, "Options:\n");
 
@@ -73,7 +73,7 @@ int spumoni_build_usage () {
     std::fprintf(stderr, "\tInput data options:\n");
     std::fprintf(stderr, "\t%-25s%-10spath to reference file to be indexed (default: FASTA)\n", "-r, --ref", "[FILE]");
     std::fprintf(stderr, "\t%-25s%-10sfile with a list of FASTA files to index\n", "-i, --filelist", "[FILE]");
-    std::fprintf(stderr, "\t%-25s%-10sbuild directory for index(es) (if using -i option)\n", "-b, --build-dir", "[DIR]");
+    //std::fprintf(stderr, "\t%-25s%-10sbuild directory for index(es) (if using -i option)\n", "-b, --build-dir", "[DIR]");
     std::fprintf(stderr, "\t%-25s%-10suse with -r option if input file is general text (default: false)\n\n", "-g, --general-text", "");
 
     std::fprintf(stderr, "\tMinimizer options:\n");
@@ -84,6 +84,7 @@ int spumoni_build_usage () {
     std::fprintf(stderr, "\t%-25s%-10slarge window size (w) for finding minimizers (default: 11)\n\n", "-W, --large-window", "[INT]");
 
     std::fprintf(stderr, "\tIndex file(s) options:\n");
+    std::fprintf(stderr, "\t%-25s%-10soutput prefix for index file(s)\n", "-o, --prefix", "[PATH]");
     std::fprintf(stderr, "\t%-25s%-10sbuild an index that can be used to compute MSs\n", "-M, --MS", "");
     std::fprintf(stderr, "\t%-25s%-10sbuild an index that can be used to compute PMLs\n", "-P, --PML", "");
     std::fprintf(stderr, "\t%-25s%-10skeep the temporary files (default: false)\n", "-k, --keep", "");
@@ -103,6 +104,7 @@ void parse_build_options(int argc, char** argv, SpumoniBuildOptions* opts) {
 
     static struct option long_options[] = {
         {"help",      no_argument, NULL,  'h'},
+        {"prefix",    required_argument, NULL, 'o'},
         {"verbose",   no_argument, NULL,  'v'},
         {"ref",       required_argument, NULL,  'r'},
         {"filelist",  required_argument, NULL,  'i'},
@@ -122,9 +124,10 @@ void parse_build_options(int argc, char** argv, SpumoniBuildOptions* opts) {
     };
 
     int long_index = 0;
-    for(int c;(c = getopt_long(argc, argv, "hr:MPw:kdi:b:nvmK:W:tg", long_options, &long_index)) >= 0;) { 
+    for(int c;(c = getopt_long(argc, argv, "ho:r:MPw:kdi:b:nvmK:W:tg", long_options, &long_index)) >= 0;) { 
         switch(c) {
                     case 'h': spumoni_build_usage(); std::exit(1);
+                    case 'o': opts->output_prefix.assign(optarg); break;
                     case 'r': opts->ref_file.assign(optarg); break;
                     case 'i': opts->input_list.assign(optarg); break;
                     case 'b': opts->output_dir.assign(optarg); break;
@@ -562,6 +565,7 @@ int build_main(int argc, char** argv) {
     parse_build_options(argc, argv, &build_opts);
     build_opts.validate();
 
+    // Read enviornment variable, and validate paths to helper programs
     SpumoniHelperPrograms helper_bins;
     if (!std::getenv("SPUMONI_BUILD_DIR")) {FATAL_ERROR("Need to set SPUMONI_BUILD_DIR environment variable.");}
 
@@ -574,16 +578,24 @@ int build_main(int argc, char** argv) {
     size_t num_temp_build_files = 15;
 
     // Check all needed files are already present
-    std::filesystem::path p1 = build_opts.ref_file;
-    std::string build_ref_file = (build_opts.use_promotions) ? "spumoni_full_ref.bin" : "spumoni_full_ref.fa";
+    std::filesystem::path p1 = build_opts.output_prefix;
+    std::string build_filename = p1.filename().string();
+    std::string build_ref_file = (build_opts.use_promotions) ? (build_filename + ".bin") : (build_filename  + ".fa");
     std::string null_read_file = "";
+
+    // Validate the output prefix directory
+    if (!is_dir(p1.parent_path().string())) 
+        FATAL_ERROR("Output prefix path is not valid.");
     
+    // Build the paths depending on various options    
     char ch;
     if (build_opts.input_list.length()){ // using a file-list
-        std::string build_dir(build_opts.output_dir);
-        if ((ch = build_dir.back()) != '/') {build_dir += "/";}
-        null_read_file = build_dir + "spumoni_null_reads.fa";
-        build_ref_file = build_dir + build_ref_file;
+        //std::string build_dir(build_opts.output_dir);
+        //if ((ch = build_dir.back()) != '/') {build_dir += "/";}
+        //null_read_file = build_dir + "spumoni_null_reads.fa";
+        //build_ref_file = build_dir + build_ref_file;
+        null_read_file = p1.parent_path().string() + "/spumoni_null_reads.fa";
+        build_ref_file = p1.parent_path().string() + "/" + build_ref_file;
     } else if (p1.parent_path().string().length()) { // using single file not in current dir
         null_read_file = p1.parent_path().string() + "/spumoni_null_reads.fa";
         build_ref_file = p1.parent_path().string() + "/" + build_ref_file;
@@ -594,8 +606,8 @@ int build_main(int argc, char** argv) {
     // If it is general text file, just use it directly for parse.
     if (build_opts.is_general_text)
         build_ref_file = build_opts.ref_file;
-
-
+    
+    // Check if all the intermediate files are already present
     bool quick_build = is_file(null_read_file);
     for (size_t i = 0; i < num_temp_build_files && quick_build; i++) {
         if (!is_file(build_ref_file + temp_build_files[i])) {quick_build = false;}
@@ -614,21 +626,18 @@ int build_main(int argc, char** argv) {
         if (!build_opts.input_list.length())
             FORCE_LOG("build_main", "input: single reference file (%s)\n", build_opts.ref_file.data());
         else {
-            FORCE_LOG("build_main", "input: list of files (%s)", build_opts.input_list.data());
-            FORCE_LOG("build_main", "build directory: %s\n", build_opts.output_dir.data());
+            FORCE_LOG("build_main", "input: list of files (%s)\n", build_opts.input_list.data());
         }
 
-        if (build_opts.use_promotions) 
-            STATUS_LOG("build_main", "reference file is being generated (spumoni_full_ref.bin)");
-        else if (!build_opts.is_general_text)
-            STATUS_LOG("build_main", "reference file is being generated (spumoni_full_ref.fa)");
+        if (!build_opts.is_general_text)
+            STATUS_LOG("build_main", "reference file is being generated (%s)", build_ref_file.data());
         else
             STATUS_LOG("build_main", "reference file with be used directly, null reads will be parsed out");
         task_start = std::chrono::system_clock::now();
 
         // Perform needed operations to input file(s) prior to building index
         if (build_opts.input_list.length()){        
-            RefBuilder refbuild (build_opts.ref_file.data(), build_opts.input_list.data(), build_opts.output_dir.data(),
+            RefBuilder refbuild (build_opts.ref_file.data(), build_opts.input_list.data(), build_ref_file.data(), null_read_file.data(),
                                 build_opts.build_doc, build_opts.input_list.length(), build_opts.use_minimizers,
                                 build_opts.use_promotions, build_opts.use_dna_letters,
                                 build_opts.k, build_opts.w);
@@ -636,14 +645,14 @@ int build_main(int argc, char** argv) {
             null_read_file = refbuild.get_null_readfile();
         } else if (!build_opts.is_general_text) { // FASTA reference
             null_read_file = RefBuilder::parse_null_reads(build_opts.ref_file.data());
-            build_opts.ref_file = RefBuilder::build_reference(build_opts.ref_file.data(), build_opts.use_promotions,
+            build_opts.ref_file = RefBuilder::build_reference(build_opts.ref_file.data(), build_ref_file.data(), build_opts.use_promotions,
                                                                 build_opts.use_dna_letters, build_opts.k,
                                                                 build_opts.w);
         } else if (build_opts.is_general_text) { // General text reference
             null_read_file = RefBuilder::parse_null_reads_from_general_text(build_opts.ref_file.data());
         }
         DONE_LOG((std::chrono::system_clock::now() - task_start));
-
+        
         // Performs the parsing of the reference and builds the thresholds based on the PFP
         run_build_parse_cmd(&build_opts, &helper_bins);
         run_build_thresholds_cmd(&build_opts, &helper_bins); std::cout << std::endl;
@@ -747,6 +756,12 @@ int run_main(int argc, char** argv) {
     parse_run_options(argc, argv, &run_opts);
     run_opts.populate_types();
     run_opts.validate();
+
+    // Add extension to reference file based on options
+    if (run_opts.use_promotions)
+        run_opts.ref_file += ".bin";
+    else
+        run_opts.ref_file += ".fa";
 
     switch (run_opts.result_type) {
         case MS: run_spumoni_ms_main(&run_opts); break;
