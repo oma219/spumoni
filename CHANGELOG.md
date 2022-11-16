@@ -3,7 +3,6 @@
 - This log started being maintained at v2.0.0, therefore, there are not specific version labels for previous versions of SPUMONI besides the git commit id.
 
 ## v2.0.0 - latest
----
 - Allows for the digestion of input sequences into either a sequence of DNA-based minimizers (e.g ACAT) or minimizers that are alphabet characters themselves.
 - Minimizer digestion is used during build and run sub-commands if requested by the user.
 - Classification test is integrated directly into the SPUMONI code by generating a database of null MS to compare to the online query MS.
@@ -14,6 +13,5 @@
 
 
 ## v1.0.0
----
 - Initial release of SPUMONI, consisted strictly of the the ability to compute MS and PML for queries. Classification test was not built-in and general text was the default mode.
 - Released vis this paper (https://www.sciencedirect.com/science/article/pii/S2589004221006647)
