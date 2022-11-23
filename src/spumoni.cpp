@@ -74,7 +74,8 @@ int spumoni_build_usage () {
     std::fprintf(stderr, "\t%-25s%-10spath to reference file to be indexed (default: FASTA)\n", "-r, --ref", "[FILE]");
     std::fprintf(stderr, "\t%-25s%-10sfile with a list of FASTA files to index\n", "-i, --filelist", "[FILE]");
     //std::fprintf(stderr, "\t%-25s%-10sbuild directory for index(es) (if using -i option)\n", "-b, --build-dir", "[DIR]");
-    std::fprintf(stderr, "\t%-25s%-10suse with -r option if input file is general text (default: false)\n\n", "-g, --general-text", "");
+    std::fprintf(stderr, "\t%-25s%-10suse with -r option if input file is general text (default: false)\n", "-g, --general-text", "");
+    std::fprintf(stderr, "\t%-25s%-10sdo not add reverse complement, only applies to FASTA (default: true)\n\n", "-c, --no-rev-comp", "");
 
     std::fprintf(stderr, "\tMinimizer options:\n");
     std::fprintf(stderr, "\t%-25s%-10sturn off minimizer digestion of sequence (default: on)\n", "-n, --no-digest", "");
@@ -110,6 +111,7 @@ void parse_build_options(int argc, char** argv, SpumoniBuildOptions* opts) {
         {"filelist",  required_argument, NULL,  'i'},
         {"build-dir",  required_argument, NULL,  'b'},
         {"general-text",   no_argument, NULL,  'g'},
+        {"no-rev-comp", no_argument, NULL, 'c'},
         {"no-digest",   no_argument, NULL,  'n'},
         {"minimizer-alphabet",   no_argument, NULL,  'm'},
         {"dna-minimizer",   no_argument, NULL,  't'},
@@ -124,13 +126,14 @@ void parse_build_options(int argc, char** argv, SpumoniBuildOptions* opts) {
     };
 
     int long_index = 0;
-    for(int c;(c = getopt_long(argc, argv, "ho:r:MPw:kdi:b:nvmK:W:tg", long_options, &long_index)) >= 0;) { 
+    for(int c;(c = getopt_long(argc, argv, "ho:r:MPw:kdi:b:nvmK:W:tgc", long_options, &long_index)) >= 0;) { 
         switch(c) {
                     case 'h': spumoni_build_usage(); std::exit(1);
                     case 'o': opts->output_prefix.assign(optarg); break;
                     case 'r': opts->ref_file.assign(optarg); break;
                     case 'i': opts->input_list.assign(optarg); break;
                     case 'b': opts->output_dir.assign(optarg); break;
+                    case 'c': opts->use_rev_comp = false; break;
                     case 'M': opts->ms_index = true; break;
                     case 'P': opts->pml_index = true; break;
                     case 'v': opts->verbose = true; break;
@@ -332,7 +335,6 @@ std::string perform_dna_minimizer_digestion(std::string input_query, size_t k, s
     };
     return get_minimizer_seq(input_query, input_query.length());
 }
-
 
 /*
  * Section 3: 
@@ -585,23 +587,11 @@ int build_main(int argc, char** argv) {
 
     // Validate the output prefix directory
     if (!is_dir(p1.parent_path().string())) 
-        FATAL_ERROR("Output prefix path is not valid.");
+        FATAL_ERROR("Output prefix path is not valid. If you would like store index in current directory, use './' prior to name.");
     
-    // Build the paths depending on various options    
-    char ch;
-    if (build_opts.input_list.length()){ // using a file-list
-        //std::string build_dir(build_opts.output_dir);
-        //if ((ch = build_dir.back()) != '/') {build_dir += "/";}
-        //null_read_file = build_dir + "spumoni_null_reads.fa";
-        //build_ref_file = build_dir + build_ref_file;
-        null_read_file = p1.parent_path().string() + "/spumoni_null_reads.fa";
-        build_ref_file = p1.parent_path().string() + "/" + build_ref_file;
-    } else if (p1.parent_path().string().length()) { // using single file not in current dir
-        null_read_file = p1.parent_path().string() + "/spumoni_null_reads.fa";
-        build_ref_file = p1.parent_path().string() + "/" + build_ref_file;
-    } else { // using single file in current directory
-        null_read_file = "spumoni_null_reads.fa";
-    }
+    // Build the paths for the null read file and reference file
+    null_read_file = p1.parent_path().string() + "/spumoni_null_reads.fa";
+    build_ref_file = p1.parent_path().string() + "/" + build_ref_file;
 
     // If it is general text file, just use it directly for parse.
     if (build_opts.is_general_text)
@@ -625,9 +615,9 @@ int build_main(int argc, char** argv) {
         // Print out information describing the input files...
         if (!build_opts.input_list.length())
             FORCE_LOG("build_main", "input: single reference file (%s)\n", build_opts.ref_file.data());
-        else {
+        else 
             FORCE_LOG("build_main", "input: list of files (%s)\n", build_opts.input_list.data());
-        }
+        
 
         if (!build_opts.is_general_text)
             STATUS_LOG("build_main", "reference file is being generated (%s)", build_ref_file.data());
@@ -636,20 +626,20 @@ int build_main(int argc, char** argv) {
         task_start = std::chrono::system_clock::now();
 
         // Perform needed operations to input file(s) prior to building index
-        if (build_opts.input_list.length()){        
+        if (build_opts.input_list.length()){ // List of FASTA references
             RefBuilder refbuild (build_opts.ref_file.data(), build_opts.input_list.data(), build_ref_file.data(), null_read_file.data(),
                                 build_opts.build_doc, build_opts.input_list.length(), build_opts.use_minimizers,
                                 build_opts.use_promotions, build_opts.use_dna_letters,
-                                build_opts.k, build_opts.w);
+                                build_opts.k, build_opts.w, build_opts.use_rev_comp);
             build_opts.ref_file = refbuild.get_ref_path();
             null_read_file = refbuild.get_null_readfile();
         } else if (!build_opts.is_general_text) { // FASTA reference
-            null_read_file = RefBuilder::parse_null_reads(build_opts.ref_file.data());
+            null_read_file = RefBuilder::parse_null_reads(build_opts.ref_file.data(), null_read_file.data());
             build_opts.ref_file = RefBuilder::build_reference(build_opts.ref_file.data(), build_ref_file.data(), build_opts.use_promotions,
                                                                 build_opts.use_dna_letters, build_opts.k,
-                                                                build_opts.w);
+                                                                build_opts.w, build_opts.use_rev_comp);
         } else if (build_opts.is_general_text) { // General text reference
-            null_read_file = RefBuilder::parse_null_reads_from_general_text(build_opts.ref_file.data());
+            null_read_file = RefBuilder::parse_null_reads_from_general_text(build_opts.ref_file.data(), null_read_file.data());
         }
         DONE_LOG((std::chrono::system_clock::now() - task_start));
         

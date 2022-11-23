@@ -15,7 +15,7 @@
 #include <stdlib.h>
 
 /* Commonly Used MACROS */
-#define SPUMONI_VERSION "2.0.0"
+#define SPUMONI_VERSION "2.0.1"
 #define NOT_IMPL(x) do { std::fprintf(stderr, "%s is not implemented: %s\n", __func__, x); std::exit(1);} while (0)
 #define THROW_EXCEPTION(x) do { throw x;} while (0)
 //#define FATAL_WARNING(x) do {std::fprintf(stderr, "Warning: %s\n\n", x); std::exit(1);} while (0)
@@ -149,6 +149,7 @@ struct SpumoniBuildOptions {
   bool use_promotions = false; // use alphabet promotion during promotion
   bool use_dna_letters = false; // use DNA-letter based minimizers
   bool is_general_text = false; // if input is general text (assuming it is FASTA)
+  bool use_rev_comp = true; // add rev complement for FASTA files
   size_t k = 4; // small window size for minimizers
   size_t w = 11; // large window size for minimizers
   size_t bin_size = 150; // size of bins used for KS-test (for finding threshold during build)

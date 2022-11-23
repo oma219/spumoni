@@ -33,17 +33,8 @@ char comp_tab[] = {
 RefBuilder::RefBuilder(const char* ref_file, const char* list_file, const char* output_file, const char* null_reads,  
                        bool build_doc, bool file_list, bool use_minimizers,
                        bool use_promotions, bool use_dna_letters, 
-                       size_t k, size_t w): using_doc(build_doc), using_list(file_list) {
+                       size_t k, size_t w, bool use_rev_comp): using_doc(build_doc), using_list(file_list) {
     /* Performs the needed operations to generate a single input file. */
-
-    /*
-    char ch;
-    std::string output_path(output_dir);
-
-    if ((ch = output_path.back()) != '/') {output_path += "/";}
-    if (use_promotions) output_path += "spumoni_full_ref.bin";
-    else output_path += "spumoni_full_ref.fa";
-    */
 
     // Verify every file in the list is valid 
     std::string line = "";
@@ -94,12 +85,7 @@ RefBuilder::RefBuilder(const char* ref_file, const char* list_file, const char* 
     char grabbed_seq[NULL_READ_CHUNK+1];
     grabbed_seq[NULL_READ_CHUNK] = '\0';
 
-    /*
-    std::string output_null_path(output_dir);
-    if ((ch = output_null_path.back()) != '/') {output_null_path += "/";}
-    output_null_path += "spumoni_null_reads.fa";
-    */
-
+    // Open file for null reads ...
     std::ofstream output_null_fd (null_reads, std::ofstream::out);
     null_read_file = null_reads;
 
@@ -164,29 +150,31 @@ RefBuilder::RefBuilder(const char* ref_file, const char* list_file, const char* 
             // Get reverse complement, and print it
             // Based on seqtk reverse complement code, that does it 
             // in place. (https://github.com/lh3/seqtk/blob/master/seqtk.c)
-            int c0, c1;
-			for (size_t i = 0; i < seq->seq.l>>1; ++i) { // reverse complement sequence
-				c0 = comp_tab[(int)seq->seq.s[i]];
-				c1 = comp_tab[(int)seq->seq.s[seq->seq.l - 1 - i]];
-				seq->seq.s[i] = c1;
-				seq->seq.s[seq->seq.l - 1 - i] = c0;
-			}
-			if (seq->seq.l & 1) // complement the remaining base
-				seq->seq.s[seq->seq.l>>1] = comp_tab[(int)seq->seq.s[seq->seq.l>>1]];
+            if (use_rev_comp) {
+                int c0, c1;
+                for (size_t i = 0; i < seq->seq.l>>1; ++i) { // reverse complement sequence
+                    c0 = comp_tab[(int)seq->seq.s[i]];
+                    c1 = comp_tab[(int)seq->seq.s[seq->seq.l - 1 - i]];
+                    seq->seq.s[i] = c1;
+                    seq->seq.s[seq->seq.l - 1 - i] = c0;
+                }
+                if (seq->seq.l & 1) // complement the remaining base
+                    seq->seq.s[seq->seq.l>>1] = comp_tab[(int)seq->seq.s[seq->seq.l>>1]];
 
 
-            // Convert rev_comp seq to minimizers by default, otherwise DNA
-            if (use_promotions) {
-                mseq = perform_minimizer_digestion(seq->seq.s, k, w);
-                output_fd << mseq;
-                curr_id_seq_length += mseq.length();
-            } else if (use_dna_letters) {
-                mseq = perform_dna_minimizer_digestion(seq->seq.s, k, w);
-                output_fd << '>' << seq->name.s << '\n' << mseq << '\n';
-                curr_id_seq_length += mseq.length();
-            } else {
-                output_fd << '>' << seq->name.s << "_rev_comp" << '\n' << seq->seq.s << '\n';
-                curr_id_seq_length += seq->seq.l;
+                // Convert rev_comp seq to minimizers by default, otherwise DNA
+                if (use_promotions) {
+                    mseq = perform_minimizer_digestion(seq->seq.s, k, w);
+                    output_fd << mseq;
+                    curr_id_seq_length += mseq.length();
+                } else if (use_dna_letters) {
+                    mseq = perform_dna_minimizer_digestion(seq->seq.s, k, w);
+                    output_fd << '>' << seq->name.s << '\n' << mseq << '\n';
+                    curr_id_seq_length += mseq.length();
+                } else {
+                    output_fd << '>' << seq->name.s << "_rev_comp" << '\n' << seq->seq.s << '\n';
+                    curr_id_seq_length += seq->seq.l;
+                }
             }
         }
         kseq_destroy(seq);
@@ -205,7 +193,15 @@ RefBuilder::RefBuilder(const char* ref_file, const char* list_file, const char* 
     }
     output_fd.close(); 
     output_null_fd.close();
-    
+
+    // If the reference is empty, issue warning ...
+    size_t total_length = std::accumulate(seq_lengths.begin(), seq_lengths.end(), 0);
+    if (total_length == 0) {
+        std::cout << "\n\n";
+        FATAL_WARNING("After sequence digestion, there is no sequence left. "
+                      "Note minimizer digestion can only be used with FASTA files.");
+    }
+
     // Assign the full reference to the attribute
     input_file = output_file;
     if (!using_doc) return;
@@ -230,15 +226,9 @@ const char* RefBuilder::get_null_readfile() {
     return null_read_file.data();
 }
 
-std::string RefBuilder::parse_null_reads(const char* ref_file) {
+std::string RefBuilder::parse_null_reads(const char* ref_file, const char* output_path) {
     /* Parses out null reads in the case that we don't use a file-list */
-    std::filesystem::path p1 = ref_file;
-    std::string output_path = "";
 
-    // Adds a backslash to filepath when needed
-    if (p1.parent_path().string().length()) {output_path = p1.parent_path().string() + "/spumoni_null_reads.fa";}
-    else {output_path = "spumoni_null_reads.fa";}
-    
     // Variables for generating null reads ...
     srand(0);
     char grabbed_seq[NULL_READ_CHUNK+1];
@@ -282,14 +272,8 @@ std::string RefBuilder::parse_null_reads(const char* ref_file) {
     return output_path;
 }
 
-std::string RefBuilder::parse_null_reads_from_general_text(const char* ref_file) {
+std::string RefBuilder::parse_null_reads_from_general_text(const char* ref_file, const char* output_path) {
     /* Parses null reads from general text input reference */
-    std::filesystem::path p1 = ref_file;
-    std::string output_path = "";
-
-    // Adds a backslash to filepath when needed
-    if (p1.parent_path().string().length()) {output_path = p1.parent_path().string() + "/spumoni_null_reads.bin";}
-    else {output_path = "spumoni_null_reads.bin";}
 
     // Open the reference file, and output file for null reads
     std::ofstream output_fd (output_path, std::ofstream::out);
@@ -331,30 +315,19 @@ std::string RefBuilder::parse_null_reads_from_general_text(const char* ref_file)
 }
 
 std::string RefBuilder::build_reference(const char* ref_file, const char* output_path,bool use_promotions, bool use_dna_letters,
-                                        size_t k, size_t w) {
+                                        size_t k, size_t w, bool use_rev_comp) {
     /*
      * Builds the reference file from a single file, it could using either type
      * of minimizer digestion: promotion or DNA. Or just use the original FASTA
      * file but include the reverse complement.
      */
-
-    /*
-    std::filesystem::path p1 = ref_file;
-    std::string output_path = "";
-
-    // Determine file name based on digestion technique
-    std::string file_name = (use_promotions) ? "spumoni_full_ref.bin" : "spumoni_full_ref.fa";
-
-    // Adds a backslash to filepath when needed
-    if (p1.parent_path().string().length()) {output_path = p1.parent_path().string() + "/" + file_name;}
-    else {output_path = file_name;}
-    */
     
     std::ofstream output_fd (output_path, std::ofstream::out);
 
     // Variables for parsing FASTA ...
     gzFile fp = gzopen(ref_file, "r");
     kseq_t* seq = kseq_init(fp);
+    size_t total_length = 0;
 
     while (kseq_read(seq)>=0) {
         std::string curr_seq = "";
@@ -366,40 +339,53 @@ std::string RefBuilder::build_reference(const char* ref_file, const char* output
         // Print out the forward seq
         if (use_promotions) {
             curr_seq = perform_minimizer_digestion(seq->seq.s, k, w);
-            output_fd << curr_seq;
+            output_fd << curr_seq; total_length += curr_seq.size();
         } else if (use_dna_letters) {
             curr_seq = perform_dna_minimizer_digestion(seq->seq.s, k, w);
             output_fd << '>' << seq->name.s << '\n' << curr_seq << '\n';
+            total_length += curr_seq.size();
         } else {
             output_fd << '>' << seq->name.s << '\n' << seq->seq.s << '\n';
+            total_length += seq->seq.l;
         }
         curr_seq = "";
 
         // Get reverse complement, and print it
         // Based on seqtk reverse complement code, that does it 
         // in place. (https://github.com/lh3/seqtk/blob/master/seqtk.c)
-        int c0, c1;
-        for (size_t i = 0; i < seq->seq.l>>1; ++i) { // reverse complement sequence
-            c0 = comp_tab[(int)seq->seq.s[i]];
-            c1 = comp_tab[(int)seq->seq.s[seq->seq.l - 1 - i]];
-            seq->seq.s[i] = c1;
-            seq->seq.s[seq->seq.l - 1 - i] = c0;
-        }
-        if (seq->seq.l & 1) // complement the remaining base
-            seq->seq.s[seq->seq.l>>1] = comp_tab[(int)seq->seq.s[seq->seq.l>>1]];
+        if (use_rev_comp) {
+            int c0, c1;
+            for (size_t i = 0; i < seq->seq.l>>1; ++i) { // reverse complement sequence
+                c0 = comp_tab[(int)seq->seq.s[i]];
+                c1 = comp_tab[(int)seq->seq.s[seq->seq.l - 1 - i]];
+                seq->seq.s[i] = c1;
+                seq->seq.s[seq->seq.l - 1 - i] = c0;
+            }
+            if (seq->seq.l & 1) // complement the remaining base
+                seq->seq.s[seq->seq.l>>1] = comp_tab[(int)seq->seq.s[seq->seq.l>>1]];
 
-        // Print out the reverse complement sequence
-        if (use_promotions) {
-            curr_seq = perform_minimizer_digestion(seq->seq.s, k, w);
-            output_fd << curr_seq;
-        } else if (use_dna_letters) {
-            curr_seq = perform_dna_minimizer_digestion(seq->seq.s, k, w);
-            output_fd << '>' << seq->name.s << "_rev_comp" <<'\n' << curr_seq << '\n';
-        } else {
-            output_fd << '>' << seq->name.s << "_rev_comp" <<'\n' << seq->seq.s << '\n';
+            // Print out the reverse complement sequence
+            if (use_promotions) {
+                curr_seq = perform_minimizer_digestion(seq->seq.s, k, w);
+                output_fd << curr_seq; total_length += curr_seq.size();
+            } else if (use_dna_letters) {
+                curr_seq = perform_dna_minimizer_digestion(seq->seq.s, k, w);
+                output_fd << '>' << seq->name.s << "_rev_comp" <<'\n' << curr_seq << '\n';
+                total_length += curr_seq.size();
+            } else {
+                output_fd << '>' << seq->name.s << "_rev_comp" <<'\n' << seq->seq.s << '\n';
+                total_length += seq->seq.l;
+            }
         }
-
     }
+
+    // Check if no sequence has been written ...
+    if (total_length == 0) {
+        std::cout << "\n\n";
+        FATAL_WARNING("After sequence digestion, there is no sequence left. "
+                      "Note minimizer digestion can only be used with FASTA files.");
+    }
+
     kseq_destroy(seq);
     gzclose(fp);
     output_fd.close();
