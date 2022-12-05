@@ -21,6 +21,7 @@
 #include <refbuilder.hpp>
 #include <encoder.h>
 #include <emp_null_database.hpp>
+#include <getopt.h>
 
 /*
  * Section 1: 
@@ -35,25 +36,25 @@ int spumoni_run_usage () {
 
     std::fprintf(stderr, "Options:\n");
     std::fprintf(stderr, "\tGeneral options:\n");
-    std::fprintf(stderr, "\t%-10sprints this usage message\n", "-h");
-    std::fprintf(stderr, "\t%-10snumber of helper threads (default: 1)\n\n", "-t [arg]");
+    std::fprintf(stderr, "\t%-35sprints this usage message\n", "-h, --help");
+    std::fprintf(stderr, "\t%-25s%-10snumber of helper threads (default: 1)\n\n", "-t, --threads", "[INT]");
 
     std::fprintf(stderr, "\tInput/output options:\n");
-    std::fprintf(stderr, "\t%-10spath to reference file that has index built for it\n", "-r [FILE]");
-    std::fprintf(stderr, "\t%-10spath to patterns file that will be used.\n", "-p [FILE]");
-    std::fprintf(stderr, "\t%-10suse index to compute MSs\n", "-M");
-    std::fprintf(stderr, "\t%-10suse index to compute PMLs\n", "-P");
-    //std::fprintf(stderr, "\t%-10spattern file is in fasta format (default: general text)\n", "-f");
-    std::fprintf(stderr, "\t%-10suse document array to get assignments\n", "-d");
-    std::fprintf(stderr, "\t%-10swrite out the classifications in a report file\n", "-c");
-    std::fprintf(stderr, "\t%-10ssize of region in bp for KS-test (default: 150)\n\n", "-w [INT]");
+    std::fprintf(stderr, "\t%-25s%-10soutput prefix used for index\n", "-r, --ref", "[FILE]");
+    std::fprintf(stderr, "\t%-25s%-10spath to patterns file that will be used.\n", "-p, --pattern", "[FILE]");
+    std::fprintf(stderr, "\t%-25s%-10suse index to compute MSs\n", "-M, --MS", "");
+    std::fprintf(stderr, "\t%-25s%-10suse index to compute PMLs\n", "-P, --PML", "");
+    std::fprintf(stderr, "\t%-25s%-10spattern file is general text (default: FASTA)\n", "-g, --general", "");
+    std::fprintf(stderr, "\t%-25s%-10suse document array to get assignments\n", "-d, --doc-array", "");
+    std::fprintf(stderr, "\t%-25s%-10swrite out the classifications in a report file\n", "-c, --classify", "");
+    std::fprintf(stderr, "\t%-25s%-10ssize of region in bp for classification (default: 150)\n\n", "-w, --window", "[INT]");
 
     std::fprintf(stderr, "\tMinimizer options:\n");
-    std::fprintf(stderr, "\t%-10sturn off minimizer digestion of reads (default: on)\n", "-n");
-    std::fprintf(stderr, "\t%-10suse alphabet-promoted minimizers\n", "-m");
-    std::fprintf(stderr, "\t%-10suse DNA-letter based minimizers\n", "-a");
-    std::fprintf(stderr, "\t%-10ssmall window size (k) for finding minimizers (default: 4)\n", "-K [INT]");
-    std::fprintf(stderr, "\t%-10slarge window size (w) for finding minimizers (default: 11)\n\n", "-W [INT]");
+    std::fprintf(stderr, "\t%-25s%-10sturn off minimizer digestion of reads (default: on)\n", "-n, --no-digest", "");
+    std::fprintf(stderr, "\t%-25s%-10suse alphabet-promoted minimizers\n", "-m, --minimizer-alphabet", "");
+    std::fprintf(stderr, "\t%-25s%-10suse DNA-letter based minimizers\n", "-a, --dna-minimizer", "");
+    std::fprintf(stderr, "\t%-25s%-10ssmall window size (k) for finding minimizers (default: 4)\n", "-K, --small-window",  "[INT]");
+    std::fprintf(stderr, "\t%-25s%-10slarge window size (w) for finding minimizers (default: 11)\n\n", "-W, --large-window", "[INT]");
 
     return 0;
 }
@@ -61,33 +62,35 @@ int spumoni_run_usage () {
 int spumoni_build_usage () {
     /* prints out the usage information for the spumoni build sub-command */
     std::fprintf(stderr, "spumoni build - builds the ms/pml index for a specified reference file.\n");
-    std::fprintf(stderr, "Usage: spumoni build [options]\n\n");
+    std::fprintf(stderr, "Usage: spumoni build [options]\n");
 
     std::fprintf(stderr, "Options:\n");
 
     std::fprintf(stderr, "\tGeneral options:\n");
-    std::fprintf(stderr, "\t%-10sprints this usage message\n", "-h");
-    std::fprintf(stderr, "\t%-10sturn on verbose logging\n\n", "-v");
+    std::fprintf(stderr, "\t%-35sprints this usage message\n", "-h, --help");
+    std::fprintf(stderr, "\t%-35sturn on verbose logging\n\n", "-v, --verbose");
 
     std::fprintf(stderr, "\tInput data options:\n");
-    std::fprintf(stderr, "\t%-10spath to reference file to be indexed (default: FASTA)\n", "-r [FILE]");
-    std::fprintf(stderr, "\t%-10sfile with a list of FASTA files to index\n", "-i [FILE]");
-    std::fprintf(stderr, "\t%-10sbuild directory for index(es) (if using -i option)\n", "-b [DIR]");
-    std::fprintf(stderr, "\t%-10suse with -r option if input file is general text (default: false)\n\n", "-g");
+    std::fprintf(stderr, "\t%-25s%-10spath to reference file to be indexed (default: FASTA)\n", "-r, --ref", "[FILE]");
+    std::fprintf(stderr, "\t%-25s%-10sfile with a list of FASTA files to index\n", "-i, --filelist", "[FILE]");
+    //std::fprintf(stderr, "\t%-25s%-10sbuild directory for index(es) (if using -i option)\n", "-b, --build-dir", "[DIR]");
+    std::fprintf(stderr, "\t%-25s%-10suse with -r option if input file is general text (default: false)\n", "-g, --general-text", "");
+    std::fprintf(stderr, "\t%-25s%-10sdo not add reverse complement, only applies to FASTA (default: true)\n\n", "-c, --no-rev-comp", "");
 
     std::fprintf(stderr, "\tMinimizer options:\n");
-    std::fprintf(stderr, "\t%-10sturn off minimizer digestion of sequence (default: on)\n", "-n");
-    std::fprintf(stderr, "\t%-10suse alphabet-promoted minimizers\n", "-m");
-    std::fprintf(stderr, "\t%-10suse DNA-letter based minimizers\n", "-t");
-    std::fprintf(stderr, "\t%-10ssmall window size (k) for finding minimizers (default: 4)\n", "-K [INT]");
-    std::fprintf(stderr, "\t%-10slarge window size (w) for finding minimizers (default: 11)\n\n", "-W [INT]");
+    std::fprintf(stderr, "\t%-25s%-10sturn off minimizer digestion of sequence (default: on)\n", "-n, --no-digest", "");
+    std::fprintf(stderr, "\t%-25s%-10suse alphabet-promoted minimizers\n", "-m, --minimizer-alphabet", "");
+    std::fprintf(stderr, "\t%-25s%-10suse DNA-letter based minimizers\n", "-t, --dna-minimizer", "");
+    std::fprintf(stderr, "\t%-25s%-10ssmall window size (k) for finding minimizers (default: 4)\n", "-K, --small-window", "[INT]");
+    std::fprintf(stderr, "\t%-25s%-10slarge window size (w) for finding minimizers (default: 11)\n\n", "-W, --large-window", "[INT]");
 
     std::fprintf(stderr, "\tIndex file(s) options:\n");
-    std::fprintf(stderr, "\t%-10sbuild an index that can be used to compute MSs\n", "-M");
-    std::fprintf(stderr, "\t%-10sbuild an index that can be used to compute PMLs\n", "-P");
-    std::fprintf(stderr, "\t%-10skeep the temporary files (default: false)\n", "-k");
-    std::fprintf(stderr, "\t%-10sbuild the document array (default: false)\n", "-d");
-    std::fprintf(stderr, "\t%-10ssize of windows in bp for KS-test (default: 150)\n\n", "-w [INT]");   
+    std::fprintf(stderr, "\t%-25s%-10soutput prefix for index file(s)\n", "-o, --prefix", "[PATH]");
+    std::fprintf(stderr, "\t%-25s%-10sbuild an index that can be used to compute MSs\n", "-M, --MS", "");
+    std::fprintf(stderr, "\t%-25s%-10sbuild an index that can be used to compute PMLs\n", "-P, --PML", "");
+    std::fprintf(stderr, "\t%-25s%-10skeep the temporary files (default: false)\n", "-k, --keep", "");
+    std::fprintf(stderr, "\t%-25s%-10sbuild the document array (default: false)\n", "-d, --doc-array", "");
+    std::fprintf(stderr, "\t%-25s%-10ssize of windows in bp for classification (default: 150)\n\n", "-w, --window", "[INT]");   
 
     //std::fprintf(stderr, "\t%-10ssliding window size (default: 10)\n", "-w [arg]");
     //std::fprintf(stderr, "\t%-10shash modulus value (default: 100)\n", "-p [arg]");
@@ -99,12 +102,38 @@ int spumoni_build_usage () {
 
 void parse_build_options(int argc, char** argv, SpumoniBuildOptions* opts) {
     /* Parses the arguments for the build sub-command and returns a struct with arguments */
-    for(int c;(c = getopt(argc, argv, "hr:MPw:kdi:b:nvmK:W:tg")) >= 0;) { 
+
+    static struct option long_options[] = {
+        {"help",      no_argument, NULL,  'h'},
+        {"prefix",    required_argument, NULL, 'o'},
+        {"verbose",   no_argument, NULL,  'v'},
+        {"ref",       required_argument, NULL,  'r'},
+        {"filelist",  required_argument, NULL,  'i'},
+        {"build-dir",  required_argument, NULL,  'b'},
+        {"general-text",   no_argument, NULL,  'g'},
+        {"no-rev-comp", no_argument, NULL, 'c'},
+        {"no-digest",   no_argument, NULL,  'n'},
+        {"minimizer-alphabet",   no_argument, NULL,  'm'},
+        {"dna-minimizer",   no_argument, NULL,  't'},
+        {"small-window",  required_argument, NULL,  'K'},
+        {"large-window",  required_argument, NULL,  'W'},
+        {"MS",   no_argument, NULL,  'M'},
+        {"PML",   no_argument, NULL,  'P'},
+        {"keep",   no_argument, NULL,  'k'},
+        {"doc-array",   no_argument, NULL,  'd'},
+        {"window",  required_argument, NULL,  'w'},
+        {0, 0, 0,  0}
+    };
+
+    int long_index = 0;
+    for(int c;(c = getopt_long(argc, argv, "ho:r:MPw:kdi:b:nvmK:W:tgc", long_options, &long_index)) >= 0;) { 
         switch(c) {
                     case 'h': spumoni_build_usage(); std::exit(1);
+                    case 'o': opts->output_prefix.assign(optarg); break;
                     case 'r': opts->ref_file.assign(optarg); break;
                     case 'i': opts->input_list.assign(optarg); break;
                     case 'b': opts->output_dir.assign(optarg); break;
+                    case 'c': opts->use_rev_comp = false; break;
                     case 'M': opts->ms_index = true; break;
                     case 'P': opts->pml_index = true; break;
                     case 'v': opts->verbose = true; break;
@@ -128,7 +157,28 @@ void parse_build_options(int argc, char** argv, SpumoniBuildOptions* opts) {
 
 void parse_run_options(int argc, char** argv, SpumoniRunOptions* opts) {
     /* Parses the arguments for the build sub-command and returns a struct with arguments */
-    for(int c;(c = getopt(argc, argv, "hr:p:MPt:dcnmaK:W:w:")) >= 0;) { 
+
+    static struct option long_options[] = {
+        {"help",      no_argument, NULL,  'h'},
+        {"threads",   required_argument, NULL,  't'},
+        {"ref",       required_argument, NULL,  'r'},
+        {"pattern",       required_argument, NULL,  'p'},
+        {"MS",   no_argument, NULL,  'M'},
+        {"PML",   no_argument, NULL,  'P'},
+        {"general-text",   no_argument, NULL,  'g'},
+        {"doc-array",   no_argument, NULL,  'd'},
+        {"classify",   no_argument, NULL,  'c'},
+        {"window",  required_argument, NULL,  'w'},
+        {"no-digest",   no_argument, NULL,  'n'},
+        {"minimizer-alphabet",   no_argument, NULL,  'm'},
+        {"dna-minimizer",   no_argument, NULL,  't'},
+        {"small-window",  required_argument, NULL,  'K'},
+        {"large-window",  required_argument, NULL,  'W'},
+        {0, 0, 0,  0}
+    };
+
+    int long_index = 0;
+    for(int c;(c = getopt_long(argc, argv, "hr:p:MPt:dcnmaK:W:w:g", long_options, &long_index)) >= 0;) { 
         switch(c) {
                     case 'h': spumoni_run_usage(); std::exit(1);
                     case 'r': opts->ref_file.assign(optarg); break;
@@ -142,7 +192,7 @@ void parse_run_options(int argc, char** argv, SpumoniRunOptions* opts) {
                     case 'K': opts->k = std::max(std::atoi(optarg), 1); break;
                     case 'W': opts->w = std::max(std::atoi(optarg), 1); break;
                     case 'w': opts->bin_size = std::max(std::atoi(optarg), 1); break;
-                    //case 'f': opts->query_fasta = true; break;
+                    case 'g': opts->is_general_text = true; break;
                     case 't': opts->threads = std::max(std::atoi(optarg), 1); break;
                     case 'd': opts->use_doc = true; break;
                     default: spumoni_run_usage(); std::exit(1);
@@ -285,7 +335,6 @@ std::string perform_dna_minimizer_digestion(std::string input_query, size_t k, s
     };
     return get_minimizer_seq(input_query, input_query.length());
 }
-
 
 /*
  * Section 3: 
@@ -518,6 +567,7 @@ int build_main(int argc, char** argv) {
     parse_build_options(argc, argv, &build_opts);
     build_opts.validate();
 
+    // Read enviornment variable, and validate paths to helper programs
     SpumoniHelperPrograms helper_bins;
     if (!std::getenv("SPUMONI_BUILD_DIR")) {FATAL_ERROR("Need to set SPUMONI_BUILD_DIR environment variable.");}
 
@@ -530,28 +580,24 @@ int build_main(int argc, char** argv) {
     size_t num_temp_build_files = 15;
 
     // Check all needed files are already present
-    std::filesystem::path p1 = build_opts.ref_file;
-    std::string build_ref_file = (build_opts.use_promotions) ? "spumoni_full_ref.bin" : "spumoni_full_ref.fa";
+    std::filesystem::path p1 = build_opts.output_prefix;
+    std::string build_filename = p1.filename().string();
+    std::string build_ref_file = (build_opts.use_promotions) ? (build_filename + ".bin") : (build_filename  + ".fa");
     std::string null_read_file = "";
+
+    // Validate the output prefix directory
+    if (!is_dir(p1.parent_path().string())) 
+        FATAL_ERROR("Output prefix path is not valid. If you would like store index in current directory, use './' prior to name.");
     
-    char ch;
-    if (build_opts.input_list.length()){ // using a file-list
-        std::string build_dir(build_opts.output_dir);
-        if ((ch = build_dir.back()) != '/') {build_dir += "/";}
-        null_read_file = build_dir + "spumoni_null_reads.fa";
-        build_ref_file = build_dir + build_ref_file;
-    } else if (p1.parent_path().string().length()) { // using single file not in current dir
-        null_read_file = p1.parent_path().string() + "/spumoni_null_reads.fa";
-        build_ref_file = p1.parent_path().string() + "/" + build_ref_file;
-    } else { // using single file in current directory
-        null_read_file = "spumoni_null_reads.fa";
-    }
+    // Build the paths for the null read file and reference file
+    null_read_file = p1.parent_path().string() + "/spumoni_null_reads.fa";
+    build_ref_file = p1.parent_path().string() + "/" + build_ref_file;
 
     // If it is general text file, just use it directly for parse.
     if (build_opts.is_general_text)
         build_ref_file = build_opts.ref_file;
-
-
+    
+    // Check if all the intermediate files are already present
     bool quick_build = is_file(null_read_file);
     for (size_t i = 0; i < num_temp_build_files && quick_build; i++) {
         if (!is_file(build_ref_file + temp_build_files[i])) {quick_build = false;}
@@ -569,37 +615,34 @@ int build_main(int argc, char** argv) {
         // Print out information describing the input files...
         if (!build_opts.input_list.length())
             FORCE_LOG("build_main", "input: single reference file (%s)\n", build_opts.ref_file.data());
-        else {
-            FORCE_LOG("build_main", "input: list of files (%s)", build_opts.input_list.data());
-            FORCE_LOG("build_main", "build directory: %s\n", build_opts.output_dir.data());
-        }
+        else 
+            FORCE_LOG("build_main", "input: list of files (%s)\n", build_opts.input_list.data());
+        
 
-        if (build_opts.use_promotions) 
-            STATUS_LOG("build_main", "reference file is being generated (spumoni_full_ref.bin)");
-        else if (!build_opts.is_general_text)
-            STATUS_LOG("build_main", "reference file is being generated (spumoni_full_ref.fa)");
+        if (!build_opts.is_general_text)
+            STATUS_LOG("build_main", "reference file is being generated (%s)", build_ref_file.data());
         else
             STATUS_LOG("build_main", "reference file with be used directly, null reads will be parsed out");
         task_start = std::chrono::system_clock::now();
 
         // Perform needed operations to input file(s) prior to building index
-        if (build_opts.input_list.length()){        
-            RefBuilder refbuild (build_opts.ref_file.data(), build_opts.input_list.data(), build_opts.output_dir.data(),
+        if (build_opts.input_list.length()){ // List of FASTA references
+            RefBuilder refbuild (build_opts.ref_file.data(), build_opts.input_list.data(), build_ref_file.data(), null_read_file.data(),
                                 build_opts.build_doc, build_opts.input_list.length(), build_opts.use_minimizers,
                                 build_opts.use_promotions, build_opts.use_dna_letters,
-                                build_opts.k, build_opts.w);
+                                build_opts.k, build_opts.w, build_opts.use_rev_comp);
             build_opts.ref_file = refbuild.get_ref_path();
             null_read_file = refbuild.get_null_readfile();
         } else if (!build_opts.is_general_text) { // FASTA reference
-            null_read_file = RefBuilder::parse_null_reads(build_opts.ref_file.data());
-            build_opts.ref_file = RefBuilder::build_reference(build_opts.ref_file.data(), build_opts.use_promotions,
+            null_read_file = RefBuilder::parse_null_reads(build_opts.ref_file.data(), null_read_file.data());
+            build_opts.ref_file = RefBuilder::build_reference(build_opts.ref_file.data(), build_ref_file.data(), build_opts.use_promotions,
                                                                 build_opts.use_dna_letters, build_opts.k,
-                                                                build_opts.w);
+                                                                build_opts.w, build_opts.use_rev_comp);
         } else if (build_opts.is_general_text) { // General text reference
-            null_read_file = RefBuilder::parse_null_reads_from_general_text(build_opts.ref_file.data());
+            null_read_file = RefBuilder::parse_null_reads_from_general_text(build_opts.ref_file.data(), null_read_file.data());
         }
         DONE_LOG((std::chrono::system_clock::now() - task_start));
-
+        
         // Performs the parsing of the reference and builds the thresholds based on the PFP
         run_build_parse_cmd(&build_opts, &helper_bins);
         run_build_thresholds_cmd(&build_opts, &helper_bins); std::cout << std::endl;
@@ -703,6 +746,12 @@ int run_main(int argc, char** argv) {
     parse_run_options(argc, argv, &run_opts);
     run_opts.populate_types();
     run_opts.validate();
+
+    // Add extension to reference file based on options
+    if (run_opts.use_promotions)
+        run_opts.ref_file += ".bin";
+    else
+        run_opts.ref_file += ".fa";
 
     switch (run_opts.result_type) {
         case MS: run_spumoni_ms_main(&run_opts); break;

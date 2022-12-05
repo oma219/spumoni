@@ -15,10 +15,12 @@
 #include <stdlib.h>
 
 /* Commonly Used MACROS */
-#define SPUMONI_VERSION "1.3.1"
+#define SPUMONI_VERSION "2.0.2"
 #define NOT_IMPL(x) do { std::fprintf(stderr, "%s is not implemented: %s\n", __func__, x); std::exit(1);} while (0)
 #define THROW_EXCEPTION(x) do { throw x;} while (0)
-#define FATAL_WARNING(x) do {std::fprintf(stderr, "Warning: %s\n\n", x); std::exit(1);} while (0)
+//#define FATAL_WARNING(x) do {std::fprintf(stderr, "Warning: %s\n\n", x); std::exit(1);} while (0)
+#define FATAL_WARNING(...) do {std::fprintf(stderr, "Warning: "); std::fprintf(stderr, __VA_ARGS__);\
+                              std::fprintf(stderr, "\n\n"); std::exit(1);} while(0)
 #define FATAL_ERROR(...) do {std::fprintf(stderr, "Error: "); std::fprintf(stderr, __VA_ARGS__);\
                               std::fprintf(stderr, "\n\n"); std::exit(1);} while(0)
 #define SPUMONI_LOG(...) do{std::fprintf(stderr, "[spumoni] "); std::fprintf(stderr, __VA_ARGS__);\
@@ -127,6 +129,7 @@ enum reference_type {FASTA, MINIMIZER, NOT_SET};
 enum query_input_type {FA, FQ, NOT_CLEAR};
 
 struct SpumoniBuildOptions {
+  std::string output_prefix = "";
   std::string ref_file = "";
   std::string input_list = "";
   std::string output_dir = "";
@@ -146,6 +149,7 @@ struct SpumoniBuildOptions {
   bool use_promotions = false; // use alphabet promotion during promotion
   bool use_dna_letters = false; // use DNA-letter based minimizers
   bool is_general_text = false; // if input is general text (assuming it is FASTA)
+  bool use_rev_comp = true; // add rev complement for FASTA files
   size_t k = 4; // small window size for minimizers
   size_t w = 11; // large window size for minimizers
   size_t bin_size = 150; // size of bins used for KS-test (for finding threshold during build)
@@ -154,22 +158,26 @@ public:
   void validate() {
       /* Checks if the parse arguments are valid for continuing the execution */
 
+      // Turn off FASTA if using general text
+      if (is_general_text)
+        is_fasta = false;
+
       // Check based on approach used: file-list or single reference file
       if (ref_file.length()){
           if (!is_file(ref_file))
             FATAL_ERROR("The following path is not valid: %s", ref_file.data());
           if (output_dir.length())
             FATAL_ERROR("The -b option should not be set when using a single file.");
-          if (!endsWith(ref_file, ".fa") && !endsWith(ref_file, ".fasta") && !endsWith(ref_file, ".fna")){
+          if (is_fasta && !endsWith(ref_file, ".fa") && !endsWith(ref_file, ".fasta") && !endsWith(ref_file, ".fna")){
                  FATAL_ERROR("The reference file provided does not appear to be a FASTA\n" 
                              "       file, please convert to FASTA and re-run.");}  
       } else {
           if (!is_file(input_list)) 
             FATAL_ERROR("The following path is not valid: %s", input_list.data());
-          if (!output_dir.length()) 
-            FATAL_ERROR("You must specify an output directory with -b option when using filelist.");
-          if (!is_dir(output_dir))
-            FATAL_ERROR("The output directory for the index is not valid.");
+          //if (!output_dir.length()) 
+            //FATAL_ERROR("You must specify an output directory with -b option when using filelist.");
+          //if (!is_dir(output_dir))
+            //FATAL_ERROR("The output directory for the index is not valid.");
       }
       if (build_doc && ref_file.length()) {
         FATAL_ERROR("Cannot build a document array if you are indexing a single file.");}
@@ -189,6 +197,11 @@ public:
       if (is_general_text) {
         if (use_promotions || use_dna_letters) 
           FATAL_ERROR("No minimizer type should be chosen when using general text input.");
+      }
+
+      // Make sure an output prefix is specified ...
+      if (!output_prefix.length()) {
+        FATAL_ERROR("Need to specify an output prefix for the index files.");
       }
 
       // Makes sure that at least one index type is chosen ...
@@ -218,6 +231,7 @@ struct SpumoniRunOptions {
   bool min_digest = true; // need to digest reads (default is true) 
   bool use_promotions = false; // use alphabet promotion during promotion
   bool use_dna_letters = false; // use DNA-letter based minimizers
+  bool is_general_text = false; // query is general text
   size_t k = 4; // small window size for minimizers
   size_t w = 11; // large window size for minimizers
   size_t bin_size = 150; // size of region used for KS-test for classification
@@ -231,8 +245,8 @@ public:
       if (!ms_requested && pml_requested) {result_type = PML;}
 
       // Specify the input database type
-      bool is_fasta = (endsWith(ref_file, ".fa") || endsWith(ref_file, ".fasta") || endsWith(ref_file, ".fna"));
-      bool is_min = endsWith(ref_file, ".bin");
+      bool is_fasta = (is_file(ref_file+".fa") || is_file(ref_file+".fasta") || is_file(ref_file+".fna"));
+      bool is_min = is_file(ref_file+".bin");
 
       if (is_fasta && !is_min) {ref_type = FASTA;}
       if (!is_fasta && is_min) {ref_type = MINIMIZER;}
@@ -242,29 +256,45 @@ public:
       /* Checks the options for the run command, and makes sure it has everything it needs */
       if (ref_file == "" || pattern_file == ""){FATAL_WARNING("Both a reference file (-r) and pattern file (-p) must be provided.");}
       if (result_type == NOT_CHOSEN) {FATAL_WARNING("An output type with -M or -P must be specified, only one can be used at a time.");}
+
+      // Add extension to ref file based on minimizer digestion
+      std::string extension = "";
+      if (use_promotions)
+        extension = ".bin";
+      else
+        extension = ".fa";
       
       // Make sure provided files are valid
-      if (!is_file(ref_file)) {FATAL_ERROR("The following path is not valid: %s", ref_file.data());}
+      if (!is_file(ref_file + extension)) {FATAL_ERROR("The following path is not valid: %s (remember to only specify output prefix)", (ref_file+extension).data());}
       if (!is_file(pattern_file)) {FATAL_ERROR("The following path is not valid: %s", pattern_file.data());}
 
       // Make sure reference file is a valid type
-      if (ref_type == NOT_SET) {FATAL_ERROR("Reference file is an unrecognized type. It needs to be a\n"
-                                            "       FASTA file or binary file produced by spumoni build.");}
+      if (!is_general_text && ref_type == NOT_SET) {FATAL_ERROR("Reference file is an unrecognized type. It needs to be a\n"
+                                                    "       FASTA file or binary file produced by spumoni build.");}
 
-      // Make sure query file is a FASTA file                                     
-      if (!endsWith(pattern_file, ".fa") && !endsWith(pattern_file, ".fasta") && !endsWith(pattern_file, ".fna")){
+      // Make sure query file is a FASTA file (if not general text)                                    
+      if (!is_general_text && !endsWith(pattern_file, ".fa") && !endsWith(pattern_file, ".fasta") && !endsWith(pattern_file, ".fna")){
           FATAL_ERROR("The pattern file provided does not appear to be a FASTA\n" 
                       "       file, please convert to FASTA and re-run.");}
       
+      // Make sure if we are using general text querying, no minimizer digestion and no multi-threading
+      if (is_general_text && min_digest)
+          FATAL_WARNING("For general-text querying, minimizer digestion must be turned off with -n.");
+      if (is_general_text && threads > 1)
+          FATAL_WARNING("For general-text querying, multi-threading is not available.");
+      if (is_general_text && write_report)
+          FATAL_WARNING("For general-text querying, classification is not available.");
+      
       // Verify doc array is available, if needed
-      if (use_doc && !is_file(ref_file + ".doc")) {FATAL_WARNING("*.doc file is not present, so it cannot be used");}
+      if (use_doc && !is_file(ref_file+extension+".doc")) 
+        FATAL_WARNING("document array file (%s) is not present, so it cannot be used.", (ref_file+extension+".doc").data());
       
       switch (result_type) {
         case MS: 
-            if (!is_file(ref_file+".thrbv.ms")) 
+            if (!is_file(ref_file+extension+".thrbv.ms")) 
             {FATAL_WARNING("The index required for this computation is not available, please use spumoni build.");} break;
         case PML:
-            if (!is_file(ref_file+".thrbv.spumoni")) 
+            if (!is_file(ref_file+extension+".thrbv.spumoni")) 
             {FATAL_WARNING("The index required for this computation is not available, please use spumoni build.");} break;
         default:
             FATAL_WARNING("An output type with -M or -P must be specified, only one can be used at a time."); break;
@@ -284,7 +314,6 @@ public:
 
       // Check the size of KS-test region
       if (bin_size < 50 || bin_size > 400) {FATAL_WARNING("the bin size used is not optimal. Re-run using a value between 50 and 400.");}
-
   }
 };
 

@@ -18,6 +18,7 @@ class KSTest {
 public:
     size_t bin_size;
     size_t mean_null_stat;
+    size_t max_null_stat;
     output_type stat_type;
     EmpNullDatabase null_db;
 

@@ -19,17 +19,17 @@ public:
     bool using_doc = false; // user intends to build a document array
     bool using_list = false; // user provided a filelist
 
-    RefBuilder(const char* ref_file, const char* list_file, const char* output_dir, 
+    RefBuilder(const char* ref_file, const char* list_file, const char* output_file, const char* null_reads, 
                bool build_doc, bool file_list, bool use_minimizers,
                bool use_promotions, bool use_dna_letters,
-               size_t k, size_t w);
+               size_t k, size_t w, bool use_rev_comp);
 
     const char* get_ref_path();
     const char* get_null_readfile();
-    static std::string parse_null_reads(const char* ref_file);
-    static std::string parse_null_reads_from_general_text(const char* ref_file);
-    static std::string build_reference(const char* ref_file, bool use_promotions, bool use_dna_letters, 
-                                        size_t k, size_t w);
+    static std::string parse_null_reads(const char* ref_file, const char* output_path);
+    static std::string parse_null_reads_from_general_text(const char* ref_file, const char* output_path);
+    static std::string build_reference(const char* ref_file, const char* output_path, bool use_promotions, bool use_dna_letters, 
+                                        size_t k, size_t w, bool use_rev_comp);
 };// end of RefBuilder class
 
 #endif /* end of _REFBUILD_H */
