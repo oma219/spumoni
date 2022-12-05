@@ -286,7 +286,7 @@ public:
           FATAL_WARNING("For general-text querying, classification is not available.");
       
       // Verify doc array is available, if needed
-      if (use_doc && !is_file(ref_file + ".doc")) {FATAL_WARNING("*.doc file is not present, so it cannot be used");}
+      if (use_doc && !is_file(ref_file + extension + ".doc")) {FATAL_WARNING("*.doc file is not present, so it cannot be used");}
       
       switch (result_type) {
         case MS: 
