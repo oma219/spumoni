@@ -40,7 +40,7 @@ int spumoni_run_usage () {
     std::fprintf(stderr, "\t%-25s%-10snumber of helper threads (default: 1)\n\n", "-t, --threads", "[INT]");
 
     std::fprintf(stderr, "\tInput/output options:\n");
-    std::fprintf(stderr, "\t%-25s%-10spath to reference file that has index built for it\n", "-r, --ref", "[FILE]");
+    std::fprintf(stderr, "\t%-25s%-10soutput prefix used for index\n", "-r, --ref", "[FILE]");
     std::fprintf(stderr, "\t%-25s%-10spath to patterns file that will be used.\n", "-p, --pattern", "[FILE]");
     std::fprintf(stderr, "\t%-25s%-10suse index to compute MSs\n", "-M, --MS", "");
     std::fprintf(stderr, "\t%-25s%-10suse index to compute PMLs\n", "-P, --PML", "");

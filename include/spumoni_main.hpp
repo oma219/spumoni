@@ -15,7 +15,7 @@
 #include <stdlib.h>
 
 /* Commonly Used MACROS */
-#define SPUMONI_VERSION "2.0.1"
+#define SPUMONI_VERSION "2.0.2"
 #define NOT_IMPL(x) do { std::fprintf(stderr, "%s is not implemented: %s\n", __func__, x); std::exit(1);} while (0)
 #define THROW_EXCEPTION(x) do { throw x;} while (0)
 //#define FATAL_WARNING(x) do {std::fprintf(stderr, "Warning: %s\n\n", x); std::exit(1);} while (0)
@@ -265,7 +265,7 @@ public:
         extension = ".fa";
       
       // Make sure provided files are valid
-      if (!is_file(ref_file + extension)) {FATAL_ERROR("The following path is not valid: %s", ref_file.data());}
+      if (!is_file(ref_file + extension)) {FATAL_ERROR("The following path is not valid: %s (remember to only specify output prefix)", (ref_file+extension).data());}
       if (!is_file(pattern_file)) {FATAL_ERROR("The following path is not valid: %s", pattern_file.data());}
 
       // Make sure reference file is a valid type
@@ -286,7 +286,8 @@ public:
           FATAL_WARNING("For general-text querying, classification is not available.");
       
       // Verify doc array is available, if needed
-      if (use_doc && !is_file(ref_file + extension + ".doc")) {FATAL_WARNING("*.doc file is not present, so it cannot be used");}
+      if (use_doc && !is_file(ref_file+extension+".doc")) 
+        FATAL_WARNING("document array file (%s) is not present, so it cannot be used.", (ref_file+extension+".doc").data());
       
       switch (result_type) {
         case MS: 
