@@ -15,7 +15,7 @@
 #include <stdlib.h>
 
 /* Commonly Used MACROS */
-#define SPUMONI_VERSION "2.0.2"
+#define SPUMONI_VERSION "2.0.3"
 #define NOT_IMPL(x) do { std::fprintf(stderr, "%s is not implemented: %s\n", __func__, x); std::exit(1);} while (0)
 #define THROW_EXCEPTION(x) do { throw x;} while (0)
 //#define FATAL_WARNING(x) do {std::fprintf(stderr, "Warning: %s\n\n", x); std::exit(1);} while (0)

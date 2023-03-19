@@ -486,7 +486,7 @@ size_t run_build_ms_cmd(SpumoniBuildOptions* build_opts, SpumoniHelperPrograms* 
 
     size_t length = 0, num_runs = 0;
     auto start = std::chrono::system_clock::now();  
-    std::tie(length, num_runs) = build_spumoni_ms_main(build_opts->ref_file);
+    std::tie(length, num_runs) = build_spumoni_ms_main(build_opts->ref_file, build_opts->output_prefix);
     
     double average_run_size = (length + 0.0)/num_runs;
     DONE_LOG((std::chrono::system_clock::now() - start));
@@ -500,7 +500,7 @@ size_t run_build_pml_cmd(SpumoniBuildOptions* build_opts, SpumoniHelperPrograms*
 
     size_t length = 0, num_runs = 0;
     auto start = std::chrono::system_clock::now();
-    std::tie(length, num_runs) = build_spumoni_main(build_opts->ref_file);
+    std::tie(length, num_runs) = build_spumoni_main(build_opts->ref_file, build_opts->output_prefix);
 
     double average_run_size = (length + 0.0)/num_runs;
     DONE_LOG((std::chrono::system_clock::now() - start));

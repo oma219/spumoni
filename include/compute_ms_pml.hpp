@@ -14,8 +14,8 @@
 /* Function Declarations */
 int run_spumoni_ms_main(SpumoniRunOptions* run_opts);
 int run_spumoni_main(SpumoniRunOptions* run_opts);
-std::pair<size_t, size_t> build_spumoni_ms_main(std::string ref_file);
-std::pair<size_t, size_t> build_spumoni_main(std::string ref_file);
+std::pair<size_t, size_t> build_spumoni_ms_main(std::string ref_file, std::string output_prefix);
+std::pair<size_t, size_t> build_spumoni_main(std::string ref_file, std::string output_prefix);
 void generate_null_ms_statistics(std::string ref_file, std::string pattern_file, std::vector<size_t>& ms_stats,
                                  bool min_digest, bool use_promotions, bool use_dna_letters, size_t k, size_t w);
 void generate_null_pml_statistics(std::string ref_file, std::string pattern_file, std::vector<size_t>& pml_stats,

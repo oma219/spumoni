@@ -117,7 +117,8 @@ RefBuilder::RefBuilder(const char* ref_file, const char* list_file, const char* 
                 std::strncpy(grabbed_seq, (seq->seq.s+random_index), NULL_READ_CHUNK);
 
                 // Make sure we don't extract reads of Ns
-                if (std::string(grabbed_seq).find("N") == std::string::npos) {
+                //if (std::string(grabbed_seq).find("N") == std::string::npos) {
+                if (true) {
                     output_null_fd << ">read_" << curr_total_null_reads << "\n";
                     output_null_fd << grabbed_seq << "\n";
                     curr_total_null_reads++;
