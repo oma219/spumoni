@@ -2,7 +2,10 @@
 
 - This log started being maintained at v2.0.0, therefore, there are not specific version labels for previous versions of SPUMONI besides the git commit id.
 
-## v2.0.2 - latest
+## v2.0.3 - latest
+- Added `*index_stats.txt` files that record the memory consumption of index components.
+
+## v2.0.2
 - Fixed bug where it looks to check path of document array prior to computation
 - Fixed warning messages in spumoni run, when it says it cannot find a specific file, it was not printing the exact 
   path it was checking so it made it confusing.

@@ -189,16 +189,24 @@ public:
     /* serialize the structure to the ostream
      * \param out     the ostream
      */
-    size_type serialize(std::ostream &out, sdsl::structure_tree_node *v = nullptr, std::string name = "") {
+    size_type serialize(std::ostream &out, std::string index_prefix, sdsl::structure_tree_node *v = nullptr, std::string name = "") {
         sdsl::structure_tree_node *child = sdsl::structure_tree::add_child(v, name, sdsl::util::class_name(*this));
         size_type written_bytes = 0;
 
         out.write((char *)&this->terminator_position, sizeof(this->terminator_position));
         written_bytes += sizeof(this->terminator_position);
-        written_bytes += my_serialize(this->F, out, child, "F");
-        written_bytes += this->bwt.serialize(out);
 
-        written_bytes += thresholds.serialize(out, child, "thresholds");
+        size_t size_of_F = my_serialize(this->F, out, child, "F");
+        size_t bwt_size = this->bwt.serialize(out);
+        size_t thresholds_size = thresholds.serialize(out, child, "thresholds");
+        written_bytes += size_of_F + bwt_size + thresholds_size;
+
+        std::ofstream stats_file(index_prefix + ".pml_index_stats.txt");
+        stats_file << "bwt size (bytes): " << bwt_size << std::endl;
+        stats_file << "thresholds size (bytes): " << thresholds_size << std::endl;
+        stats_file << "size of F (bytes): " << size_of_F << std::endl;
+        stats_file << "terminator size (bytes): " << sizeof(this->terminator_position) << std::endl;
+        stats_file.close();
 
         sdsl::structure_tree::add_size(child, written_bytes);
         return written_bytes;
@@ -506,21 +514,28 @@ public:
       // serialize the structure to the ostream
      // \param out     the ostream
      //
-    size_type serialize(std::ostream &out, sdsl::structure_tree_node *v = nullptr, std::string name = "") // const
+    size_type serialize(std::ostream &out, std::string index_prefix, sdsl::structure_tree_node *v = nullptr, std::string name = "") // const
     {
         sdsl::structure_tree_node *child = sdsl::structure_tree::add_child(v, name, sdsl::util::class_name(*this));
         size_type written_bytes = 0;
 
         out.write((char *)&this->terminator_position, sizeof(this->terminator_position));
         written_bytes += sizeof(this->terminator_position);
-        written_bytes += my_serialize(this->F, out, child, "F");
-        written_bytes += this->bwt.serialize(out);
-        written_bytes += this->samples_last.serialize(out);
 
-        written_bytes += thresholds.serialize(out, child, "thresholds");
-        // written_bytes += my_serialize(thresholds, out, child, "thresholds");
-        // written_bytes += my_serialize(samples_start, out, child, "samples_start");
-        written_bytes += samples_start.serialize(out, child, "samples_start");
+        size_t size_of_F = my_serialize(this->F, out, child, "F");
+        size_t size_of_bwt = this->bwt.serialize(out);
+        size_t size_of_sa = this->samples_last.serialize(out);
+
+        size_t size_of_thresholds = thresholds.serialize(out, child, "thresholds");
+        size_of_sa += samples_start.serialize(out, child, "samples_start");
+
+        std::ofstream stats_file (index_prefix + ".ms_index_stats.txt");
+        stats_file << "bwt size (bytes): " << size_of_bwt << std::endl;
+        stats_file << "thresholds size (bytes): " << size_of_thresholds << std::endl;
+        stats_file << "terminator size (bytes): " << sizeof(this->terminator_position) << std::endl;
+        stats_file << "size of F (bytes): " << size_of_F << std::endl;
+        stats_file << "suffix array samples size (bytes): " << size_of_sa << std::endl;
+        stats_file.close();
 
         sdsl::structure_tree::add_size(child, written_bytes);
         return written_bytes;
@@ -1364,7 +1379,7 @@ int run_spumoni_ms_main(SpumoniRunOptions* run_opts) {
     return 0;
 }
 
-std::pair<size_t, size_t> build_spumoni_ms_main(std::string ref_file) {
+std::pair<size_t, size_t> build_spumoni_ms_main(std::string ref_file, std::string output_prefix) {
     // Builds the ms_pointers objects and stores it
     size_t length = 0, num_runs = 0;
     ms_pointers<> ms(ref_file, true);
@@ -1372,12 +1387,12 @@ std::pair<size_t, size_t> build_spumoni_ms_main(std::string ref_file) {
 
     std::string outfile = ref_file + ms.get_file_extension();
     std::ofstream out(outfile);
-    ms.serialize(out);
+    ms.serialize(out, output_prefix);
     out.close();
     return std::make_pair(length, num_runs);
 }
 
-std::pair<size_t, size_t> build_spumoni_main(std::string ref_file) {
+std::pair<size_t, size_t> build_spumoni_main(std::string ref_file, std::string output_prefix) {
     // Builds the pml_pointers objects and stores it
     size_t length = 0, num_runs = 0;
     pml_pointers<> pml(ref_file, true);
@@ -1385,7 +1400,7 @@ std::pair<size_t, size_t> build_spumoni_main(std::string ref_file) {
 
     std::string outfile = ref_file + pml.get_file_extension();
     std::ofstream out(outfile);
-    pml.serialize(out);
+    pml.serialize(out, output_prefix);
     out.close();
     return std::make_pair(length, num_runs);
 }
