@@ -2,7 +2,11 @@
 
 - This log started being maintained at v2.0.0, therefore, there are not specific version labels for previous versions of SPUMONI besides the git commit id.
 
-## v2.0.3 - latest
+## v2.0.4 - latest
+- Added the `--hash-mod` option back to be able to adjust PFP settings
+- TODO: need to update error messages to inform user when PFP crashes
+
+## v2.0.3
 - Added `*index_stats.txt` files that record the memory consumption of index components.
 
 ## v2.0.2
