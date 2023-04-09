@@ -92,6 +92,10 @@ int spumoni_build_usage () {
     std::fprintf(stderr, "\t%-25s%-10sbuild the document array (default: false)\n", "-d, --doc-array", "");
     std::fprintf(stderr, "\t%-25s%-10ssize of windows in bp for classification (default: 150)\n\n", "-w, --window", "[INT]");   
 
+    std::fprintf(stderr, "\tPFP-related options:\n");
+    std::fprintf(stderr, "\t%-25s%-10shash-modulus used for PFP (default: 100)\n\n", "-p, --hash-mod", "[INT]");
+
+
     //std::fprintf(stderr, "\t%-10ssliding window size (default: 10)\n", "-w [arg]");
     //std::fprintf(stderr, "\t%-10shash modulus value (default: 100)\n", "-p [arg]");
     //std::fprintf(stderr, "\t%-10snumber of helper threads (default: 0)\n", "-t [arg]");
@@ -122,11 +126,12 @@ void parse_build_options(int argc, char** argv, SpumoniBuildOptions* opts) {
         {"keep",   no_argument, NULL,  'k'},
         {"doc-array",   no_argument, NULL,  'd'},
         {"window",  required_argument, NULL,  'w'},
+        {"hash-mod",  required_argument, NULL,  'p'},
         {0, 0, 0,  0}
     };
 
     int long_index = 0;
-    for(int c;(c = getopt_long(argc, argv, "ho:r:MPw:kdi:b:nvmK:W:tgc", long_options, &long_index)) >= 0;) { 
+    for(int c;(c = getopt_long(argc, argv, "ho:r:MPw:kdi:b:nvmK:W:tgcp:", long_options, &long_index)) >= 0;) { 
         switch(c) {
                     case 'h': spumoni_build_usage(); std::exit(1);
                     case 'o': opts->output_prefix.assign(optarg); break;
@@ -145,7 +150,7 @@ void parse_build_options(int argc, char** argv, SpumoniBuildOptions* opts) {
                     case 'W': opts->w = std::max(std::atoi(optarg), 1); break;
                     case 'w': opts->bin_size = std::max(std::atoi(optarg), 1); break;
                     //case 'w': opts->wind = std::max(std::atoi(optarg), 10); break;
-                    //case 'p': opts->hash_mod = std::max(std::atoi(optarg), 1); break;
+                    case 'p': opts->hash_mod = std::max(std::atoi(optarg), 1); break;
                     //case 't': opts->threads = std::max(std::atoi(optarg), 1); break;
                     case 'k': opts->keep_files = true; break;
                     //case 'f': opts->is_fasta = true; break;
