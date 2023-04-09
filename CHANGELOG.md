@@ -2,7 +2,11 @@
 
 - This log started being maintained at v2.0.0, therefore, there are not specific version labels for previous versions of SPUMONI besides the git commit id.
 
-## v2.0.4 - latest
+## v2.0.5 - latest
+- Fixed bug that occurs when providing a filelist with no document numbers
+- Added some coloring to the logging for SPUMONI
+
+## v2.0.4
 - Added the `--hash-mod` option back to be able to adjust PFP settings
 - TODO: need to update error messages to inform user when PFP crashes
 
