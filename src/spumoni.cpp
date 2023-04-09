@@ -737,8 +737,8 @@ int build_main(int argc, char** argv) {
     else 
         final_index_files = "index files are saved in the  *.ms, *.spumoni, *.msnulldb, *.pmlnulldb and *.slp files.";
 
-    FORCE_LOG("build_main", "total elapsed time for build process (s): %.3f", total_build_time);
-    FORCE_LOG("build_main", final_index_files.data());
+    FORCE_LOG("build_main", "\033[1m\033[32mtotal elapsed time for build process (s): %.3f\033[0m", total_build_time);
+    FORCE_LOG("build_main", "\033[1m\033[32m%s\033[0m\n", final_index_files.data());
     return 0;
 }
 
@@ -779,7 +779,7 @@ int spumoni_usage () {
 
 int main(int argc, char **argv) {
     /* main method for spumoni */
-    std::fprintf(stdout, "SPUMONI version: %s\n\n", SPUMONI_VERSION);
+    std::fprintf(stdout, "\n\033[1m\033[31mSPUMONI version: %s \033[0m\n\n", SPUMONI_VERSION);
 
     if (argc > 1) {
         if (std::strcmp(argv[1], "build") == 0)

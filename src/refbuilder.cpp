@@ -196,7 +196,7 @@ RefBuilder::RefBuilder(const char* ref_file, const char* list_file, const char* 
     output_null_fd.close();
 
     // If the reference is empty, issue warning ...
-    size_t total_length = std::accumulate(seq_lengths.begin(), seq_lengths.end(), 0);
+    size_t total_length = (using_doc) ? std::accumulate(seq_lengths.begin(), seq_lengths.end(), 0) : curr_id_seq_length;
     if (total_length == 0) {
         std::cout << "\n\n";
         FATAL_WARNING("After sequence digestion, there is no sequence left. "
