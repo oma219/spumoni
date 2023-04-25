@@ -175,7 +175,7 @@ endif()
 FetchContent_Declare(
   pfp_thresholds
   GIT_REPOSITORY https://github.com/oma219/pfp-thresholds.git
-  GIT_TAG develop
+  GIT_TAG master
   )
   
 FetchContent_GetProperties(pfp_thresholds)
