@@ -2,7 +2,10 @@
 
 - This log started being maintained at v2.0.0, therefore, there are not specific version labels for previous versions of SPUMONI besides the git commit id.
 
-## v2.0.5 - latest
+## v2.0.6 - latest
+- Fixed bug in thirdparty compilation for pfp-thresholds
+
+## v2.0.5
 - Fixed bug that occurs when providing a filelist with no document numbers
 - Added some coloring to the logging for SPUMONI
 
