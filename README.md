@@ -1,4 +1,4 @@
-# SPUMONI :ice_cream: ![GitHub release (latest by date)](https://img.shields.io/github/v/release/oma219/spumoni) ![GitHub](https://img.shields.io/github/license/oma219/spumoni?color=green)
+# SPUMONI :ice_cream: ![GitHub release (latest by date)](https://img.shields.io/github/v/release/oma219/spumoni) ![GitHub](https://img.shields.io/github/license/oma219/spumoni?color=green) [![DOI](https://zenodo.org/badge/349620746.svg)](https://zenodo.org/badge/latestdoi/349620746)
 
 
 SPUMONI is a software tool for **performing rapid read classifications on sequencing reads using a read's matching statistics (or a related quantity called pseudo-matching lengths).** 
