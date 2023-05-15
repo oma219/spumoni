@@ -15,7 +15,7 @@
 #include <stdlib.h>
 
 /* Commonly Used MACROS */
-#define SPUMONI_VERSION "2.0.6"
+#define SPUMONI_VERSION "2.0.7"
 #define NOT_IMPL(x) do { std::fprintf(stderr, "%s is not implemented: %s\n", __func__, x); std::exit(1);} while (0)
 #define THROW_EXCEPTION(x) do { throw x;} while (0)
 //#define FATAL_WARNING(x) do {std::fprintf(stderr, "Warning: %s\n\n", x); std::exit(1);} while (0)
@@ -30,12 +30,12 @@
 #define LOG(verbose, func, log)  if (verbose) {std::fprintf(stderr, "[%s] ", func); \
                                                std::fprintf(stderr, log); \
                                                std::fprintf(stderr, "\n");} 
-#define FORCE_LOG(func, ...)  do {std::fprintf(stderr, "[%s] ", func); \
+#define FORCE_LOG(func, ...)  do {std::fprintf(stderr, "\033[32m[%s] \033[0m", func); \
                                   std::fprintf(stderr, __VA_ARGS__); \
                                   std::fprintf(stderr, "\n");} while (0)
 
 // Logging that keeps track of how long commands take: call STATUS_LOG, followed by DONE_LOG
-#define STATUS_LOG(x, ...) do {std::fprintf(stderr, "[%s] ", x); std::fprintf(stderr, __VA_ARGS__ ); \
+#define STATUS_LOG(x, ...) do {std::fprintf(stderr, "\033[32m[%s] \033[0m", x); std::fprintf(stderr, __VA_ARGS__ ); \
                                std::fprintf(stderr, " ... ");} while(0)
 #define DONE_LOG(x) do {auto sec = std::chrono::duration<double>(x); \
                         std::fprintf(stderr, "done.  (%.3f sec)\n", sec.count());} while(0)

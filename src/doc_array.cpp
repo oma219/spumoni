@@ -58,15 +58,31 @@ DocumentArray::DocumentArray(std::string ref_path, size_t num_runs): ref_file(re
     std::transform(end_samples_orig.begin(), end_samples_orig.end(), 
                    end_samples.begin(), convert_to_bwt_pos);
 
-    // Perform a binary search for each value
+    // Build a bitvector that marks the end of each document with a 1
+    sdsl::bit_vector doc_ends = sdsl::bit_vector(end_pos.back(), 0);
+    for (auto x: end_pos)
+        doc_ends[x-1] = 1;
+    sdsl::rank_support_v<1> doc_ends_rank = sdsl::rank_support_v<1> (&doc_ends);
+
+    // Perform a rank query on each suffix array position to
+    // convert it to a document number
     std::vector<size_t> start_genome_ids, end_genome_ids;
     start_genome_ids.resize(start_samples.size());
     end_genome_ids.resize(end_samples.size());
 
-    std::transform(start_samples.begin(), start_samples.end(), 
-                   start_genome_ids.begin(), [&](size_t pos) {return binary_search_for_pos(end_pos, pos);});
-    std::transform(end_samples.begin(), end_samples.end(), 
-                   end_genome_ids.begin(), [&](size_t pos) {return binary_search_for_pos(end_pos, pos);});             
+    // Old code, that used binary search to find document number
+    // std::transform(start_samples.begin(), start_samples.end(), 
+    //                start_genome_ids.begin(), [&](size_t pos) {return binary_search_for_pos(end_pos, pos);});
+    // std::transform(end_samples.begin(), end_samples.end(), 
+    //                end_genome_ids.begin(), [&](size_t pos) {return binary_search_for_pos(end_pos, pos);});  
+
+    #pragma omp parallel for
+    for (size_t i = 0; i < start_samples.size(); i++) {
+        start_genome_ids[i] = doc_ends_rank(start_samples[i]);
+        end_genome_ids[i] = doc_ends_rank(end_samples[i]);
+    }
+    ASSERT((start_samples.size() == end_samples.size()), "issue occurred during"
+    " the document array construction.");
 
     // Write the document array to int vectors
     uint32_t max_width = std::ceil(std::log2((this->seq_lengths.size() + 0.0)));
