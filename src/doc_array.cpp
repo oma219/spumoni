@@ -53,10 +53,19 @@ DocumentArray::DocumentArray(std::string ref_path, size_t num_runs): ref_file(re
     start_samples.resize(start_samples_orig.size());
     end_samples.resize(end_samples_orig.size());
 
-    std::transform(start_samples_orig.begin(), start_samples_orig.end(), 
-                   start_samples.begin(), convert_to_bwt_pos);
-    std::transform(end_samples_orig.begin(), end_samples_orig.end(), 
-                   end_samples.begin(), convert_to_bwt_pos);
+    #pragma omp parallel for
+    for (size_t i = 0; i < start_samples.size(); i++) {
+        start_samples[i] = convert_to_bwt_pos(start_samples_orig[i]);
+        end_samples[i] = convert_to_bwt_pos(end_samples_orig[i]);
+    }
+    ASSERT((start_samples_orig.size() == end_samples_orig.size()), "issue occurred during"
+    " the document array construction.");
+
+    // Old code
+    // std::transform(start_samples_orig.begin(), start_samples_orig.end(), 
+    //                start_samples.begin(), convert_to_bwt_pos);
+    // std::transform(end_samples_orig.begin(), end_samples_orig.end(), 
+    //                end_samples.begin(), convert_to_bwt_pos);
 
     // Build a bitvector that marks the end of each document with a 1
     sdsl::bit_vector doc_ends = sdsl::bit_vector(end_pos.back(), 0);

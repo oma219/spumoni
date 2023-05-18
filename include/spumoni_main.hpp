@@ -10,6 +10,7 @@
 #define SPUMONI_MAIN_H
 #include <unistd.h>
 #include <fstream>
+#include <iostream>
 #include <chrono>
 #include <vector>
 #include <stdlib.h>
@@ -21,7 +22,9 @@
 //#define FATAL_WARNING(x) do {std::fprintf(stderr, "Warning: %s\n\n", x); std::exit(1);} while (0)
 #define FATAL_WARNING(...) do {std::fprintf(stderr, "Warning: "); std::fprintf(stderr, __VA_ARGS__);\
                               std::fprintf(stderr, "\n\n"); std::exit(1);} while(0)
-#define FATAL_ERROR(...) do {std::fprintf(stderr, "Error: "); std::fprintf(stderr, __VA_ARGS__);\
+#define WARNING(...) do {std::fprintf(stderr, "\n\033[33mWarning: \033[0m"); std::fprintf(stderr, __VA_ARGS__);\
+                              std::fprintf(stderr, "\n\n");} while(0)
+#define FATAL_ERROR(...) do {std::fprintf(stderr, "\n\033[31mError: \033[0m"); std::fprintf(stderr, __VA_ARGS__);\
                               std::fprintf(stderr, "\n\n"); std::exit(1);} while(0)
 #define SPUMONI_LOG(...) do{std::fprintf(stderr, "[spumoni] "); std::fprintf(stderr, __VA_ARGS__);\
                             std::fprintf(stderr, "\n");} while(0)
@@ -179,9 +182,18 @@ public:
           //if (!is_dir(output_dir))
             //FATAL_ERROR("The output directory for the index is not valid.");
       }
-      if (build_doc && ref_file.length()) {
-        FATAL_ERROR("Cannot build a document array if you are indexing a single file.");}
-      
+
+      // Typically, if a single file is provided as a reference, you will not be
+      // building a document array. HOWEVER, if it is really large file, it might be
+      // preferably to build it before giving it to SPUMONI to avoid file I/O and
+      // in that case, you can just provide the *.fdi for SPUMONI to use.
+      if (build_doc && ref_file.length() && !is_file(output_prefix + std::string(".fa.fdi"))) {
+        FATAL_ERROR("Cannot build a document array if you are indexing a single\n"
+                    " file. If so, you need to provide a *.fdi file for that file.");
+      } else if (build_doc && ref_file.length() && is_file(output_prefix + std::string(".fa.fdi"))) {
+        WARNING("proceeding with document array construction, make sure your *.fdi is correct. \U0001F64F");
+      }
+
       // Check if we only set one type minimizers
       if (use_minimizers) {
         if (use_promotions && use_dna_letters)
