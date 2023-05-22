@@ -48,19 +48,17 @@ After installing SPUMONI on your machine, the first step would be to build an in
 For example, if you would want to do host depletion, you could index a human genome and build both the matching statistic and pseudo-matching lengths index using the command below: 
 
 ```sh
-./spumoni build -r human_genome.fa -M -P -m 
+./spumoni build -r human_genome.fa -M -P -m -o /path/to/index/output
 ```
-The command above will build an index for the reference file you provide. This command uses `-M` and `-P` which means it will build an index for computing matching statistics (MSs), and another index for computing pseudo-matching statistics (PMLs). Our experiments show that using PMLs are more accurate at binary classification while also being ~3x faster, therefore that would be our recommendation.
+The command above will build an index for the reference file you provide. This command uses `-M` and `-P` which means it will build an index for computing matching statistics (MSs), and another index for computing pseudo-matching statistics (PMLs). Our experiments show that using PMLs are more accurate at binary classification while also being ~3x faster, therefore that would be our recommendation. The `-o` flag provides an output prefix for SPUMONI to use so it can build the index and any intermediate files it needs.
 
 ## Step 2: Running Classification
 
-Once you have an index for desired experiment, you can use the `spumoni run` command to generate either MSs or PMLs for each read against the reference file that you just indexed. Similarly to the `build` command, you provide the path the reference file along with the reads you want to classify.
+Once you have an index for desired experiment, you can use the `spumoni run` command to generate either MSs or PMLs for each read against the reference file that you just indexed. Now at this step, you provide the output prefix that was used to build the index.
 
 ```sh
-./spumoni run -r spumoni_full_ref.bin -p reads.fa -P -c
+./spumoni run -r /path/to/index/output -p reads.fa -P -c
 ```
-
-The `spumoni_full_ref.bin` file is produced during the build process since SPUMONI digests references into a sequence of minimizers, and builds an index over the digestion. [Refer to the wiki to understand what file you should use as your index.](https://github.com/oma219/spumoni/wiki/5.-Running-SPUMONI-on-Input-Reads)
 
 This command uses `-P` for computing PMLs (if you want MSs, use `-M` instead) which will be used to classify the reads. Additionally, the command uses the `-c` option to write out the classifications to a report file.
 
