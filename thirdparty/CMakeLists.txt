@@ -190,7 +190,7 @@ endif()
 #----------------------------------------
 FetchContent_Declare(
   bigrepair
-  GIT_REPOSITORY https://gitlab.com/manzai/bigrepair.git
+  GIT_REPOSITORY https://gitlab.com/omaryfekry/bigrepair.git
   )
   
 FetchContent_GetProperties(bigrepair)
