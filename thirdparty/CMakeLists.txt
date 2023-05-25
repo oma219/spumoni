@@ -185,6 +185,11 @@ if(NOT pfp_thresholds_POPULATED)
   
 endif()
 
+message(STATUS "hello world ....")
+message(STATUS $ENV{CC})
+
+message(STATUS $CC)
+
 #----------------------------------------
 # Add bigrepair
 #----------------------------------------
@@ -198,9 +203,10 @@ if(NOT bigrepair_POPULATED)
   FetchContent_Populate(bigrepair)
   # add_subdirectory(${bigrepair_SOURCE_DIR} ${bigrepair_BINARY_DIR})
 
-  execute_process(COMMAND make CC=$CC gcc=$CC
+  execute_process(COMMAND make CC=$CC
         RESULT_VARIABLE result
-        WORKING_DIRECTORY ${bigrepair_SOURCE_DIR} )
+        WORKING_DIRECTORY ${bigrepair_SOURCE_DIR} 
+        COMMAND_ECHO STDOUT)
   if(result)
       message(FATAL_ERROR "CMake step for bigrepair failed: ${result}")
   endif()
