@@ -49,7 +49,6 @@ FetchContent_Declare(
 
 FetchContent_GetProperties(zlib)
 if(NOT zlib_POPULATED)
-  message (STATUS "zlib is populated.")
   FetchContent_Populate(zlib)
   add_library(zlib INTERFACE)
   include_directories(${zlib_SOURCE_DIR})
@@ -188,11 +187,6 @@ if(NOT pfp_thresholds_POPULATED)
   
 endif()
 
-message(STATUS "hello world ....")
-message(STATUS $ENV{CC})
-
-message(STATUS $CC)
-
 #----------------------------------------
 # Add bigrepair
 #----------------------------------------
@@ -232,8 +226,6 @@ if(NOT shaped_slp_POPULATED)
   set(FOLCA_SOURCE_DIR ${shaped_slp_SOURCE_DIR}/folca)
   set(SUX_SOURCE_DIR ${shaped_slp_SOURCE_DIR}/external/sux/sux)
 endif()
-
-message(STATUS "finished the thirdparty code repos ...")
 
 
 # ## Add pfp_ds
