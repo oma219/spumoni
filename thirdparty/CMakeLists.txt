@@ -198,7 +198,7 @@ if(NOT bigrepair_POPULATED)
   FetchContent_Populate(bigrepair)
   # add_subdirectory(${bigrepair_SOURCE_DIR} ${bigrepair_BINARY_DIR})
 
-  execute_process(COMMAND make
+  execute_process(COMMAND make CC=$(CC) gcc=$(CC)
         RESULT_VARIABLE result
         WORKING_DIRECTORY ${bigrepair_SOURCE_DIR} )
   if(result)
