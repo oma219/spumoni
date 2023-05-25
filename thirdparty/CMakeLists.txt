@@ -41,6 +41,7 @@ endif()
 #----------------------------------------
 # Add zlib
 #----------------------------------------
+
 FetchContent_Declare(
   zlib
   GIT_REPOSITORY https://github.com/madler/zlib.git
@@ -48,8 +49,10 @@ FetchContent_Declare(
 
 FetchContent_GetProperties(zlib)
 if(NOT zlib_POPULATED)
+  message (STATUS "zlib is populated.")
   FetchContent_Populate(zlib)
   add_library(zlib INTERFACE)
+  include_directories(${zlib_SOURCE_DIR})
   #target_include_directories(zlib INTERFACE ${zlib_SOURCE_DIR})
 endif()
 
@@ -230,6 +233,7 @@ if(NOT shaped_slp_POPULATED)
   set(SUX_SOURCE_DIR ${shaped_slp_SOURCE_DIR}/external/sux/sux)
 endif()
 
+message(STATUS "finished the thirdparty code repos ...")
 
 
 # ## Add pfp_ds
