@@ -1433,6 +1433,12 @@ void generate_null_ms_statistics(std::string ref_file, std::string pattern_file,
         std::vector<size_t> lengths, pointers;
         ms_index.matching_statistics(curr_read.c_str(), curr_read.length(), lengths, pointers);
         ms_stats.insert(ms_stats.end(), lengths.begin(), lengths.end());
+        
+        // Added some code to prevent suspiciously large null MS from
+        // being added, it might be worth uncommenting out this code in the future
+        // auto max_val = *std::max_element(lengths.begin(), lengths.end());
+        // if (max_val < 30)
+        //     ms_stats.insert(ms_stats.end(), lengths.begin(), lengths.end());
     }
     kseq_destroy(seq);
     gzclose(fp);
@@ -1466,6 +1472,12 @@ void generate_null_pml_statistics(std::string ref_file, std::string pattern_file
         std::vector<size_t> lengths;
         pml_index.matching_statistics(curr_read.c_str(), curr_read.length(), lengths);
         pml_stats.insert(pml_stats.end(), lengths.begin(), lengths.end());
+
+        // Added some code to prevent suspiciously large null MS from
+        // being added, it might be worth uncommenting out this code in the future
+        // auto max_val = *std::max_element(lengths.begin(), lengths.end());
+        // if (max_val < 10)
+        //     pml_stats.insert(pml_stats.end(), lengths.begin(), lengths.end());
     }
     kseq_destroy(seq);
     gzclose(fp);
