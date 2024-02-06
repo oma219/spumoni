@@ -422,20 +422,6 @@ void run_build_grammar_cmds(SpumoniBuildOptions* build_opts, SpumoniHelperProgra
     output_log = execute_cmd(command_stream.str().c_str());
     DONE_LOG((std::chrono::system_clock::now() - start));
     OTHER_LOG(output_log.data());
-
-    command_stream.str(""); command_stream.clear();
-
-    // Remove the temporary files not needed.
-    command_stream << "rm -f " << build_opts->ref_file << ".parse.C ";
-    command_stream << build_opts->ref_file << ".parse.R " << build_opts->ref_file << ".dicz.int ";
-    command_stream << build_opts->ref_file << ".dicz.int.C " << build_opts->ref_file << ".dicz.int.R";
-
-    LOG(build_opts->verbose, "build_grammar", ("Executing this command: " + command_stream.str()).data());
-    LOG(build_opts->verbose, "build_grammar", "removing the temporary parse and dictionary files");
-
-    start = std::chrono::system_clock::now();
-    output_log = execute_cmd(command_stream.str().c_str());
-    //TIME_LOG((std::chrono::system_clock::now() - start));
 }
 
 void run_build_slp_cmds(SpumoniBuildOptions* build_opts, SpumoniHelperPrograms* helper_bins) {
@@ -516,9 +502,10 @@ size_t run_build_pml_cmd(SpumoniBuildOptions* build_opts, SpumoniHelperPrograms*
 void rm_temp_build_files(SpumoniBuildOptions* build_opts, SpumoniHelperPrograms* helper_bins) {
     /* Generates and runs commands to remove temporary files during build process */
 
-    const char* temp_build_files[15] = {".bwt.heads", ".bwt.len", ".R", ".C", ".dict", ".dicz", ".parse_old", ".last",
-                                        ".dicz.len", ".ssa", ".esa", ".occ", ".parse", ".thr", ".thr_pos"};
-    size_t num_temp_build_files = 15;
+    const char* temp_build_files[19] = {".bwt.heads", ".bwt.len", ".R", ".C", ".dict", ".dicz", ".parse_old", ".last",
+                                        ".dicz.len", ".ssa", ".esa", ".occ", ".parse", ".thr", ".thr_pos", 
+                                        ".parse.R", ".parse.C", ".dicz.int.C", ".dicz.int.R"};
+    size_t num_temp_build_files = 19;
 
     // Build the remove command
     std::ostringstream command_stream;
@@ -580,9 +567,10 @@ int build_main(int argc, char** argv) {
     helper_bins.validate();
 
     // Variables needed for identifying required build files
-    const char* temp_build_files[15] = {".bwt.heads", ".bwt.len", ".R", ".C", ".dict", ".dicz", ".parse_old", ".last",
-                                        ".dicz.len", ".ssa", ".esa", ".occ", ".parse", ".thr", ".thr_pos"};
-    size_t num_temp_build_files = 15;
+    const char* temp_build_files[19] = {".bwt.heads", ".bwt.len", ".R", ".C", ".dict", ".dicz", ".parse_old", ".last",
+                                        ".dicz.len", ".ssa", ".esa", ".occ", ".parse", ".thr", ".thr_pos",
+                                        ".parse.R", ".parse.C", ".dicz.int.C", ".dicz.int.R"};
+    size_t num_temp_build_files = 19;
 
     // Check all needed files are already present
     std::filesystem::path p1 = build_opts.output_prefix;
@@ -779,7 +767,7 @@ int spumoni_usage () {
 
 int main(int argc, char **argv) {
     /* main method for spumoni */
-    std::fprintf(stdout, "\n\033[1m\033[31mSPUMONI version: %s \033[0m\n\n", SPUMONI_VERSION);
+    std::fprintf(stderr, "\n\033[1m\033[31mSPUMONI version: %s \033[0m\n\n", SPUMONI_VERSION);
 
     if (argc > 1) {
         if (std::strcmp(argv[1], "build") == 0)
