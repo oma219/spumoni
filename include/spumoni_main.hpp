@@ -15,6 +15,11 @@
 #include <vector>
 #include <stdlib.h>
 
+/* DEBUG macros */
+#define DEBUG 0
+#define DBG_ONLY(...)  do { if (DEBUG) {std::fprintf(stderr, "\n[DEBUG] "); \
+                            std::fprintf(stderr, __VA_ARGS__); std::fprintf(stderr, "\n");}} while (0)
+
 /* Commonly Used MACROS */
 #define SPUMONI_VERSION "2.0.7"
 #define NOT_IMPL(x) do { std::fprintf(stderr, "%s is not implemented: %s\n", __func__, x); std::exit(1);} while (0)
@@ -50,11 +55,6 @@
 #define OTHER_LOG(x) if (DEBUG) {std::stringstream str(x); std::string str_out;\
                                  while (std::getline(str, str_out, '\n')) { \
                                  std::fprintf(stderr, "[helper-prog] %s\n", str_out.data());}} 
-
-/* DEBUG macros */
-#define DEBUG 0
-#define DBG_ONLY(...)  do { if (DEBUG) {std::fprintf(stderr, "\n[DEBUG] "); \
-                            std::fprintf(stderr, __VA_ARGS__); std::fprintf(stderr, "\n");}} while (0)
 
 /* Type Definitions */
 typedef uint64_t ulint;
