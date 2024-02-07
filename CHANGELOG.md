@@ -2,7 +2,11 @@
 
 - This log started being maintained at v2.0.0, therefore, there are not specific version labels for previous versions of SPUMONI besides the git commit id.
 
-## v2.0.7 - latest
+## v2.0.8 - latest
+- Fixed bug related to SLP creation when the hash value of first w-mer is `mod 0`
+- Updated remove temporary file flag to control all the grammar files as well (*.R and *.C)
+
+## v2.0.7
 - Worked on speeding up construction of sampled document array
 
 ## v2.0.6
