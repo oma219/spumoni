@@ -241,17 +241,20 @@ ms_rle_string<ri::sparse_sd_vector, ri::huff_string>::ms_rle_string(std::ifstrea
 
     // Compute runs_bv and runs_per_letter_bv
     for (size_t i = 0; i < run_heads_s.size(); ++i) {
+
+        uint8_t curr_ch = unsigned(run_heads_s[i] & 0xFF);
+
         size_t length = 0;
         lengths.read((char *)&length, 5);
-        if (run_heads_s[i] <= TERMINATOR) // change 0 to 1
-            run_heads_s[i] = TERMINATOR;
+        if (curr_ch <= TERMINATOR) // change 0 to 1
+            curr_ch = TERMINATOR;
 
         if(i % B == B - 1)
             runs_bv_onset.push_back(this->n + length - 1);
 
         assert(length > 0);
-        runs_per_letter_bv_i[run_heads_s[i]] += length;
-        runs_per_letter_bv[run_heads_s[i]].push_back(runs_per_letter_bv_i[run_heads_s[i]] - 1);
+        runs_per_letter_bv_i[curr_ch] += length;
+        runs_per_letter_bv[curr_ch].push_back(runs_per_letter_bv_i[curr_ch] - 1);
         this->n += length;
 
     }

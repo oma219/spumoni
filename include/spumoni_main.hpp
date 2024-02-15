@@ -21,7 +21,7 @@
                             std::fprintf(stderr, __VA_ARGS__); std::fprintf(stderr, "\n");}} while (0)
 
 /* Commonly Used MACROS */
-#define SPUMONI_VERSION "2.0.8"
+#define SPUMONI_VERSION "2.0.9"
 #define NOT_IMPL(x) do { std::fprintf(stderr, "%s is not implemented: %s\n", __func__, x); std::exit(1);} while (0)
 #define THROW_EXCEPTION(x) do { throw x;} while (0)
 //#define FATAL_WARNING(x) do {std::fprintf(stderr, "Warning: %s\n\n", x); std::exit(1);} while (0)
