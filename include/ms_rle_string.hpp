@@ -61,18 +61,20 @@ public:
         {
             size_t length;
             lengths.read((char *)&length, 5);
-            if (run_heads_s[i] <= TERMINATOR) // change 0 to 1
+
+            uint8_t curr_ch = unsigned(run_heads_s[i]);
+            if (curr_ch <= TERMINATOR) { // change 0 to 1
                 run_heads_s[i] = TERMINATOR;
+            }
 
             std::fill_n(std::back_inserter(runs_bv), length - 1, false);
             runs_bv.push_back(i % B == B - 1);
 
-            std::fill_n(std::back_inserter(runs_per_letter_bv[run_heads_s[i]]), length - 1, false);
-            runs_per_letter_bv[run_heads_s[i]].push_back(true);
+            std::fill_n(std::back_inserter(runs_per_letter_bv[curr_ch]), length - 1, false);
+            runs_per_letter_bv[curr_ch].push_back(true);
 
             this->n += length;
         }
-
 
         // Now compact the structures
         assert(runs_bv.size() == this->n);
@@ -241,13 +243,13 @@ ms_rle_string<ri::sparse_sd_vector, ri::huff_string>::ms_rle_string(std::ifstrea
 
     // Compute runs_bv and runs_per_letter_bv
     for (size_t i = 0; i < run_heads_s.size(); ++i) {
-
-        uint8_t curr_ch = unsigned(run_heads_s[i] & 0xFF);
-
         size_t length = 0;
         lengths.read((char *)&length, 5);
-        if (curr_ch <= TERMINATOR) // change 0 to 1
-            curr_ch = TERMINATOR;
+
+        uint8_t curr_ch = unsigned(run_heads_s[i]);
+        if (curr_ch <= TERMINATOR) { // change 0 to 1
+            run_heads_s[i] = TERMINATOR;
+        }
 
         if(i % B == B - 1)
             runs_bv_onset.push_back(this->n + length - 1);
@@ -274,6 +276,14 @@ ms_rle_string<ri::sparse_sd_vector, ri::huff_string>::ms_rle_string(std::ifstrea
 
     this->run_heads = ri::huff_string(run_heads_s);
     assert(this->run_heads.size() == this->R);
+
+    // debugging:
+    // for (size_t i = 0; i < 256; i++) {
+    //     std::cout << "i = " << i << ", runs_per_letter_size = " << this->runs_per_letter[i].size() << std::endl;
+    // }
+    // for (size_t i = 0; i < 256; i++) {
+    //     std::cout << "i = " << i << ", huffstring.rank() = " << this->run_heads.rank(this->run_heads.size(), i) << std::endl;
+    // }
 };
 
 typedef ms_rle_string<ri::sparse_sd_vector> ms_rle_string_sd;

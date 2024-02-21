@@ -801,8 +801,10 @@ public:
 
         for (size_t i = 0; i < pointers.size(); ++i) {
             size_t pos = pointers[i];
-            while ((i + l) < read_length && (pos + l) < n && (i < 1 || pos != (pointers[i-1] + 1) ) && read[i + l] == ra.charAt(pos + l))
+
+            while ((i + l) < read_length && (pos + l) < n && (i < 1 || pos != (pointers[i-1] + 1) ) && read[i + l] == ra.charAt(pos + l)) {
                 ++l;
+            }
             lengths[i] = l;
             l = (l == 0 ? 0 : (l - 1));
         }
