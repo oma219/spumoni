@@ -25,7 +25,7 @@ endif()
 #----------------------------------------
 FetchContent_Declare(
   klib
-  GIT_REPOSITORY https://github.com/attractivechaos/klib
+  GIT_REPOSITORY https://github.com/oma219/klib
 )
 
 FetchContent_GetProperties(klib)
